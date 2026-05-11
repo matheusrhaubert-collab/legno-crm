@@ -1536,13 +1536,14 @@ async function salvarAmbienteDetalhe() {
     if (idx>=0) lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
   }
   // Push lead with updated ambiente to Supabase
+  const proj = DB.projetos.find(x=>x.id===_ambProjetoId);
+  const lead2 = DB.leads.find(l=>l.id===proj?.leadId);
   try {
-    await pushLead(lead2 || lead);
+    const leadToSave = lead2 || lead;
+    if (leadToSave) await pushLead(leadToSave);
     renderProjetos();
   } catch(e) { toast('Erro ao salvar ambiente: ' + e.message); }
   // Legacy Sheets (disabled)
-  const proj = DB.projetos.find(x=>x.id===_ambProjetoId);
-  const lead2 = DB.leads.find(l=>l.id===proj?.leadId);
   if (lead2 && _ambObj) {
     const payload = {
       leadId: lead2.id,
@@ -2020,9 +2021,7 @@ async function saveConfig() {
 }
 
 async function saveDB() {
-  // 100% Supabase — no localStorage
-  await pushToSupabase();
-  renderAll();
+  // No-op: all saves go directly to Supabase via push* functions
 }
 
 async function pushToSupabase() {
@@ -2060,7 +2059,8 @@ async function pushTarefa(t) {
     id: t.id, titulo: t.titulo, descricao: t.descricao||'',
     data: t.data||null, prioridade: t.prioridade||'Média',
     responsavel: t.responsavel||'', cliente: t.cliente||'',
-    lead_id: t.leadId||'', concluida: t.concluida||false
+    lead_id: t.leadId||'', concluida: t.concluida||false,
+    criado_em: t.criadoEm || new Date().toISOString()
   }], 'resolution=merge-duplicates');
 }
 
@@ -2933,7 +2933,10 @@ async function moverParaProjeto(id) {
     estimate:'', ambientes:[], leadId:id
   };
   DB.projetos.unshift(proj);
-  saveDB();
+  try {
+    await pushProjeto(proj);
+    await pushLead(l);
+  } catch(e) { toast('Erro: ' + e.message); }
   renderAll();
   toast(`${l.nome} adicionado a Projetos! ✓`);
   goPage('projetos');
@@ -2946,9 +2949,8 @@ async function moverProjeto(id, status) {
   const p = DB.projetos.find(x=>x.id===id);
   if (!p) return;
   p.status = status;
-  saveDB();
+  try { await pushProjeto(p); } catch(e) {}
   renderAll();
-  renderPipeline();
   toast('Status atualizado!');
 }
 
@@ -3036,7 +3038,6 @@ async function gerarContrato() {
     p.contrato = true;
     p.ambientes = selecionados.map(a=>a.nome);
     p.valor = '$ '+selecionados.reduce((s,a)=>s+a.preco,0).toLocaleString('pt-BR');
-    saveDB();
     closeModal('contrato');
     renderAll();
     toast('Contrato gerado e enviado! ✓');
@@ -3068,8 +3069,7 @@ async function agendarApresentacao() {
     obs: document.getElementById('ap-obs').value,
   };
   p.estimate = payload.estimate || p.estimate;
-  if (CFG.agenda) fetch(CFG.agenda,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
-  saveDB();
+  try { await pushProjeto(p); } catch(e) {}
   closeModal('apres');
   renderAll();
   toast('Apresentação agendada! ✓');
@@ -3082,7 +3082,7 @@ function openDetalhe(tipo, id) {
   // Clear 'novo' flag when user opens the lead
   if (tipo === 'lead') {
     const l = DB.leads.find(x => x.id === id);
-    if (l && l.novo) { l.novo = false; saveDB(); renderLeads(); }
+    if (l && l.novo) { l.novo = false; pushLead(l).catch(()=>{}); renderLeads(); }
   }
   let item, body='', footer='';
   if (tipo==='lead') item = DB.leads.find(x=>x.id===id);
@@ -3466,7 +3466,6 @@ async function salvarFinanceiro() {
       sobraPct: fmtN(sobraPctV)
     };
   });
-  saveDB();
 
   // Send financial data per ambiente to Ambientes webhook
   ambientesData.forEach(amb => {
@@ -3518,7 +3517,7 @@ async function salvarFinanceiro() {
     fetch(finWH, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}).catch(()=>{});
   }
   renderAll();
-  toast('Financeiro salvo! ✓');
+  toast('✓ Financeiro salvo no banco!');
   closeModal('financeiro');
 }
 
@@ -3683,7 +3682,7 @@ function renderProducao(filter='') {
       <div class="card-footer">
         <div class="card-actions">
           <button class="btn btn-sm" onclick="event.stopPropagation();abrirObsProd('${p.id}')">📝 Obs</button>
-          <button class="btn btn-sm" style="color:var(--red)" onclick="event.stopPropagation();if(confirm('Remover da produção?')){DB.producao=DB.producao.filter(x=>x.id!=='${p.id}');saveDB();renderAll();}">✕</button>
+          <button class="btn btn-sm" style="color:var(--red)" onclick="event.stopPropagation();if(confirm('Remover da produção?')){deleteProducao('${p.id}').then(()=>{DB.producao=DB.producao.filter(x=>x.id!=='${p.id}');renderAll();}).catch(e=>toast('Erro: '+e.message));}">✕</button>
         </div>
         <div style="font-size:11px;color:var(--text3)">Enviado: ${formatDate(p.dataEnvio)}</div>
       </div>
@@ -3718,7 +3717,7 @@ async function abrirObsProd(prodId) {
   const p = (DB.producao||[]).find(x=>x.id===prodId);
   if (!p) return;
   const obs = prompt('Observações de produção:', p.obs||'');
-  if (obs !== null) { p.obs = obs; saveDB(); renderProducao(); }
+  if (obs !== null) { p.obs = obs; pushProducao(p).catch(()=>{}); renderProducao(); }
 }
 
 // ══════════════════════════════════════════
@@ -3967,8 +3966,11 @@ async function salvarNovaTarefa() {
     document.getElementById('nt-titulo').value = '';
     document.getElementById('nt-descricao').value = '';
     document.getElementById('nt-cliente').value = '';
-    toast('✓ Tarefa criada!');
-  } catch(e) { toast('Erro ao criar tarefa: ' + e.message); }
+    toast('✓ Tarefa salva no banco!');
+  } catch(e) {
+    console.error('Erro tarefa:', e);
+    toast('Erro ao salvar tarefa: ' + e.message);
+  }
 }
 
 checkSession();
