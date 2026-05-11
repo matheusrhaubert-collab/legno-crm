@@ -2030,7 +2030,7 @@ function init() {
   // Load from Supabase (replaces Google Sheets sync)
   loadFromSupabase();
   // Auto-sync every 2 minutes
-  setInterval(loadFromSupabase, 120000);
+  setInterval(loadFromSupabase, 60000);
 }
 
 function checkSession() {
@@ -2445,6 +2445,7 @@ function renderLeads(filter='') {
           
           ${l.status!=='desqualificado'?`<button class="btn btn-sm" style="color:var(--red)" onclick="event.stopPropagation();abrirDesqualificar('${l.id}')">✕ Desqualificar</button>`:''}
           ${l.status==='desqualificado'?`<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();requalificarLead('${l.id}')">↩ Requalificar</button>`:''}
+          <button class="btn btn-sm" style="color:var(--text3);border-color:transparent;margin-left:auto" onclick="event.stopPropagation();confirmarDeletarLead('${l.id}','${l.nome.replace(/'/g,String.fromCharCode(39))}')" title="Deletar">🗑</button>
         </div>
       </div>
     </div>`).join('');
@@ -4053,6 +4054,35 @@ async function salvarNovaTarefa() {
   }
 }
 
+
+// ══════════════════════════════════════════
+// DELETAR LEAD
+// ══════════════════════════════════════════
+function confirmarDeletarLead(id, nome) {
+  const senha = prompt(`⚠️ Deletar "${nome}" permanentemente?\n\nDigite a senha para confirmar:`);
+  if (senha === null) return; // cancelled
+  if (senha !== '1234') { toast('❌ Senha incorreta.'); return; }
+  deletarLead(id, nome);
+}
+
+async function deletarLead(id, nome) {
+  try {
+    // Delete from leads
+    await sbFetch('leads?id=eq.' + id, 'DELETE');
+    // Delete associated projeto
+    const proj = DB.projetos.find(p => p.leadId === id);
+    if (proj) {
+      await sbFetch('projetos?id=eq.' + proj.id, 'DELETE');
+      DB.projetos = DB.projetos.filter(p => p.leadId !== id);
+    }
+    // Remove from local DB
+    DB.leads = DB.leads.filter(l => l.id !== id);
+    renderAll();
+    toast(`✓ "${nome}" deletado.`);
+  } catch(e) {
+    toast('Erro ao deletar: ' + e.message);
+  }
+}
 checkSession();
 </script>
 
