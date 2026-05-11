@@ -2137,6 +2137,7 @@ async function pushProjeto(p) {
     data: p.data||new Date().toISOString().slice(0,10), estimate: p.estimate||'',
     ambientes: p.ambientes||[], lead_id: p.leadId||null,
     contrato_aprovado: p.contratoAprovado||false,
+    proposta_aceita: p.propostaAceita||false,
     fin_preco_final: p.finPrecoFinal||0, fin_sobra_pct: p.finSobraPct||0,
     fin_multiplicador: p.finMultiplicador||3, fin_montagem: p.finMontagem||20,
     fin_comissao: p.finComissao||0, fin_comissao_tipo: p.finComissaoTipo||'percent',
@@ -2598,15 +2599,30 @@ function renderProjetos(filter='') {
           ${(()=>{
             const todos2 = (lead?.ambientesBriefing||[]);
             const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
-            const podeEnviar = p.contratoAprovado && aprovados2.length > 0;
+            const proposalGerada = !!(todos2.length>0 && todos2.filter(a=>(a.imagens||[]).length>0 && a.xmlNome).length===todos2.length);
+
+            // Botão Proposta aceita (só aparece se proposal foi gerada)
+            const btnProposta = p.propostaAceita
+              ? `<button class="btn btn-sm" style="border-color:var(--green);color:var(--green)" onclick="event.stopPropagation()">✓ Proposta aceita</button>`
+              : proposalGerada
+                ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Proposta aceita</button>`
+                : `<button class="btn btn-sm" style="opacity:0.4;cursor:not-allowed" title="Gere a Proposal primeiro" disabled>✅ Proposta aceita</button>`;
+
+            // Botão Aprovar contrato (só se proposta aceita)
             const btnContrato = p.contratoAprovado
               ? `<button class="btn btn-sm" style="border-color:var(--green);color:var(--green)" onclick="event.stopPropagation()">✓ Contrato aprovado</button>`
-              : `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();aprovarContratoProjeto('${p.id}')">📄 Aprovar contrato</button>`;
-            const motivo = !p.contratoAprovado ? 'Aprove o contrato primeiro' : aprovados2.length===0 ? 'Aprove ao menos um ambiente' : '';
+              : p.propostaAceita
+                ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();aprovarContratoProjeto('${p.id}')">📄 Aprovar contrato</button>`
+                : `<button class="btn btn-sm" style="opacity:0.4;cursor:not-allowed" title="Aceite a proposta primeiro" disabled>📄 Aprovar contrato</button>`;
+
+            // Botão Enviar pra produção (só se contrato aprovado e ambientes aprovados)
+            const podeEnviar = p.contratoAprovado && aprovados2.length > 0;
+            const motivo = !p.propostaAceita ? 'Aceite a proposta primeiro' : !p.contratoAprovado ? 'Aprove o contrato primeiro' : aprovados2.length===0 ? 'Aprove ao menos um ambiente' : '';
             const btnProd = podeEnviar
               ? `<button class="btn btn-sm" style="background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção (${aprovados2.length})</button>`
               : `<button class="btn btn-sm" style="opacity:0.4;cursor:not-allowed" title="${motivo}" disabled>🏭 Enviar pra produção</button>`;
-            return btnContrato + btnProd;
+
+            return btnProposta + btnContrato + btnProd;
           })()}
         </div>
       </div>`;
@@ -3697,6 +3713,17 @@ async function enviarProducao(projetoId) {
   } catch(e) { toast('Erro ao enviar para produção: ' + e.message); }
 }
 
+
+async function aceitarProposta(projetoId) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  p.propostaAceita = true;
+  try {
+    await pushProjeto(p);
+    renderProjetos();
+    toast('✓ Proposta aceita!');
+  } catch(e) { toast('Erro: ' + e.message); }
+}
 async function aprovarContratoProjeto(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
