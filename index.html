@@ -273,6 +273,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .user-logout{margin-left:auto;font-size:11px;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px}
 .user-logout:hover{color:var(--red)}
 
+/* ── PROJECT 4-PANEL CARD ── */
+@media(max-width:768px){
+  .proj-panels{grid-template-columns:repeat(2,1fr)!important}
+}
+@media(max-width:480px){
+  .proj-panels{grid-template-columns:1fr!important}
+}
+
 /* ── AGENDA ── */
 .agenda-day-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);margin:1px auto 0}
 .filtro-rapido{border-color:var(--border2);color:var(--text2)}
@@ -2658,97 +2666,209 @@ function renderProjetos(filter='') {
     el.innerHTML = items.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
+
+      // ── Dados Briefing ──
+      const briefingSteps = ['Estilo e referências','Funcionalidades','Preferências de materiais','Orçamento esperado'];
+      const briefingOk = (lead?.briefingCompleto || 0);
+      const briefingPct = Math.round((briefingOk / briefingSteps.length) * 100);
+      const briefingStatus = briefingOk >= briefingSteps.length ? 'Concluído' : briefingOk > 0 ? 'Em andamento' : 'Pendente';
+      const briefingStatusColor = briefingOk >= briefingSteps.length ? 'var(--green)' : briefingOk > 0 ? 'var(--gold)' : 'var(--text3)';
+      const briefingStatusBg = briefingOk >= briefingSteps.length ? 'var(--green-dim)' : briefingOk > 0 ? 'var(--gold-dim)' : 'var(--bg4)';
+
+      // ── Dados Proposta ──
+      const prontos = ambientes.filter(a=>(a.imagens||[]).length>0 && a.xmlNome);
+      const proposalPronta = ambientes.length > 0 && prontos.length === ambientes.length;
+      const proposalStatus = p.propostaAceita ? 'Aceita' : proposalPronta ? 'Pronta p/ envio' : ambientes.length === 0 ? 'Aguardando briefing' : 'Aguardando envio';
+      const proposalStatusColor = p.propostaAceita ? 'var(--green)' : proposalPronta ? 'var(--gold)' : 'var(--text3)';
+      const proposalStatusBg = p.propostaAceita ? 'var(--green-dim)' : proposalPronta ? 'var(--gold-dim)' : 'var(--bg4)';
+
+      // ── Dados Financeiro ──
+      const finOk = !!p.finPrecoFinal;
+      const pct = p.finSobraPct || 0;
+      const finCor = pct >= 40 ? '#b090e0' : pct >= 30 ? 'var(--green)' : pct >= 15 ? 'var(--amber)' : 'var(--red)';
+      const finStatus = finOk ? 'Atualizado' : 'Pendente';
+      const finStatusColor = finOk ? 'var(--green)' : 'var(--text3)';
+      const finStatusBg = finOk ? 'var(--green-dim)' : 'var(--bg4)';
+
+      // ── Botões da barra inferior ──
+      const todos2 = ambientes;
+      const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
+      const btnProposta = p.propostaAceita
+        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);cursor:default" onclick="event.stopPropagation()">✓ Proposta aceita</button>`
+        : proposalPronta
+          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Proposta aceita</button>`
+          : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
+      const btnContrato = p.contratoAprovado
+        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);cursor:default" onclick="event.stopPropagation()">✓ Contrato aprovado</button>`
+        : p.propostaAceita
+          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aprovarContratoProjeto('${p.id}')">📄 Aprovar contrato</button>`
+          : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📄 Aprovar contrato</button>`;
+      const podeEnviar = p.contratoAprovado && aprovados2.length > 0;
+      const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : !p.contratoAprovado ? 'Aprove o contrato primeiro' : 'Aprove ao menos um ambiente';
+      const btnProd = podeEnviar
+        ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção (${aprovados2.length})</button>`
+        : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" title="${motivoEnvio}" disabled>🏭 Enviar pra produção</button>`;
+
+      // ── Venda badge no header ──
+      const vendaBadge = p.finPrecoFinal ? (()=>{
+        const flag = pct >= 40 ? '🟣' : pct >= 30 ? '🟢' : pct >= 15 ? '🟡' : '🔴';
+        return `<span style="font-size:11px;padding:3px 10px;border-radius:99px;color:${finCor};background:rgba(0,0,0,0.3);border:1px solid ${finCor};white-space:nowrap">${flag} Venda: ${formatCurrency(p.finPrecoFinal)} · ${pct.toFixed(1)}%</span>`;
+      })() : '';
+
       return `
-      <div class="card" onclick="verAmbientesCliente('${p.id}')">
-        <div class="card-header">
-          <div>
-            <div class="card-name">${p.nome}</div>
-            <div class="card-sub">${p.tipo||''} · ${ambientes.length} ambiente(s)</div>
+      <div class="card" style="padding:0;overflow:hidden;cursor:default">
+
+        <!-- ── HEADER ── -->
+        <div style="padding:16px 18px 12px;border-bottom:0.5px solid var(--border)">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="verAmbientesCliente('${p.id}')">${p.nome}</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:2px">${p.tipo||'Homeowner'} · ${ambientes.length} ambiente(s) · 📅 ${formatDate(p.data)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              ${vendaBadge}
+              <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">Apresentação →</button>
+            </div>
           </div>
-          ${statusProjBadge(p.status||'inicial')}
+          <!-- Ambientes pills -->
+          ${ambientes.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:10px">
+            ${ambientes.slice(0,6).map(a=>{
+              const temImg = (a.imagens||[]).length > 0;
+              const temXml = !!a.xmlNome;
+              const pronto = temImg && temXml;
+              const cor = pronto ? 'var(--green)' : (temImg||temXml) ? 'var(--gold)' : 'var(--text3)';
+              const bg = pronto ? 'rgba(92,184,130,0.08)' : (temImg||temXml) ? 'rgba(201,169,110,0.08)' : 'rgba(255,255,255,0.03)';
+              const border = pronto ? 'rgba(92,184,130,0.3)' : (temImg||temXml) ? 'rgba(201,169,110,0.3)' : 'rgba(255,255,255,0.07)';
+              return `<span style="font-size:11px;padding:3px 9px;background:${bg};border:1px solid ${border};border-radius:99px;color:${cor};display:inline-flex;align-items:center;gap:3px">
+                ${a.nome||a.tipo}${temXml?'<span style="font-size:9px">📐</span>':''}${temImg?'<span style="font-size:9px">🖼</span>':''}
+              </span>`;
+            }).join('')}
+            ${ambientes.length>6?`<span style="font-size:11px;color:var(--text3);padding:3px 6px">+${ambientes.length-6} mais</span>`:''}
+          </div>` : ''}
         </div>
-        <div class="card-meta">
-          <span>📅 ${formatDate(p.data)}</span>
-          ${p.estimate?`<span>💰 ${formatCurrency(p.estimate)}</span>`:''}
-          ${p.finPrecoFinal ? (()=>{
-            const pct = p.finSobraPct || 0;
-            const cor = pct >= 40 ? '#b090e0' : pct >= 30 ? 'var(--green)' : pct >= 15 ? '#d4944a' : 'var(--red)';
-            const bg = pct >= 40 ? 'rgba(176,144,224,0.12)' : pct >= 30 ? 'var(--green-dim)' : pct >= 15 ? 'var(--amber-dim)' : 'var(--red-dim)';
-            const flag = pct >= 40 ? '🟣' : pct >= 30 ? '🟢' : pct >= 15 ? '🟡' : '🔴';
-            return `<span style="color:${cor};background:${bg};padding:2px 8px;border-radius:99px;font-size:11px">${flag} Venda: ${formatCurrency(p.finPrecoFinal)} · ${pct.toFixed(1)}%</span>`;
-          })() : ''}
-        </div>
-        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
-          ${ambientes.slice(0,5).map(a=>{
-            const temImg = (a.imagens||[]).length > 0;
-            const temXml = !!a.xmlNome;
-            const pronto = temImg && temXml;
-            const cor = pronto ? 'var(--green)' : (temImg||temXml) ? 'var(--gold)' : 'var(--text3)';
-            const bg = pronto ? 'rgba(92,184,130,0.1)' : (temImg||temXml) ? 'rgba(201,169,110,0.1)' : 'var(--bg4)';
-            const border = pronto ? '1px solid rgba(92,184,130,0.3)' : (temImg||temXml) ? '1px solid rgba(201,169,110,0.3)' : '1px solid transparent';
-            return `<span style="font-size:11px;padding:3px 10px;background:${bg};border:${border};border-radius:99px;color:${cor};display:inline-flex;align-items:center;gap:4px">
-              ${a.nome||a}
-              ${temImg?'<span title="Tem imagens" style="font-size:10px">🖼</span>':''}
-              ${temXml?'<span title="Tem XML" style="font-size:10px">📐</span>':''}
-            </span>`;
-          }).join('')}
-          ${ambientes.length>5?`<span style="font-size:11px;color:var(--text3)">+${ambientes.length-5} mais</span>`:''}
-        </div>
-        <div class="card-footer" style="margin-top:10px">
-          <div class="card-actions">
-            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">Ver ambientes</button>
-            <button class="btn btn-sm ${lead?.ambientesBriefing?.length?'':'border-gold'}" style="${lead?.ambientesBriefing?.length?'border-color:var(--green);color:var(--green)':''}" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">
-              ${lead?.ambientesBriefing?.length?'✓ Briefing':'Briefing'}
-            </button>
-            ${(()=>{
-              const todos = (lead?.ambientesBriefing||[]);
-              const prontos = todos.filter(a=>(a.imagens||[]).length>0 && a.xmlNome);
-              const tudo = todos.length>0 && prontos.length===todos.length;
-              return tudo
-                ? `<button class="btn btn-sm" style="background:var(--gold);color:#0d0d0d;border-color:var(--gold);font-weight:500" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar Proposal</button>`
-                : `<button class="btn btn-sm" style="opacity:0.4;cursor:not-allowed" title="${todos.length===0?'Preencha o briefing primeiro':prontos.length+'/'+todos.length+' ambientes prontos (faltam imagens ou XML)'}">📄 Gerar Proposal</button>`;
-            })()}
-            ${(()=>{
-              const todos = (lead?.ambientesBriefing||[]);
-              const comXml = todos.filter(a=>a.xmlNome);
-              const todosComXml = todos.length>0 && comXml.length===todos.length;
-              return todosComXml
-                ? `<button class="btn btn-sm" style="border-color:var(--green);color:var(--green);font-weight:500" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">💵 Financeiro</button>`
-                : '';
-            })()}
+
+        <!-- ── 4 PAINÉIS ── -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:0.5px solid var(--border)">
+
+          <!-- AMBIENTES -->
+          <div style="padding:14px 16px;border-right:0.5px solid var(--border);cursor:pointer" onclick="verAmbientesCliente('${p.id}')">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <span style="font-size:16px">🪵</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">Ambientes</span>
+            </div>
+            <div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:var(--green-dim);color:var(--green);margin-bottom:10px">${ambientes.length} ambiente${ambientes.length!==1?'s':''}</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Status</div>
+            ${ambientes.slice(0,3).map(a=>`
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <span style="width:7px;height:7px;border-radius:50%;background:${a.aprovado==='aprovado'?'var(--green)':a.aprovado==='reprovado'?'var(--red)':'var(--gold)'};flex-shrink:0"></span>
+                <span style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.nome||a.tipo}</span>
+                <span style="font-size:10px;color:var(--text3);margin-left:auto;flex-shrink:0">${a.aprovado==='aprovado'?'✓':a.aprovado==='reprovado'?'✕':'▲'}</span>
+              </div>`).join('')}
+            ${ambientes.length>3?`<div style="font-size:11px;color:var(--text3);margin-top:2px">+${ambientes.length-3} mais</div>`:''}
+            <div style="margin-top:10px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
+            </div>
+          </div>
+
+          <!-- BRIEFING -->
+          <div style="padding:14px 16px;border-right:0.5px solid var(--border);cursor:pointer" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <span style="font-size:16px">📋</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">Briefing</span>
+            </div>
+            <div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:${briefingStatusBg};color:${briefingStatusColor};margin-bottom:10px">${briefingStatus}</div>
+            <!-- barra de progresso -->
+            <div style="background:var(--bg4);border-radius:99px;height:4px;margin-bottom:10px;overflow:hidden">
+              <div style="height:100%;width:${briefingPct}%;background:${briefingStatusColor};border-radius:99px;transition:width 0.3s"></div>
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Progresso ${briefingOk}/${briefingSteps.length}</div>
+            ${briefingSteps.map((s,i)=>`
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                <span style="width:14px;height:14px;border-radius:50%;background:${i<briefingOk?'var(--green)':'var(--bg4)'};border:1.5px solid ${i<briefingOk?'var(--green)':'var(--border2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:#0d0d0d">${i<briefingOk?'✓':''}</span>
+                <span style="font-size:11px;color:${i<briefingOk?'var(--text2)':'var(--text3)'}">${s}</span>
+              </div>`).join('')}
+            <div style="margin-top:10px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">📋 Ver briefing</button>
+            </div>
+          </div>
+
+          <!-- PROPOSTA -->
+          <div style="padding:14px 16px;border-right:0.5px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <span style="font-size:16px">📄</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">Proposta</span>
+            </div>
+            <div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:${proposalStatusBg};color:${proposalStatusColor};margin-bottom:10px">${proposalStatus}</div>
+            ${proposalPronta || p.propostaAceita ? `
+              <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Ambientes prontos</div>
+              ${ambientes.slice(0,3).map(a=>`
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                  <span style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${a.nome||a.tipo}</span>
+                  <span style="font-size:12px;color:var(--gold);font-family:'DM Mono',monospace">$ ${(a.finPrecoFinal||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                </div>`).join('')}
+              ${ambientes.length>3?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-3} mais</div>`:''}
+            ` : `
+              <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:6px">
+                ${ambientes.length===0?'Cadastre os ambientes no briefing para liberar a proposta.':`${prontos.length}/${ambientes.length} ambientes prontos — faltam imagens ou XML.`}
+              </div>
+            `}
+            <div style="margin-top:10px">
+              ${proposalPronta
+                ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
+                : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.4;cursor:not-allowed" disabled>📄 Gerar proposta</button>`
+              }
+            </div>
+          </div>
+
+          <!-- FINANCEIRO -->
+          <div style="padding:14px 16px;cursor:pointer" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <span style="font-size:16px">📊</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">Financeiro</span>
+            </div>
+            <div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:${finStatusBg};color:${finStatusColor};margin-bottom:10px">${finStatus}</div>
+            ${finOk ? `
+              <div style="margin-bottom:6px">
+                <div style="font-size:11px;color:var(--text3)">Total do projeto</div>
+                <div style="font-size:18px;font-weight:600;color:var(--text);font-family:'DM Mono',monospace">$ ${(p.estimate||0).toLocaleString('en-US',{minimumFractionDigits:2})}</div>
+              </div>
+              <div style="margin-bottom:4px">
+                <div style="font-size:11px;color:var(--text3)">Venda prevista</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:13px;font-weight:500;color:${finCor};font-family:'DM Mono',monospace">$ ${p.finPrecoFinal.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                  <span style="font-size:11px;padding:1px 6px;border-radius:99px;background:${finCor === 'var(--red)'?'var(--red-dim)':finCor==='var(--amber)'?'var(--amber-dim)':'var(--green-dim)'};color:${finCor}">${pct >= 0 ? '' : ''}${pct.toFixed(1)}%</span>
+                </div>
+              </div>
+              <div style="margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+                  <span style="font-size:11px;color:var(--text3)">Custo dos produtos</span>
+                  <span style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace">$ ${(p.estimate||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+                  <span style="font-size:11px;color:var(--text3)">Margem bruta</span>
+                  <span style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace">$ ${((p.finPrecoFinal||0)-(p.estimate||0)).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="font-size:11px;color:var(--text3)">Margem</span>
+                  <span style="font-size:11px;font-weight:600;color:${finCor}">${pct.toFixed(1)}%</span>
+                </div>
+              </div>
+            ` : `
+              <div style="color:var(--text3);font-size:12px;line-height:1.5">Nenhum dado financeiro registrado ainda.</div>
+            `}
+            <div style="margin-top:10px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro</button>
+            </div>
           </div>
         </div>
-        <!-- Contrato e Enviar Produção -->
-        <div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          ${(()=>{
-            const todos2 = (lead?.ambientesBriefing||[]);
-            const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
-            const proposalGerada = !!(todos2.length>0 && todos2.filter(a=>(a.imagens||[]).length>0 && a.xmlNome).length===todos2.length);
 
-            // Botão Proposta aceita (só aparece se proposal foi gerada)
-            const btnProposta = p.propostaAceita
-              ? `<button class="btn btn-sm" style="border-color:var(--green);color:var(--green)" onclick="event.stopPropagation()">✓ Proposta aceita</button>`
-              : proposalGerada
-                ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Proposta aceita</button>`
-                : `<button class="btn btn-sm" style="opacity:0.4;cursor:not-allowed" title="Gere a Proposal primeiro" disabled>✅ Proposta aceita</button>`;
-
-            // Botão Aprovar contrato (só se proposta aceita)
-            const btnContrato = p.contratoAprovado
-              ? `<button class="btn btn-sm" style="border-color:var(--green);color:var(--green)" onclick="event.stopPropagation()">✓ Contrato aprovado</button>`
-              : p.propostaAceita
-                ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();aprovarContratoProjeto('${p.id}')">📄 Aprovar contrato</button>`
-                : `<button class="btn btn-sm" style="opacity:0.4;cursor:not-allowed" title="Aceite a proposta primeiro" disabled>📄 Aprovar contrato</button>`;
-
-            // Botão Enviar pra produção (só se contrato aprovado e ambientes aprovados)
-            const podeEnviar = p.contratoAprovado && aprovados2.length > 0;
-            const motivo = !p.propostaAceita ? 'Aceite a proposta primeiro' : !p.contratoAprovado ? 'Aprove o contrato primeiro' : aprovados2.length===0 ? 'Aprove ao menos um ambiente' : '';
-            const btnProd = podeEnviar
-              ? `<button class="btn btn-sm" style="background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção (${aprovados2.length})</button>`
-              : `<button class="btn btn-sm" style="opacity:0.4;cursor:not-allowed" title="${motivo}" disabled>🏭 Enviar pra produção</button>`;
-
-            return btnProposta + btnContrato + btnProd;
-          })()}
+        <!-- ── BARRA DE AÇÕES ── -->
+        <div style="padding:12px 18px;display:flex;gap:8px;flex-wrap:wrap">
+          ${btnProposta}
+          ${btnContrato}
+          ${btnProd}
         </div>
+
       </div>`;
     }).join('');
   } else {
