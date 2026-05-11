@@ -1619,13 +1619,32 @@ function gerarProposal() {
 // ══════════════════════════════════════════
 async function salvarBriefingEFechar() {
   const btn = document.getElementById('btn-salvar-briefing');
+  // Validate before disabling button
+  const nome = document.getElementById('bf-nome').value.trim();
+  const endereco = document.getElementById('bf-endereco').value.trim();
+  const tipo = document.getElementById('bf-tipo').value;
+  const ambValidos = _briefingAmbientes.filter(a => a.tipo || a.nome.trim());
+  const highlight = (id, msg) => {
+    const el = document.getElementById(id);
+    if (el) { el.style.borderColor='var(--red)'; el.focus(); setTimeout(()=>el.style.borderColor='',3000); }
+    toast('⚠️ ' + msg);
+  };
+  if (!nome) { highlight('bf-nome', 'Preencha o nome completo'); return; }
+  if (!endereco) { highlight('bf-endereco', 'Preencha o endereço'); return; }
+  if (!tipo) { highlight('bf-tipo', 'Selecione o tipo de cliente'); return; }
+  if (!ambValidos.length) { toast('⚠️ Adicione pelo menos um ambiente'); return; }
+
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
-  await salvarBriefing();
-  closeModal('briefing');
-  // Show PDF button after first save
-  const pdfBtn = document.getElementById('btn-salvar-pdf');
-  if (pdfBtn) pdfBtn.style.display = 'inline-flex';
-  if (btn) { btn.disabled = false; btn.textContent = '✓ Salvar'; }
+  try {
+    await salvarBriefing();
+    closeModal('briefing');
+    const pdfBtn = document.getElementById('btn-salvar-pdf');
+    if (pdfBtn) pdfBtn.style.display = 'inline-flex';
+  } catch(e) {
+    toast('Erro: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Salvar'; }
+  }
 }
 
 async function salvarEGerarPDF() {
