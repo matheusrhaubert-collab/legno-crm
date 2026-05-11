@@ -3203,7 +3203,23 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
         <!-- 3 badges compact -->
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
           <div style="background:#111;border:0.5px solid #2a2a2a;border-radius:6px;padding:10px;text-align:center"><div style="font-size:18px">🏠</div><div style="font-size:9px;font-weight:600;color:#fff;margin-top:4px">${lang==='en'?'Family-Owned':lang==='es'?'Empresa Familiar':'Empresa Familiar'}</div></div>
-          <div style="background:#111;border:0.5px solid #2a2a2a;border-radius:6px;padding:10px;text-align:center"><div style="font-size:13px;font-weight:800;color:#c9a96e;letter-spacing:1px;font-family:'Courier New',monospace">USA</div><div style="font-size:9px;font-weight:600;color:#fff;margin-top:4px">${lang==='en'?'American Materials':'Materiais Americanos'}</div></div>
+          <div style="background:#111;border:0.5px solid #2a2a2a;border-radius:6px;padding:10px;text-align:center"><div style="display:flex;align-items:center;justify-content:center;gap:4px">
+                <svg width="22" height="14" viewBox="0 0 22 14" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="22" height="14" fill="#B22234"/>
+                  <rect y="1.08" width="22" height="1.08" fill="#fff"/>
+                  <rect y="2.15" width="22" height="1.08" fill="#B22234"/>
+                  <rect y="3.23" width="22" height="1.08" fill="#fff"/>
+                  <rect y="4.31" width="22" height="1.08" fill="#B22234"/>
+                  <rect y="5.38" width="22" height="1.08" fill="#fff"/>
+                  <rect y="6.46" width="22" height="1.08" fill="#B22234"/>
+                  <rect y="7.54" width="22" height="1.08" fill="#fff"/>
+                  <rect y="8.62" width="22" height="1.08" fill="#B22234"/>
+                  <rect y="9.69" width="22" height="1.08" fill="#fff"/>
+                  <rect y="10.77" width="22" height="1.08" fill="#B22234"/>
+                  <rect y="11.85" width="22" height="1.08" fill="#fff"/>
+                  <rect width="9" height="7.54" fill="#3C3B6E"/>
+                </svg>
+              </div><div style="font-size:9px;font-weight:600;color:#fff;margin-top:4px">${lang==='en'?'American Materials':'Materiais Americanos'}</div></div>
           <div style="background:#111;border:0.5px solid #2a2a2a;border-radius:6px;padding:10px;text-align:center"><div style="font-size:18px">🏭</div><div style="font-size:9px;font-weight:600;color:#fff;margin-top:4px">${lang==='en'?'In-House Mfg.':'Fab. Própria'}</div></div>
         </div>
       </div>
@@ -3249,7 +3265,7 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
 </div>
 
 <!-- ══ ROOMS ══ -->
-<div class="content" style="padding-top:0">
+<div class="content page-break" style="padding-top:50px">
   <div class="section-label" style="margin-bottom:36px">${T.rooms}</div>
   ${ambHtml}
 </div>
