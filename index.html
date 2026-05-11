@@ -2805,7 +2805,183 @@ function renderProjetos(filter='') {
 }
 
 function gerarProposalCliente(projetoId) {
-  toast('Gerando Proposal... em breve!');
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const lead = DB.leads.find(l=>l.id===p.leadId);
+  if (!lead) return;
+  const ambientes = lead.ambientesBriefing || [];
+
+  // Collect logo from config if available
+  const logoUrl = DB.config?.logoUrl || '';
+
+  // Compute totals
+  const valorTotalNum = ambientes.reduce((sum, a) => {
+    const v = a.xmlDados?.valorTotalNum || parseFloat((a.valor||'0').replace(/[^0-9.]/g,'')) || 0;
+    return sum + v;
+  }, 0);
+  const valorFinal = p.finPrecoFinal || valorTotalNum;
+
+  // Date formatted
+  const dataHoje = new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+
+  // Build ambientes HTML
+  let ambHtml = '';
+  ambientes.forEach((amb, idx) => {
+    const nomeAmb = amb.nome || amb.tipo || `Ambiente ${idx+1}`;
+    const imagens = amb.imagens || [];
+    const xmlD = amb.xmlDados || {};
+    const valorAmb = xmlD.valorTotalNum || parseFloat((amb.valor||'0').replace(/[^0-9.]/g,'')) || 0;
+    const cores = [
+      ...(xmlD.coresPaineis||[]),
+      ...(xmlD.coresBox||[]),
+      ...(xmlD.coresFrontais||[])
+    ].filter((v,i,a)=>a.indexOf(v)===i);
+
+    // Images row (up to 4)
+    const imgs4 = imagens.slice(0,4);
+    const imgHtml = imgs4.length
+      ? `<div style="display:grid;grid-template-columns:repeat(${Math.min(imgs4.length,2)},1fr);gap:8px;margin-bottom:16px">
+          ${imgs4.map(img=>`<img src="${img.url||img}" style="width:100%;height:180px;object-fit:cover;border-radius:8px;display:block">`).join('')}
+        </div>`
+      : '';
+
+    // Contagem
+    const cnt = xmlD.contagem || {};
+    const cntItems = [
+      cnt.cabinets>0 && `<span>${cnt.cabinets} Cabinets</span>`,
+      cnt.gavetas>0 && `<span>${cnt.gavetas} Gavetas</span>`,
+      cnt.portas>0 && `<span>${cnt.portas} Portas</span>`,
+      cnt.ripado>0 && `<span>${cnt.ripado} Ripado</span>`,
+      cnt.vidro>0 && `<span>${cnt.vidro} Porta Vidro</span>`,
+      cnt.metrosLED>0 && `<span>${cnt.metrosLED}m LED</span>`,
+    ].filter(Boolean).join('');
+
+    // Cores
+    const coresHtml = cores.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+          ${cores.map(c=>`<span style="font-size:11px;padding:3px 10px;background:#1e1e1e;border:1px solid #333;border-radius:99px;color:#aaa">${c}</span>`).join('')}
+        </div>`
+      : '';
+
+    ambHtml += `
+    <div style="page-break-inside:avoid;margin-bottom:40px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #c9a96e;padding-bottom:8px;margin-bottom:16px">
+        <div style="font-size:18px;font-weight:600;color:#c9a96e;letter-spacing:0.5px">${nomeAmb}</div>
+        ${valorAmb>0?`<div style="font-size:16px;color:#c9a96e;font-family:'Courier New',monospace;font-weight:600">$ ${valorAmb.toLocaleString('en-US',{minimumFractionDigits:2})}</div>`:''}
+      </div>
+      ${imgHtml}
+      ${amb.descricao?`<p style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.6">${amb.descricao}</p>`:''}
+      ${cntItems?`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;font-size:12px;color:#999">${cntItems}</div>`:''}
+      ${coresHtml}
+      ${amb.obs?`<p style="font-size:11px;color:#666;border-left:2px solid #333;padding-left:10px;margin-bottom:0">${amb.obs}</p>`:''}
+    </div>`;
+  });
+
+  // Full HTML document
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Proposta — ${lead.nome}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6}
+  @media print{
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .no-print{display:none}
+    .page-break{page-break-before:always}
+  }
+  .cover{
+    min-height:100vh;background:#0d0d0d;display:flex;flex-direction:column;
+    justify-content:center;align-items:center;padding:60px 40px;text-align:center;
+  }
+  .cover-logo{font-size:28px;font-weight:700;color:#fff;letter-spacing:4px;text-transform:uppercase;margin-bottom:8px}
+  .cover-sub{font-size:11px;color:#555;letter-spacing:3px;text-transform:uppercase;margin-bottom:60px}
+  .cover-divider{width:60px;height:1px;background:#c9a96e;margin:0 auto 40px}
+  .cover-label{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+  .cover-client{font-size:36px;font-weight:300;color:#fff;margin-bottom:8px;letter-spacing:1px}
+  .cover-tipo{font-size:14px;color:#888;margin-bottom:60px}
+  .cover-date{font-size:11px;color:#444;letter-spacing:1px}
+  .content{max-width:800px;margin:0 auto;padding:60px 40px}
+  .section-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#c9a96e;margin-bottom:20px}
+  .summary-table{width:100%;border-collapse:collapse;margin-bottom:40px}
+  .summary-table td{padding:12px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+  .summary-table td:last-child{text-align:right;font-family:'Courier New',monospace;font-weight:600}
+  .total-row td{font-size:16px;color:#c9a96e;border-top:2px solid #c9a96e;border-bottom:none;padding-top:16px}
+  .footer-doc{margin-top:60px;padding-top:20px;border-top:1px solid #eee;text-align:center;font-size:10px;color:#aaa;letter-spacing:1px}
+  .print-btn{
+    position:fixed;bottom:32px;right:32px;background:#c9a96e;color:#0d0d0d;border:none;
+    padding:14px 28px;font-size:13px;font-weight:600;border-radius:4px;cursor:pointer;
+    letter-spacing:1px;text-transform:uppercase;box-shadow:0 4px 20px rgba(201,169,110,0.4)
+  }
+</style>
+</head>
+<body>
+
+<!-- CAPA -->
+<div class="cover">
+  ${logoUrl?`<img src="${logoUrl}" style="height:50px;margin-bottom:20px;object-fit:contain">`:''}
+  <div class="cover-logo">Studio Legno</div>
+  <div class="cover-sub">Marcenaria de alto padrão</div>
+  <div class="cover-divider"></div>
+  <div class="cover-label">Proposta comercial para</div>
+  <div class="cover-client">${lead.nome}</div>
+  <div class="cover-tipo">${lead.tipo||''}</div>
+  <div class="cover-divider"></div>
+  <div class="cover-date">${dataHoje}</div>
+</div>
+
+<!-- SUMÁRIO DE AMBIENTES -->
+<div class="content">
+  <div class="section-title">Resumo do projeto</div>
+  <table class="summary-table">
+    ${ambientes.map(a=>{
+      const v = a.xmlDados?.valorTotalNum || parseFloat((a.valor||'0').replace(/[^0-9.]/g,'')) || 0;
+      return `<tr>
+        <td>${a.nome||a.tipo}</td>
+        <td>${v>0?'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2}):'—'}</td>
+      </tr>`;
+    }).join('')}
+    ${valorFinal>0?`<tr class="total-row">
+      <td><strong>Total do projeto</strong></td>
+      <td><strong>$ ${valorFinal.toLocaleString('en-US',{minimumFractionDigits:2})}</strong></td>
+    </tr>`:''}
+  </table>
+
+  <!-- AMBIENTES DETALHADOS -->
+  <div class="section-title" style="margin-top:40px">Ambientes</div>
+  ${ambHtml}
+
+  <!-- OBSERVAÇÕES GERAIS -->
+  <div class="page-break"></div>
+  <div style="background:#f9f8f6;border-radius:8px;padding:30px;margin-bottom:40px">
+    <div class="section-title">Condições gerais</div>
+    <p style="font-size:12px;color:#555;line-height:1.8;margin-bottom:12px">
+      Esta proposta tem validade de <strong>30 dias</strong> a partir da data de emissão. Os valores apresentados referem-se exclusivamente ao fornecimento e montagem dos móveis conforme especificado em projeto.
+    </p>
+    <p style="font-size:12px;color:#555;line-height:1.8;margin-bottom:12px">
+      O prazo de fabricação será informado no momento da aprovação e assinatura do contrato. Eventuais alterações de projeto após aprovação poderão gerar revisão de valores.
+    </p>
+    <p style="font-size:12px;color:#555;line-height:1.8">
+      Não estão inclusos nesta proposta: instalações elétricas e hidráulicas, alvenaria, pisos, pintura e demais serviços de construção civil.
+    </p>
+  </div>
+
+  <div class="footer-doc">
+    Studio Legno · Proposta gerada em ${dataHoje} · Documento confidencial
+  </div>
+</div>
+
+<button class="print-btn no-print" onclick="window.print()">🖨 Salvar / Imprimir</button>
+
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Permita pop-ups para gerar a proposta'); return; }
+  win.document.write(html);
+  win.document.close();
 }
 
 async function mudarStatusProjeto(id, status) {
