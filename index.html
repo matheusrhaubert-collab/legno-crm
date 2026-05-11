@@ -747,7 +747,8 @@ let DB = {
   tarefas: [],
   producao: [],
   entregas: [],
-  instalacoes: []
+  instalacoes: [],
+  usuarios: []
 };
 
 let CFG = {};
@@ -2200,7 +2201,8 @@ async function pushTarefa(t) {
     data: t.data||null, prioridade: t.prioridade||'Média',
     responsavel: t.responsavel||'', cliente: t.cliente||'',
     lead_id: t.leadId||'', concluida: t.concluida||false,
-    criado_em: t.criadoEm || new Date().toISOString()
+    criado_em: t.criadoEm || new Date().toISOString(),
+    comentarios: t.comentarios||[]
   }], 'resolution=merge-duplicates');
 }
 
@@ -2235,14 +2237,15 @@ async function deletePerdido(id) {
 
 async function loadFromSupabase() {
   try {
-    const [leads, projetos, tarefas, producao, perdidos, entregas, instalacoes] = await Promise.all([
+    const [leads, projetos, tarefas, producao, perdidos, entregas, instalacoes, usuarios] = await Promise.all([
       sbFetch('leads?select=*&order=created_at.desc'),
       sbFetch('projetos?select=*&order=created_at.desc'),
       sbFetch('tarefas?select=*&order=criado_em.desc'),
       sbFetch('producao?select=*&order=created_at.desc'),
       sbFetch('perdidos?select=*&order=created_at.desc'),
       sbFetch('entregas?select=*&order=criado_em.desc').catch(()=>[]),
-      sbFetch('instalacoes?select=*&order=criado_em.desc').catch(()=>[])
+      sbFetch('instalacoes?select=*&order=criado_em.desc').catch(()=>[]),
+      sbFetch('usuarios?select=nome&order=nome.asc').catch(()=>[])
     ]);
 
     DB.leads = leads.map(mapLead);
@@ -2253,6 +2256,7 @@ async function loadFromSupabase() {
       id: p.id, nome: p.nome, tipo: p.tipo||'',
       motivo: p.motivo||'', data: p.data||''
     }));
+    DB.usuarios = usuarios.map(u=>({nome:u.nome}));
     DB.entregas = entregas.map(e => ({
       id: e.id, cliente: e.cliente||'', endereco: e.endereco||'',
       responsavel: e.responsavel||'', hora: e.hora||'',
@@ -2304,7 +2308,8 @@ function mapTarefa(t) {
     id: t.id, titulo: t.titulo, descricao: t.descricao||'',
     data: t.data||'', prioridade: t.prioridade||'Média',
     responsavel: t.responsavel||'', cliente: t.cliente||'',
-    leadId: t.lead_id||'', concluida: t.concluida||false
+    leadId: t.lead_id||'', concluida: t.concluida||false,
+    comentarios: t.comentarios||[]
   };
 }
 function mapProducao(p) {
@@ -3667,7 +3672,13 @@ function saveAmbientesFromEditor() {
 // ══════════════════════════════════════════
 // MODALS
 // ══════════════════════════════════════════
-function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); }
+function openModal(id) {
+  document.getElementById('modal-'+id).classList.add('open');
+  if (id === 'novaTarefa') {
+    populateResponsavelSelect();
+    if (!document.getElementById('nt-data').value) document.getElementById('nt-data').value = new Date().toISOString().slice(0,10);
+  }
+}
 function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
 function closeModalOutside(e, id) { /* disabled — use close button */ }
 
@@ -4133,6 +4144,8 @@ function setAgendaView(view) {
 }
 
 function getResponsaveis() {
+  // Prefer usuarios from Supabase if loaded
+  if (DB.usuarios && DB.usuarios.length) return DB.usuarios.map(u=>u.nome);
   const set = new Set();
   (DB.tarefas||[]).forEach(t => { if(t.responsavel) set.add(t.responsavel); });
   return [...set];
@@ -4172,6 +4185,8 @@ function renderAgenda() {
   }
   function sortTarefas(lista) {
     return lista.sort((a,b) => {
+      // Concluídas sempre por último
+      if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
       const prio = {Alta:0,Média:1,Baixa:2};
       const pd = (prio[a.prioridade]||1) - (prio[b.prioridade]||1);
       if (pd !== 0) return pd;
@@ -4270,7 +4285,10 @@ function filtrarAgendaDia(dStr) {
   let tarefas = (DB.tarefas||[]).filter(t=>t.data===dStr);
   if (!isAdminDia) tarefas = tarefas.filter(t=>(t.responsavel||'').toLowerCase()===(usuarioAtual?.nome||'').toLowerCase());
   else if (filtroRespDia) tarefas = tarefas.filter(t=>t.responsavel===filtroRespDia);
-  tarefas.sort((a,b) => { const prio = {Alta:0,Média:1,Baixa:2}; return (prio[a.prioridade]||1)-(prio[b.prioridade]||1); });
+  tarefas.sort((a,b) => {
+    if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
+    const prio = {Alta:0,Média:1,Baixa:2}; return (prio[a.prioridade]||1)-(prio[b.prioridade]||1);
+  });
   renderListaTarefas(listaEl, tarefas);
 }
 
@@ -4284,9 +4302,11 @@ function renderListaTarefas(el, tarefas) {
   const prioColor = {Alta:'var(--red)',Média:'var(--amber)',Baixa:'var(--text3)'};
   el.innerHTML = tarefas.map(t => {
     const cor = prioColor[t.prioridade]||'var(--text3)';
-    return `<div class="card" style="margin-bottom:8px;${t.concluida?'opacity:0.5':''}">
+    const comentarios = t.comentarios || [];
+    const ultimoComentario = comentarios.length ? comentarios[comentarios.length-1] : null;
+    return `<div class="card" style="margin-bottom:8px;${t.concluida?'opacity:0.55':''}">
       <div style="display:flex;align-items:flex-start;gap:12px">
-        <div onclick="toggleTarefa('${t.id}')" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${t.concluida?'var(--green)':'var(--border3)'};background:${t.concluida?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px;color:#0d0d0d;font-size:11px">
+        <div onclick="${t.concluida ? `reabrirTarefa('${t.id}')` : `abrirConcluirTarefa('${t.id}')`}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${t.concluida?'var(--green)':'var(--border3)'};background:${t.concluida?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px;color:#0d0d0d;font-size:11px">
           ${t.concluida?'✓':''}
         </div>
         <div style="flex:1;min-width:0">
@@ -4298,6 +4318,10 @@ function renderListaTarefas(el, tarefas) {
             ${t.data?`<span style="font-size:11px;color:var(--text3)">📅 ${formatDate(t.data)}</span>`:''}
             ${t.cliente?`<span style="font-size:11px;color:var(--gold);background:var(--gold-dim);padding:2px 8px;border-radius:99px">◈ ${t.cliente}</span>`:''}
           </div>
+          ${ultimoComentario ? `<div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:6px;border-left:2px solid ${t.concluida?'var(--green)':'var(--gold)'}">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:2px">${t.concluida?'✓ Concluído':'💬 Comentário'} · ${ultimoComentario.usuario} · ${ultimoComentario.data}</div>
+            <div style="font-size:12px;color:var(--text2)">${ultimoComentario.texto}</div>
+          </div>` : ''}
         </div>
         ${isAdminLista ? `<button onclick="excluirTarefa('${t.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;font-size:14px;flex-shrink:0">✕</button>` : ''}
       </div>
@@ -4305,16 +4329,46 @@ function renderListaTarefas(el, tarefas) {
   }).join('');
 }
 
-async function toggleTarefa(id) {
+let _concluindoTarefaId = null;
+function abrirConcluirTarefa(id) {
   const t = (DB.tarefas||[]).find(x=>x.id===id);
   if (!t) return;
-  t.concluida = !t.concluida;
+  _concluindoTarefaId = id;
+  document.getElementById('ct-tarefa-titulo').textContent = t.titulo;
+  document.getElementById('ct-comentario').value = '';
+  openModal('concluirTarefa');
+}
+
+async function confirmarConclusao() {
+  const comentario = document.getElementById('ct-comentario').value.trim();
+  if (!comentario) { toast('Descreva o que foi feito'); return; }
+  const t = (DB.tarefas||[]).find(x=>x.id===_concluindoTarefaId);
+  if (!t) return;
+  const agora = new Date();
+  const dataHora = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if (!t.comentarios) t.comentarios = [];
+  t.comentarios.push({ texto: comentario, usuario: usuarioAtual?.nome || 'Sistema', data: dataHora });
+  t.concluida = true;
+  try {
+    await pushTarefa(t);
+    closeModal('concluirTarefa');
+    renderAgenda();
+    updateBadges();
+    toast('✓ Tarefa concluída!');
+  } catch(e) { t.concluida = false; t.comentarios.pop(); toast('Erro: ' + e.message); }
+  _concluindoTarefaId = null;
+}
+
+async function reabrirTarefa(id) {
+  const t = (DB.tarefas||[]).find(x=>x.id===id);
+  if (!t) return;
+  t.concluida = false;
   try {
     await pushTarefa(t);
     renderAgenda();
     updateBadges();
-    toast(t.concluida ? '✓ Tarefa concluída!' : 'Tarefa reaberta.');
-  } catch(e) { t.concluida = !t.concluida; toast('Erro: ' + e.message); }
+    toast('Tarefa reaberta.');
+  } catch(e) { t.concluida = true; toast('Erro: ' + e.message); }
 }
 
 async function excluirTarefa(id) {
@@ -4332,6 +4386,7 @@ function abrirNovaTarefaParaLead(leadId, leadNome) {
   _novaTarefaLeadId = leadId;
   document.getElementById('nt-cliente').value = leadNome || '';
   document.getElementById('nt-data').value = new Date().toISOString().slice(0,10);
+  populateResponsavelSelect();
   openModal('novaTarefa');
 }
 
@@ -4344,10 +4399,11 @@ async function salvarNovaTarefa() {
     descricao: document.getElementById('nt-descricao').value.trim(),
     data: document.getElementById('nt-data').value,
     prioridade: document.getElementById('nt-prioridade').value,
-    responsavel: document.getElementById('nt-responsavel').value.trim(),
+    responsavel: document.getElementById('nt-responsavel').value,
     cliente: document.getElementById('nt-cliente').value.trim(),
     leadId: _novaTarefaLeadId || '',
     concluida: false,
+    comentarios: [],
     criadoEm: new Date().toISOString()
   };
   if (!DB.tarefas) DB.tarefas = [];
@@ -4365,6 +4421,23 @@ async function salvarNovaTarefa() {
   } catch(e) {
     console.error('Erro tarefa:', e);
     toast('Erro ao salvar tarefa: ' + e.message);
+  }
+}
+
+async function populateResponsavelSelect() {
+  const sel = document.getElementById('nt-responsavel');
+  if (!sel) return;
+  try {
+    const usuarios = await sbFetch('usuarios?select=nome&order=nome.asc');
+    const nomes = usuarios.map(u => u.nome);
+    sel.innerHTML = '<option value="">Selecionar...</option>' +
+      nomes.map(n => `<option value="${n}">${n}</option>`).join('');
+    // Pre-select current user if not admin
+    if (usuarioAtual && usuarioAtual.perfil !== 'admin') {
+      sel.value = usuarioAtual.nome;
+    }
+  } catch(e) {
+    // fallback: keep empty select
   }
 }
 
@@ -4893,7 +4966,9 @@ checkSession();
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Responsável</label>
-          <input class="form-input" id="nt-responsavel" placeholder="Nome do responsável...">
+          <select class="form-select" id="nt-responsavel">
+            <option value="">Selecionar...</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Cliente (opcional)</label>
@@ -4904,6 +4979,28 @@ checkSession();
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('novaTarefa')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarNovaTarefa()">✓ Criar tarefa</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONCLUIR TAREFA -->
+<div class="overlay" id="modal-concluirTarefa" onclick="closeModalOutside(event,'concluirTarefa')">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">✓ Concluir Tarefa</span>
+      <div class="icon-btn" onclick="closeModal('concluirTarefa')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:4px" id="ct-tarefa-titulo"></div>
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">O que foi feito? *</label>
+        <textarea class="form-textarea" id="ct-comentario" placeholder="Descreva o que foi realizado..." style="min-height:90px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('concluirTarefa')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarConclusao()">✓ Confirmar conclusão</button>
     </div>
   </div>
 </div>
