@@ -2980,25 +2980,6 @@ async function gerarProposalComIdioma(projetoId, lang) {
     return `${SB_URL}/storage/v1/object/public/cores/${normalized}.jpg`;
   }
 
-  // ── FETCH IMAGES AS BASE64 (fixes about:blank CORS) ──
-  async function fetchImgB64(url) {
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) return '';
-      const blob = await resp.blob();
-      return await new Promise(res => {
-        const r = new FileReader();
-        r.onload = () => res(r.result);
-        r.onerror = () => res('');
-        r.readAsDataURL(blob);
-      });
-    } catch { return ''; }
-  }
-  const SB_INST = SB_URL + '/storage/v1/object/public/institutional/';
-  const imgNames = ['project-1','project-2','project-3','project-4','project-5','project-6','factory-1','factory-2','factory-3','factory-4','factory-5','factory-6'];
-  const instImgsArr = await Promise.all(imgNames.map(n => fetchImgB64(SB_INST + n + '.jpg')));
-  const instImgs = Object.fromEntries(imgNames.map((n,i) => [n, instImgsArr[i]]));
-
   // ── DATA ──
   const logoUrl = DB.config?.logoUrl || '';
   const dataHoje = new Date().toLocaleDateString(lang==='en'?'en-US':lang==='es'?'es-ES':'pt-BR', {day:'2-digit', month:'long', year:'numeric'});
@@ -3008,14 +2989,6 @@ async function gerarProposalComIdioma(projetoId, lang) {
     return sum + v;
   }, 0);
   const valorFinal = valorTotalNum; // always use finPrecoFinal-based total
-
-  // ── PRE-FETCH COLOR IMAGES AS BASE64 ──
-  const allCores = [...new Set(ambientes.flatMap(amb => {
-    const x = amb.xmlDados || {};
-    return [...(x.coresPaineis||[]), ...(x.coresBox||[]), ...(x.coresFrontais||[])].filter(Boolean);
-  }))];
-  const coresB64Arr = await Promise.all(allCores.map(c => fetchImgB64(colorImgUrl(c))));
-  const coreB64Map = Object.fromEntries(allCores.map((c,i) => [c, coresB64Arr[i]]));
 
   // ── AMBIENTES HTML ──
   let ambHtml = '';
@@ -3057,8 +3030,8 @@ async function gerarProposalComIdioma(projetoId, lang) {
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">
           ${cores.map(c => `
             <div style="text-align:center">
-              <div style="width:100%;height:60px;background:linear-gradient(135deg,#e8e0d5,#d5cdc2);border-radius:6px;overflow:hidden;margin-bottom:4px;position:relative;display:flex;align-items:center;justify-content:center">
-                <img src="${coreB64Map[c]||colorImgUrl(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;position:absolute;top:0;left:0"
+              <div style="width:100%;height:60px;background:linear-gradient(135deg,#e8e0d5,#d5cdc2);border-radius:6px;overflow:hidden;margin-bottom:4px;position:relative">
+                <img src="${colorImgUrl(c)}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;border-radius:6px"
                   onerror="this.style.display='none'">
               </div>
               <div style="font-size:10px;color:#555;line-height:1.3">${stripColorPrefix(c)}</div>
@@ -3086,6 +3059,7 @@ async function gerarProposalComIdioma(projetoId, lang) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="img-src * data: blob:;">
 <title>${T.proposal} — ${lead.nome}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -3221,13 +3195,23 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
     <!-- OUR WORK gallery -->
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:16px">${lang==='en'?'Our Work':lang==='es'?'Nuestros Proyectos':'Nossos Projetos'}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:40px">
-${['project-1','project-2','project-3','project-4','project-5','project-6'].map(n=>`<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="${instImgs[n]||''}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#1a1a1a';this.style.display='none'"></div>`).join('')}
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-1.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-2.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-3.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-4.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-5.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-6.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
     </div>
 
     <!-- FACTORY section -->
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:16px">${lang==='en'?'Our Factory':lang==='es'?'Nuestra Fábrica':'Nossa Fábrica'}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:50px">
-${['factory-1','factory-2','factory-3','factory-4','factory-5','factory-6'].map(n=>`<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="${instImgs[n]||''}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#1a1a1a';this.style.display='none'"></div>`).join('')}
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-1.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-2.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-3.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-4.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-5.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-6.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
     </div>
 
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:20px">${T.process}</div>
