@@ -635,6 +635,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
             <div>💻 <strong style="color:var(--text)">PC (Chrome)</strong> — clique no ícone de instalação na barra de endereço</div>
           </div>
         </div>
+
+        <!-- USUÁRIOS -->
+        <div class="config-section" style="margin-top:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="config-section-title" style="margin:0">Usuários do sistema</div>
+            <button class="btn btn-sm btn-primary" onclick="abrirModalNovoUsuario()">＋ Novo usuário</button>
+          </div>
+          <div id="lista-usuarios">
+            <div style="font-size:12px;color:var(--text3)">Carregando...</div>
+          </div>
+        </div>
       </div>
 
     </div><!-- /content -->
@@ -662,10 +673,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           </select>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Tipo de projeto</label>
-        <select class="form-select" id="nl-tipo">
-          <option>Residencial</option><option>Comercial</option><option>Reforma</option><option>Projeto completo</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Tipo de projeto</label>
+          <select class="form-select" id="nl-tipo">
+            <option>Residencial</option><option>Comercial</option><option>Reforma</option><option>Projeto completo</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Responsável</label>
+          <select class="form-select" id="nl-responsavel"><option value="">Selecionar...</option></select>
+        </div>
       </div>
       <div class="form-group"><label class="form-label">Observações iniciais</label><textarea class="form-textarea" id="nl-obs" placeholder="Briefing inicial, referências, estilo..."></textarea></div>
     </div>
@@ -2046,6 +2062,98 @@ async function fazerLogin() {
   }
 }
 
+
+// ── USUÁRIOS ──
+async function carregarUsuarios() {
+  const el = document.getElementById('lista-usuarios');
+  if (!el) return;
+  try {
+    const rows = await sbFetch('usuarios?select=id,nome,perfil&order=nome.asc');
+    if (!rows.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Nenhum usuário cadastrado.</div>'; return; }
+    el.innerHTML = rows.map(u => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg4);border:0.5px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text)">${u.nome}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;text-transform:capitalize">${u.perfil||'—'}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="editarUsuario('${u.id}','${u.nome}','${u.perfil}')">✏ Editar</button>
+          <button class="btn btn-sm" style="border-color:var(--red);color:var(--red)" onclick="excluirUsuario('${u.id}','${u.nome}')">✕</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--red)">Erro ao carregar usuários.</div>';
+  }
+}
+
+function abrirModalNovoUsuario() {
+  document.getElementById('nu-modal-title').textContent = 'Novo Usuário';
+  document.getElementById('nu-nome').value = '';
+  document.getElementById('nu-senha').value = '';
+  document.getElementById('nu-perfil').value = 'administrativo';
+  document.getElementById('nu-id').value = '';
+  openModal('novoUsuario');
+}
+
+function editarUsuario(id, nome, perfil) {
+  document.getElementById('nu-modal-title').textContent = 'Editar Usuário';
+  document.getElementById('nu-nome').value = nome;
+  document.getElementById('nu-senha').value = '';
+  document.getElementById('nu-perfil').value = perfil || 'administrativo';
+  document.getElementById('nu-id').value = id;
+  openModal('novoUsuario');
+}
+
+async function salvarUsuario() {
+  const nome = document.getElementById('nu-nome').value.trim();
+  const senha = document.getElementById('nu-senha').value.trim();
+  const perfil = document.getElementById('nu-perfil').value;
+  const id = document.getElementById('nu-id').value;
+  if (!nome) { toast('Informe o nome'); return; }
+  if (!id && !senha) { toast('Informe a senha'); return; }
+  const SUPA_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos';
+  try {
+    let url, body, method;
+    if (id) {
+      // update
+      body = {nome, perfil};
+      if (senha) body.senha = senha;
+      url = SUPA_URL + '/rest/v1/usuarios?id=eq.' + id;
+      method = 'PATCH';
+    } else {
+      body = {nome, senha, perfil};
+      url = SUPA_URL + '/rest/v1/usuarios';
+      method = 'POST';
+    }
+    const r = await fetch(url, {
+      method,
+      headers: {'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'},
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeModal('novoUsuario');
+    toast(id ? '✓ Usuário atualizado' : '✓ Usuário criado');
+    carregarUsuarios();
+  } catch(e) { toast('Erro: ' + e.message); }
+}
+
+async function excluirUsuario(id, nome) {
+  if (!confirm('Excluir o usuário ' + nome + '?')) return;
+  const SUPA_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos';
+  try {
+    const r = await fetch(SUPA_URL + '/rest/v1/usuarios?id=eq.' + id, {
+      method: 'DELETE',
+      headers: {'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}
+    });
+    if (!r.ok) throw new Error(await r.text());
+    toast('✓ Usuário excluído');
+    carregarUsuarios();
+  } catch(e) { toast('Erro: ' + e.message); }
+}
+
 function fazerLogout() {
   usuarioAtual = null;
   localStorage.removeItem('studioUser');
@@ -2202,6 +2310,7 @@ async function pushToSupabase() {
 }
 
 async function pushLead(l) {
+  l.updatedAt = new Date().toISOString();
   await sbFetch('leads?on_conflict=id', 'POST', [{
     id: l.id, nome: l.nome, tel: l.tel||'', email: l.email||'',
     origem: l.origem||'', tipo: l.tipo||'', obs: l.obs||'',
@@ -2209,6 +2318,7 @@ async function pushLead(l) {
     valor: l.valor||'', valor_total: l.valorTotal||'',
     especificador: l.especificador||'', previsao_instalacao: l.previsaoInstalacao||'',
     motivo_desq: l.motivoDesq||'', novo: l.novo||false,
+    responsavel: l.responsavel||'', updated_at: l.updatedAt,
     ambientes_briefing: l.ambientesBriefing||[]
   }], 'resolution=merge-duplicates');
 }
@@ -2317,6 +2427,7 @@ function mapLead(l) {
   return {
     id: l.id, nome: l.nome, tel: l.tel||'', email: l.email||'',
     origem: l.origem||'', tipo: l.tipo||'', obs: l.obs||'',
+    responsavel: l.responsavel||'', updatedAt: l.updated_at||'',
     status: l.status||'aguardando', data: l.data||'',
     valor: l.valor||'', valorTotal: l.valor_total||'',
     especificador: l.especificador||'', previsaoInstalacao: l.previsao_instalacao||'',
@@ -2442,6 +2553,7 @@ function goPage(page) {
   if (page === 'producao') renderProducao();
   if (page === 'entrega') renderEntrega();
   if (page === 'instalacao') renderInstalacao();
+  if (page === 'config') carregarUsuarios();
 }
 
 function toggleSidebar() {
@@ -2719,51 +2831,19 @@ function renderProjetos(filter='') {
       <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden">
 
         <!-- ── HEADER ── -->
-        <div style="padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="padding:14px 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
           <div>
             <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="verAmbientesCliente('${p.id}')">${p.nome}</div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
-              <span style="font-size:12px;color:var(--text2)">${p.tipo||'Homeowner'} · ${ambientes.length} ambiente(s) · 📅 ${formatDate(p.data)}</span>
-              ${vendaBadge}
+            <div style="display:flex;align-items:center;gap:12px;margin-top:6px;flex-wrap:wrap">
+              <span style="font-size:12px;color:var(--text3)">📅 Início: <span style="color:var(--text2)">${formatDate(p.data)}</span></span>
+              ${lead?.updatedAt ? `<span style="font-size:12px;color:var(--text3)">🕐 Atualizado: <span style="color:var(--text2)">${formatDate(lead.updatedAt.slice(0,10))}</span></span>` : ''}
+              ${lead?.responsavel ? `<span style="font-size:12px;color:var(--text3)">👤 <span style="color:var(--gold2);font-weight:500">${lead.responsavel}</span></span>` : ''}
             </div>
           </div>
-          <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">Apresentação →</button>
         </div>
-
-        <!-- pills -->
-        ${ambientes.length ? `<div style="padding:0 18px 12px;display:flex;flex-wrap:wrap;gap:4px">
-          ${ambientes.slice(0,6).map(a=>{
-            const temImg=(a.imagens||[]).length>0,temXml=!!a.xmlNome,pronto=temImg&&temXml;
-            const cor=pronto?'var(--green)':(temImg||temXml)?'var(--gold)':'var(--text3)';
-            const bg=pronto?'rgba(92,184,130,0.08)':(temImg||temXml)?'rgba(201,169,110,0.08)':'rgba(255,255,255,0.03)';
-            const brd=pronto?'rgba(92,184,130,0.3)':(temImg||temXml)?'rgba(201,169,110,0.3)':'rgba(255,255,255,0.07)';
-            return `<span style="font-size:11px;padding:3px 9px;background:${bg};border:1px solid ${brd};border-radius:99px;color:${cor};display:inline-flex;align-items:center;gap:3px">${a.nome||a.tipo}${temXml?'<span style="font-size:9px">📐</span>':''}${temImg?'<span style="font-size:9px">🖼</span>':''}</span>`;
-          }).join('')}
-          ${ambientes.length>6?`<span style="font-size:11px;color:var(--text3);padding:3px 6px">+${ambientes.length-6} mais</span>`:''}
-        </div>` : ''}
 
         <!-- ── 4 PAINÉIS ── -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 14px 14px">
-
-          <!-- AMBIENTES -->
-          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:12px;padding:14px;cursor:pointer" onclick="verAmbientesCliente('${p.id}')">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-              <span style="font-size:18px">🪵</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text)">Ambientes</span>
-            </div>
-            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:rgba(92,184,130,0.15);color:var(--green);margin-bottom:12px;border:1px solid rgba(92,184,130,0.3)">${ambientes.length} ambiente${ambientes.length!==1?'s':''}</div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">Status</div>
-            ${ambientes.slice(0,4).map(a=>`
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-                <span style="width:7px;height:7px;border-radius:50%;background:${a.aprovado==='aprovado'?'var(--green)':a.aprovado==='reprovado'?'var(--red)':'var(--gold)'};flex-shrink:0"></span>
-                <span style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${a.nome||a.tipo}</span>
-                <span style="font-size:11px;color:var(--text3);flex-shrink:0;font-weight:600">${a.aprovado==='aprovado'?'Ativo':a.aprovado==='reprovado'?'Rep.':'Ativo'}</span>
-              </div>`).join('')}
-            ${ambientes.length>4?`<div style="font-size:11px;color:var(--text3);margin-top:2px">+${ambientes.length-4} mais</div>`:''}
-            <div style="margin-top:12px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
-            </div>
-          </div>
 
           <!-- BRIEFING -->
           <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:12px;padding:14px;cursor:pointer" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">
@@ -2781,8 +2861,37 @@ function renderProjetos(filter='') {
                 <span style="width:16px;height:16px;border-radius:50%;background:${i<briefingOk?'var(--green)':'transparent'};border:1.5px solid ${i<briefingOk?'var(--green)':'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#0d0d0d;font-weight:700">${i<briefingOk?'✓':''}</span>
                 <span style="font-size:11px;color:${i<briefingOk?'var(--text)':'var(--text3)'}">${s}</span>
               </div>`).join('')}
+            ${briefingOk>=briefingSteps.length&&p.pdfBriefing ? `
+              <div style="margin-top:10px;padding:8px 10px;background:rgba(212,148,74,0.08);border:1px solid rgba(212,148,74,0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
+                <span style="font-size:16px">📑</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:11px;color:var(--amber);font-weight:600">PDF Gerado</div>
+                  <div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pdfBriefing.split('/').pop()||'briefing.pdf'}</div>
+                </div>
+                <a href="${p.pdfBriefing}" target="_blank" onclick="event.stopPropagation()" style="font-size:18px;text-decoration:none">⬇</a>
+              </div>` : ''}
             <div style="margin-top:12px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">📋 Ver briefing</button>
+            </div>
+          </div>
+
+          <!-- AMBIENTES -->
+          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:12px;padding:14px;cursor:pointer" onclick="verAmbientesCliente('${p.id}')">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+              <span style="font-size:18px">🪵</span>
+              <span style="font-size:13px;font-weight:600;color:var(--text)">Ambientes</span>
+            </div>
+            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:rgba(92,184,130,0.15);color:var(--green);margin-bottom:12px;border:1px solid rgba(92,184,130,0.3)">${ambientes.length} ambiente${ambientes.length!==1?'s':''}</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">XML Promob</div>
+            ${ambientes.slice(0,5).map(a=>`
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+                <span style="width:7px;height:7px;border-radius:50%;background:${a.xmlNome?'var(--green)':'var(--text3)'};flex-shrink:0"></span>
+                <span style="font-size:12px;color:${a.xmlNome?'var(--text2)':'var(--text3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${a.nome||a.tipo}</span>
+                <span style="font-size:10px;flex-shrink:0;color:${a.xmlNome?'var(--green)':'var(--text3)'}">${a.xmlNome?'✓':'—'}</span>
+              </div>`).join('')}
+            ${ambientes.length>5?`<div style="font-size:11px;color:var(--text3);margin-top:2px">+${ambientes.length-5} mais</div>`:''}
+            <div style="margin-top:12px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
             </div>
           </div>
 
@@ -2794,65 +2903,101 @@ function renderProjetos(filter='') {
             </div>
             <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${p.propostaAceita?'rgba(92,184,130,0.15)':proposalPronta?'rgba(201,169,110,0.15)':'rgba(96,144,208,0.1)'};color:${proposalStatusColor};margin-bottom:12px;border:1px solid ${p.propostaAceita?'rgba(92,184,130,0.3)':proposalPronta?'rgba(201,169,110,0.3)':'rgba(96,144,208,0.2)'}">${proposalStatus}</div>
             ${proposalPronta||p.propostaAceita ? `
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px">Ambientes prontos</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px">Ambientes</div>
               ${ambientes.slice(0,3).map(a=>`
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
                   <span style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">${a.nome||a.tipo}</span>
                   <span style="font-size:12px;color:var(--gold);font-family:'DM Mono',monospace">$ ${(a.finPrecoFinal||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                 </div>`).join('')}
               ${ambientes.length>3?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-3} mais</div>`:''}
+              ${p.pdfProposta ? `
+                <div style="margin-top:10px;padding:8px 10px;background:rgba(96,144,208,0.08);border:1px solid rgba(96,144,208,0.2);border-radius:8px;display:flex;align-items:center;gap:8px">
+                  <span style="font-size:16px">📑</span>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:11px;color:var(--blue);font-weight:600">PDF da Proposta</div>
+                    <div style="font-size:10px;color:var(--text3)">Gerado recentemente</div>
+                  </div>
+                  <span style="font-size:18px;cursor:pointer" onclick="event.stopPropagation();verPropostaPDF('${p.id}')" title="Visualizar proposta">👁</span>
+                </div>` : ''}
             ` : `
               <div style="text-align:center;padding:16px 0">
                 <div style="font-size:28px;margin-bottom:8px;opacity:0.4">📄</div>
-                <div style="font-size:12px;color:var(--text3);line-height:1.5">${ambientes.length===0?'Nenhuma proposta gerada':'Nenhuma proposta gerada'}</div>
+                <div style="font-size:12px;color:var(--text3);line-height:1.5">Nenhuma proposta gerada</div>
                 <div style="font-size:11px;color:var(--text3);margin-top:4px">${ambientes.length===0?'Crie os ambientes no briefing.':prontos.length+'/'+ambientes.length+' prontos — faltam imagens ou XML.'}</div>
               </div>
             `}
             <div style="margin-top:12px">
               ${proposalPronta
                 ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
-                : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.3);color:var(--blue);opacity:${ambientes.length?'0.4':'0.4'};cursor:not-allowed" disabled>📄 Gerar proposta</button>`
+                : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.3);color:var(--blue);opacity:0.4;cursor:not-allowed" disabled>📄 Gerar proposta</button>`
               }
             </div>
           </div>
 
           <!-- FINANCEIRO -->
-          <div style="background:#180d20;border:1px solid rgba(176,144,224,0.25);border-radius:12px;padding:14px;cursor:pointer" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">
+          <div style="background:#180d20;border:1px solid rgba(176,144,224,0.25);border-radius:12px;padding:14px">
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
               <span style="font-size:18px">📊</span>
               <span style="font-size:13px;font-weight:600;color:var(--text)">Financeiro</span>
             </div>
-            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${finOk?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${finStatusColor};margin-bottom:12px;border:1px solid ${finOk?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${finStatus}</div>
-            ${finOk ? `
-              <div style="margin-bottom:8px">
-                <div style="font-size:11px;color:var(--text3)">Total do projeto</div>
-                <div style="font-size:20px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace">$ ${(p.estimate||0).toLocaleString('en-US',{minimumFractionDigits:2})}</div>
+            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${finOk?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${finStatusColor};margin-bottom:10px;border:1px solid ${finOk?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${finStatus}</div>
+            ${finOk ? (()=>{
+              const venda = p.finPrecoFinal||0;
+              const custo = p.estimate||0;
+              const montagem = p.finMontagem ? custo*(p.finMontagem/100) : 0;
+              const frete = p.finFrete||0;
+              const taxa = p.finTaxa ? venda*(p.finTaxa/100) : 0;
+              const comissao = p.finComissao ? (p.finComissaoTipo==='fixed'?p.finComissao:venda*(p.finComissao/100)) : 0;
+              const comissaoExt = p.finComissaoExt ? (p.finComissaoExtTipo==='fixed'?p.finComissaoExt:venda*(p.finComissaoExt/100)) : 0;
+              const descCliente = p.finDescontoCliente||0;
+              const custoExtra = p.finCustoExtra||0;
+              const totalCustos = custo+montagem+frete+taxa+comissao+comissaoExt+custoExtra;
+              const margemBruta = venda - totalCustos;
+              const margemLiq = venda - totalCustos - descCliente;
+              const margemPct = venda>0?(margemLiq/venda*100):0;
+              const fmtN = n => n.toLocaleString('en-US',{minimumFractionDigits:2});
+              const custoRows = [
+                ['Produtos', custo],
+                montagem>0?['Montagem', montagem]:null,
+                frete>0?['Frete', frete]:null,
+                taxa>0?['Taxa financeira', taxa]:null,
+                comissao>0?['Comissão interna', comissao]:null,
+                comissaoExt>0?['Comissão ext.', comissaoExt]:null,
+                custoExtra>0?['Custo extra', custoExtra]:null,
+              ].filter(Boolean);
+              return `
+              <div style="margin-bottom:6px">
+                <div style="font-size:11px;color:var(--text3)">Valor de venda</div>
+                <div style="font-size:20px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace">$ ${fmtN(venda)}</div>
               </div>
-              <div style="margin-bottom:10px">
-                <div style="font-size:11px;color:var(--text3)">Venda prevista</div>
-                <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-                  <span style="font-size:14px;font-weight:600;color:${finCor};font-family:'DM Mono',monospace">$ ${p.finPrecoFinal.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
-                  <span style="font-size:11px;padding:1px 7px;border-radius:99px;background:${finCor==='var(--red)'?'var(--red-dim)':finCor==='var(--amber)'?'var(--amber-dim)':'rgba(92,184,130,0.12)'};color:${finCor};font-weight:600">${pct.toFixed(1)}%</span>
+              <div style="padding:8px 0;border-top:0.5px solid rgba(255,255,255,0.06);border-bottom:0.5px solid rgba(255,255,255,0.06);margin-bottom:6px">
+                <div style="font-size:11px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px">Custos</div>
+                ${custoRows.map(([label,val])=>`
+                  <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                    <span style="font-size:11px;color:var(--text3)">${label}</span>
+                    <span style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace">$ ${fmtN(val)}</span>
+                  </div>`).join('')}
+                <div style="display:flex;justify-content:space-between;margin-top:4px;padding-top:4px;border-top:0.5px solid rgba(255,255,255,0.04)">
+                  <span style="font-size:11px;color:var(--text3);font-weight:600">Total custos</span>
+                  <span style="font-size:11px;color:var(--red);font-family:'DM Mono',monospace">$ ${fmtN(totalCustos)}</span>
                 </div>
               </div>
-              <div style="padding-top:8px;border-top:0.5px solid rgba(255,255,255,0.06)">
-                <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Resumo financeiro</div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                  <span style="font-size:11px;color:var(--text3)">Custo dos produtos</span>
-                  <span style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace">$ ${(p.estimate||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                  <span style="font-size:11px;color:var(--text3)">Margem bruta</span>
-                  <span style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace">$ ${((p.finPrecoFinal||0)-(p.estimate||0)).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between">
-                  <span style="font-size:11px;color:var(--text3)">Margem</span>
-                  <span style="font-size:11px;font-weight:700;color:${finCor}">${pct.toFixed(1)}%</span>
-                </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                <span style="font-size:11px;color:var(--text3)">Margem bruta</span>
+                <span style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace">$ ${fmtN(margemBruta)}</span>
               </div>
-            ` : `
-              <div style="color:var(--text3);font-size:12px;line-height:1.6">Nenhum dado financeiro registrado ainda.</div>
-            `}
+              ${descCliente>0?`<div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                <span style="font-size:11px;color:var(--text3)">Desconto cliente</span>
+                <span style="font-size:11px;color:var(--red);font-family:'DM Mono',monospace">- $ ${fmtN(descCliente)}</span>
+              </div>`:''}
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;padding-top:6px;border-top:0.5px solid rgba(255,255,255,0.06)">
+                <span style="font-size:12px;color:var(--text);font-weight:600">Valor líquido</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:13px;font-weight:700;color:${finCor};font-family:'DM Mono',monospace">$ ${fmtN(margemLiq)}</span>
+                  <span style="font-size:10px;padding:1px 6px;border-radius:99px;background:${finCor==='var(--red)'?'var(--red-dim)':finCor==='var(--amber)'?'var(--amber-dim)':'rgba(92,184,130,0.12)'};color:${finCor};font-weight:700">${margemPct.toFixed(1)}%</span>
+                </div>
+              </div>`;
+            })() : `<div style="color:var(--text3);font-size:12px;line-height:1.6">Nenhum dado financeiro registrado ainda.</div>`}
             <div style="margin-top:12px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro</button>
             </div>
@@ -3729,7 +3874,9 @@ async function criarLead() {
     origem: document.getElementById('nl-origem').value,
     tipo: document.getElementById('nl-tipo').value,
     obs: document.getElementById('nl-obs').value,
-    status: 'aguardando', data: new Date().toISOString().slice(0,10)
+    responsavel: document.getElementById('nl-responsavel').value,
+    status: 'aguardando', data: new Date().toISOString().slice(0,10),
+    updatedAt: new Date().toISOString()
   };
   lead.novo = true;
   try {
@@ -4359,6 +4506,13 @@ function openModal(id) {
   if (id === 'novaTarefa') {
     populateResponsavelSelect();
     if (!document.getElementById('nt-data').value) document.getElementById('nt-data').value = new Date().toISOString().slice(0,10);
+  }
+  if (id === 'novoLead') {
+    const sel = document.getElementById('nl-responsavel');
+    if (sel) {
+      const usuarios = DB.usuarios && DB.usuarios.length ? DB.usuarios.map(u=>u.nome) : [];
+      sel.innerHTML = '<option value="">Selecionar...</option>' + usuarios.map(n=>`<option value="${n}">${n}</option>`).join('');
+    }
   }
 }
 function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
@@ -5829,6 +5983,42 @@ checkSession();
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('novaTarefa')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarNovaTarefa()">✓ Criar tarefa</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVO USUARIO -->
+<div class="overlay" id="modal-novoUsuario" onclick="closeModalOutside(event,'novoUsuario')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="nu-modal-title">Novo Usuário</span>
+      <div class="icon-btn" onclick="closeModal('novoUsuario')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome (login) *</label>
+        <input class="form-input" id="nu-nome" placeholder="Ex: joao">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Senha *</label>
+        <input class="form-input" id="nu-senha" type="text" placeholder="Ex: 123456">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Perfil *</label>
+        <select class="form-select" id="nu-perfil">
+          <option value="administrativo">Administrativo</option>
+          <option value="vendas">Vendas</option>
+          <option value="instalacao">Instalação</option>
+          <option value="producao">Produção</option>
+          <option value="designer">Designer</option>
+        </select>
+      </div>
+      <input type="hidden" id="nu-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('novoUsuario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarUsuario()">✓ Salvar usuário</button>
     </div>
   </div>
 </div>
