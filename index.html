@@ -323,6 +323,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <span class="nav-icon">🏭</span> Produção
         <span class="nav-badge" id="badge-producao">0</span>
       </div>
+      <div class="nav-item" onclick="goPage('entrega')" data-page="entrega">
+        <span class="nav-icon">🚚</span> Entrega
+        <span class="nav-badge" id="badge-entrega"></span>
+      </div>
+      <div class="nav-item" onclick="goPage('instalacao')" data-page="instalacao">
+        <span class="nav-icon">🔧</span> Instalação
+        <span class="nav-badge" id="badge-instalacao"></span>
+      </div>
       <div class="nav-item" onclick="goPage('perdidos')" data-page="perdidos">
         <span class="nav-icon">○</span> Perdidos
       </div>
@@ -451,6 +459,44 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <span style="font-size:12px;color:var(--text3)">Somente ambientes aprovados</span>
         </div>
         <div id="list-producao"></div>
+      </div>
+
+      <!-- ══ ENTREGA ══ -->
+      <div class="page" id="page-entrega">
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Pendentes</div><div class="stat-val gold" id="sent-pendentes">0</div></div>
+          <div class="stat"><div class="stat-label">Hoje</div><div class="stat-val blue" id="sent-hoje">0</div></div>
+          <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-val" id="sent-semana">0</div></div>
+          <div class="stat"><div class="stat-label">Concluídas</div><div class="stat-val green" id="sent-concluidas">0</div></div>
+        </div>
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="search" placeholder="Buscar cliente ou endereço..." oninput="filterPage('entrega',this.value)" id="search-entrega">
+        </div>
+        <div class="sec-header">
+          <span class="sec-title">Entregas agendadas</span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('novaEntrega')">＋ Nova entrega</button>
+        </div>
+        <div id="list-entrega"></div>
+      </div>
+
+      <!-- ══ INSTALACAO ══ -->
+      <div class="page" id="page-instalacao">
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">Pendentes</div><div class="stat-val gold" id="sins-pendentes">0</div></div>
+          <div class="stat"><div class="stat-label">Hoje</div><div class="stat-val blue" id="sins-hoje">0</div></div>
+          <div class="stat"><div class="stat-label">Esta semana</div><div class="stat-val" id="sins-semana">0</div></div>
+          <div class="stat"><div class="stat-label">Concluídas</div><div class="stat-val green" id="sins-concluidas">0</div></div>
+        </div>
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="search" placeholder="Buscar cliente ou endereço..." oninput="filterPage('instalacao',this.value)" id="search-instalacao">
+        </div>
+        <div class="sec-header">
+          <span class="sec-title">Instalações agendadas</span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('novaInstalacao')">＋ Nova instalação</button>
+        </div>
+        <div id="list-instalacao"></div>
       </div>
 
       <!-- ══ PERDIDOS ══ -->
@@ -699,7 +745,9 @@ let DB = {
   perdidos: [],
   uploads: [],
   tarefas: [],
-  producao: []
+  producao: [],
+  entregas: [],
+  instalacoes: []
 };
 
 let CFG = {};
@@ -721,7 +769,7 @@ let AMBIENTES = [
 let currentContratoId = null;
 let currentApresId = null;
 let uploadFiles = [];
-let filterTexts = {leads:'',projetos:'',agenda:'',producao:'',perdidos:''};
+let filterTexts = {leads:'',projetos:'',agenda:'',producao:'',perdidos:'',entrega:'',instalacao:''};
 
 
 
@@ -2187,12 +2235,14 @@ async function deletePerdido(id) {
 
 async function loadFromSupabase() {
   try {
-    const [leads, projetos, tarefas, producao, perdidos] = await Promise.all([
+    const [leads, projetos, tarefas, producao, perdidos, entregas, instalacoes] = await Promise.all([
       sbFetch('leads?select=*&order=created_at.desc'),
       sbFetch('projetos?select=*&order=created_at.desc'),
       sbFetch('tarefas?select=*&order=criado_em.desc'),
       sbFetch('producao?select=*&order=created_at.desc'),
-      sbFetch('perdidos?select=*&order=created_at.desc')
+      sbFetch('perdidos?select=*&order=created_at.desc'),
+      sbFetch('entregas?select=*&order=criado_em.desc').catch(()=>[]),
+      sbFetch('instalacoes?select=*&order=criado_em.desc').catch(()=>[])
     ]);
 
     DB.leads = leads.map(mapLead);
@@ -2202,6 +2252,18 @@ async function loadFromSupabase() {
     DB.perdidos = perdidos.map(p => ({
       id: p.id, nome: p.nome, tipo: p.tipo||'',
       motivo: p.motivo||'', data: p.data||''
+    }));
+    DB.entregas = entregas.map(e => ({
+      id: e.id, cliente: e.cliente||'', endereco: e.endereco||'',
+      responsavel: e.responsavel||'', hora: e.hora||'',
+      itens: e.itens||'', obs: e.obs||'', data: e.data||'',
+      concluida: e.concluida||false
+    }));
+    DB.instalacoes = instalacoes.map(i => ({
+      id: i.id, cliente: i.cliente||'', endereco: i.endereco||'',
+      responsavel: i.responsavel||'', hora: i.hora||'',
+      ambientes: i.ambientes||'', dias: i.dias||'', equipe: i.equipe||'',
+      obs: i.obs||'', data: i.data||'', concluida: i.concluida||false
     }));
 
     renderAll();
@@ -2319,8 +2381,8 @@ function parseCSV(text) {
 // ══════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════
-const pageTitles = {leads:'Clients',projetos:'Projetos',agenda:'Agenda',producao:'Produção',perdidos:'Perdidos',imagens:'Imagens',config:'Configurações'};
-const addBtnPages = {leads:true, projetos:false, agenda:false, producao:false, perdidos:false, imagens:false, config:false};
+const pageTitles = {leads:'Clients',projetos:'Projetos',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',imagens:'Imagens',config:'Configurações'};
+const addBtnPages = {leads:true, projetos:false, agenda:false, producao:false, entrega:false, instalacao:false, perdidos:false, imagens:false, config:false};
 
 function goPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -2336,6 +2398,8 @@ function goPage(page) {
   if (page === 'projetos') renderProjetos();
   if (page === 'agenda') renderAgenda();
   if (page === 'producao') renderProducao();
+  if (page === 'entrega') renderEntrega();
+  if (page === 'instalacao') renderInstalacao();
 }
 
 function toggleSidebar() {
@@ -2356,6 +2420,8 @@ function renderAll() {
   renderPerdidos();
   renderAgenda();
   renderProducao();
+  renderEntrega();
+  renderInstalacao();
   updateBadges();
 }
 
@@ -2394,6 +2460,30 @@ function updateBadges() {
   const el_spron = document.getElementById('sprod-pron'); if(el_spron) el_spron.textContent=emProd.filter(p=>p.etapa==='pronto').length;
   const el_sent = document.getElementById('sprod-entregues'); if(el_sent) el_sent.textContent=emProd.filter(p=>p.etapa==='entregue').length;
   const el_bag_prod = document.getElementById('badge-producao'); if(el_bag_prod) el_bag_prod.textContent=emProd.length||'';
+  // stats entrega
+  const hoje2 = new Date().toISOString().slice(0,10);
+  const fimSem2 = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const entregas = (DB.entregas||[]);
+  const entPend = entregas.filter(e=>!e.concluida);
+  const entHoje = entPend.filter(e=>e.data===hoje2);
+  const entSem  = entPend.filter(e=>e.data>=hoje2&&e.data<=fimSem2);
+  const entConc = entregas.filter(e=>e.concluida);
+  const el_sent_p = document.getElementById('sent-pendentes'); if(el_sent_p) el_sent_p.textContent=entPend.length;
+  const el_sent_h = document.getElementById('sent-hoje');      if(el_sent_h) el_sent_h.textContent=entHoje.length;
+  const el_sent_s = document.getElementById('sent-semana');    if(el_sent_s) el_sent_s.textContent=entSem.length;
+  const el_sent_c = document.getElementById('sent-concluidas');if(el_sent_c) el_sent_c.textContent=entConc.length;
+  const el_bag_ent = document.getElementById('badge-entrega'); if(el_bag_ent) el_bag_ent.textContent=entHoje.length||'';
+  // stats instalacao
+  const instals = (DB.instalacoes||[]);
+  const insPend = instals.filter(i=>!i.concluida);
+  const insHoje = insPend.filter(i=>i.data===hoje2);
+  const insSem  = insPend.filter(i=>i.data>=hoje2&&i.data<=fimSem2);
+  const insConc = instals.filter(i=>i.concluida);
+  const el_sins_p = document.getElementById('sins-pendentes'); if(el_sins_p) el_sins_p.textContent=insPend.length;
+  const el_sins_h = document.getElementById('sins-hoje');      if(el_sins_h) el_sins_h.textContent=insHoje.length;
+  const el_sins_s = document.getElementById('sins-semana');    if(el_sins_s) el_sins_s.textContent=insSem.length;
+  const el_sins_c = document.getElementById('sins-concluidas');if(el_sins_c) el_sins_c.textContent=insConc.length;
+  const el_bag_ins = document.getElementById('badge-instalacao'); if(el_bag_ins) el_bag_ins.textContent=insHoje.length||'';
 }
 
 function statusBadge(s) {
@@ -2761,6 +2851,182 @@ function renderPerdidos(filter='') {
       <div class="card-meta"><span>📅 ${formatDate(p.data)}</span></div>
       ${p.motivo?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;border-left:2px solid var(--red-dim);padding-left:8px">${p.motivo}</div>`:''}
     </div>`).join('');
+}
+
+// ── ENTREGA ──
+let _filterEntrega = '';
+function renderEntrega(filter='') {
+  _filterEntrega = filter || filterTexts.entrega || '';
+  const f = _filterEntrega.toLowerCase();
+  const hoje = new Date().toISOString().slice(0,10);
+  const items = (DB.entregas||[]).filter(e => {
+    return !f || e.cliente.toLowerCase().includes(f) || (e.endereco||'').toLowerCase().includes(f);
+  }).sort((a,b) => {
+    if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
+    return (a.data||'').localeCompare(b.data||'');
+  });
+  const el = document.getElementById('list-entrega');
+  if (!el) return;
+  if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">🚚</span><p>Nenhuma entrega agendada.</p><button class="btn btn-primary" onclick="openModal('novaEntrega')">＋ Agendar entrega</button></div>`; return; }
+  el.innerHTML = items.map(e => {
+    const atrasada = !e.concluida && e.data && e.data < hoje;
+    const ehHoje = e.data === hoje;
+    const mapsUrl = e.endereco ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e.endereco)}` : '';
+    return `
+    <div class="card" style="${e.concluida ? 'opacity:0.55' : atrasada ? 'border-color:var(--red)' : ehHoje ? 'border-color:var(--gold)' : ''}">
+      <div class="card-header">
+        <div>
+          <div class="card-name">${e.cliente}</div>
+          <div class="card-sub">${e.endereco||'Endereço não informado'}</div>
+        </div>
+        <span style="font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid ${e.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border2)'};color:${e.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--text2)'}">
+          ${e.concluida ? '✓ Entregue' : atrasada ? '⚠ Atrasada' : ehHoje ? '• Hoje' : '○ Pendente'}
+        </span>
+      </div>
+      <div class="card-meta">
+        ${e.data ? `<span>📅 ${formatDate(e.data)}${e.hora ? ' ' + e.hora : ''}</span>` : ''}
+        ${e.responsavel ? `<span>👤 ${e.responsavel}</span>` : ''}
+        ${e.itens ? `<span>📦 ${e.itens.substring(0,40)}${e.itens.length>40?'...':''}</span>` : ''}
+      </div>
+      ${e.obs ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;border-left:2px solid var(--border2);padding-left:8px">${e.obs}</div>` : ''}
+      <div class="card-footer">
+        <div class="card-actions">
+          ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:var(--blue-dim);text-decoration:none">🗺 Rota</a>` : ''}
+          ${!e.concluida ? `<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();concluirEntrega('${e.id}')">✓ Concluir</button>` : ''}
+          <button class="btn btn-sm" style="color:var(--text3);border-color:transparent;margin-left:auto" onclick="event.stopPropagation();deletarEntrega('${e.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function salvarNovaEntrega() {
+  const cliente = document.getElementById('ne-cliente').value.trim();
+  const endereco = document.getElementById('ne-endereco').value.trim();
+  const data = document.getElementById('ne-data').value;
+  if (!cliente || !data) { toast('Preencha cliente e data'); return; }
+  const entrega = {
+    id: 'ENT'+Date.now(),
+    cliente, endereco,
+    responsavel: document.getElementById('ne-responsavel').value.trim(),
+    hora: document.getElementById('ne-hora').value,
+    itens: document.getElementById('ne-itens').value.trim(),
+    obs: document.getElementById('ne-obs').value.trim(),
+    data, concluida: false,
+    criadoEm: new Date().toISOString()
+  };
+  if (!DB.entregas) DB.entregas = [];
+  DB.entregas.push(entrega);
+  try { await sbFetch('entregas?on_conflict=id','POST',[{id:entrega.id,cliente:entrega.cliente,endereco:entrega.endereco,responsavel:entrega.responsavel,hora:entrega.hora,itens:entrega.itens,obs:entrega.obs,data:entrega.data,concluida:false,criado_em:entrega.criadoEm}],'resolution=merge-duplicates'); } catch(e){}
+  closeModal('novaEntrega');
+  ['ne-cliente','ne-endereco','ne-responsavel','ne-hora','ne-itens','ne-obs','ne-data'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderEntrega(); updateBadges();
+  toast('Entrega agendada! ✓');
+}
+
+async function concluirEntrega(id) {
+  const e = (DB.entregas||[]).find(x=>x.id===id); if(!e) return;
+  e.concluida = true;
+  try { await sbFetch('entregas?id=eq.'+id,'PATCH',{concluida:true}); } catch(err){}
+  renderEntrega(); updateBadges();
+  toast('Entrega concluída! ✓');
+}
+
+async function deletarEntrega(id) {
+  DB.entregas = (DB.entregas||[]).filter(e=>e.id!==id);
+  try { await sbFetch('entregas?id=eq.'+id,'DELETE'); } catch(err){}
+  renderEntrega(); updateBadges();
+  toast('Entrega removida.');
+}
+
+// ── INSTALAÇÃO ──
+let _filterInstalacao = '';
+function renderInstalacao(filter='') {
+  _filterInstalacao = filter || filterTexts.instalacao || '';
+  const f = _filterInstalacao.toLowerCase();
+  const hoje = new Date().toISOString().slice(0,10);
+  const items = (DB.instalacoes||[]).filter(i => {
+    return !f || i.cliente.toLowerCase().includes(f) || (i.endereco||'').toLowerCase().includes(f);
+  }).sort((a,b) => {
+    if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
+    return (a.data||'').localeCompare(b.data||'');
+  });
+  const el = document.getElementById('list-instalacao');
+  if (!el) return;
+  if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">🔧</span><p>Nenhuma instalação agendada.</p><button class="btn btn-primary" onclick="openModal('novaInstalacao')">＋ Agendar instalação</button></div>`; return; }
+  el.innerHTML = items.map(i => {
+    const atrasada = !i.concluida && i.data && i.data < hoje;
+    const ehHoje = i.data === hoje;
+    const mapsUrl = i.endereco ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(i.endereco)}` : '';
+    return `
+    <div class="card" style="${i.concluida ? 'opacity:0.55' : atrasada ? 'border-color:var(--red)' : ehHoje ? 'border-color:var(--gold)' : ''}">
+      <div class="card-header">
+        <div>
+          <div class="card-name">${i.cliente}</div>
+          <div class="card-sub">${i.endereco||'Endereço não informado'}</div>
+        </div>
+        <span style="font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid ${i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border2)'};color:${i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--text2)'}">
+          ${i.concluida ? '✓ Concluída' : atrasada ? '⚠ Atrasada' : ehHoje ? '• Hoje' : '○ Pendente'}
+        </span>
+      </div>
+      <div class="card-meta">
+        ${i.data ? `<span>📅 ${formatDate(i.data)}${i.hora ? ' ' + i.hora : ''}</span>` : ''}
+        ${i.responsavel ? `<span>👤 ${i.responsavel}</span>` : ''}
+        ${i.dias ? `<span>⏱ ${i.dias} dia(s)</span>` : ''}
+        ${i.equipe ? `<span>👥 ${i.equipe} pessoa(s)</span>` : ''}
+      </div>
+      ${i.ambientes ? `<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px">🏠 ${i.ambientes}</div>` : ''}
+      ${i.obs ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;border-left:2px solid var(--border2);padding-left:8px">${i.obs}</div>` : ''}
+      <div class="card-footer">
+        <div class="card-actions">
+          ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:var(--blue-dim);text-decoration:none">🗺 Rota</a>` : ''}
+          ${!i.concluida ? `<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();concluirInstalacao('${i.id}')">✓ Concluir</button>` : ''}
+          <button class="btn btn-sm" style="color:var(--text3);border-color:transparent;margin-left:auto" onclick="event.stopPropagation();deletarInstalacao('${i.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function salvarNovaInstalacao() {
+  const cliente = document.getElementById('ni-cliente').value.trim();
+  const endereco = document.getElementById('ni-endereco').value.trim();
+  const data = document.getElementById('ni-data').value;
+  if (!cliente || !data) { toast('Preencha cliente e data'); return; }
+  const inst = {
+    id: 'INS'+Date.now(),
+    cliente, endereco,
+    responsavel: document.getElementById('ni-responsavel').value.trim(),
+    hora: document.getElementById('ni-hora').value,
+    ambientes: document.getElementById('ni-ambientes').value.trim(),
+    dias: document.getElementById('ni-dias').value,
+    equipe: document.getElementById('ni-equipe').value,
+    obs: document.getElementById('ni-obs').value.trim(),
+    data, concluida: false,
+    criadoEm: new Date().toISOString()
+  };
+  if (!DB.instalacoes) DB.instalacoes = [];
+  DB.instalacoes.push(inst);
+  try { await sbFetch('instalacoes?on_conflict=id','POST',[{id:inst.id,cliente:inst.cliente,endereco:inst.endereco,responsavel:inst.responsavel,hora:inst.hora,ambientes:inst.ambientes,dias:inst.dias,equipe:inst.equipe,obs:inst.obs,data:inst.data,concluida:false,criado_em:inst.criadoEm}],'resolution=merge-duplicates'); } catch(e){}
+  closeModal('novaInstalacao');
+  ['ni-cliente','ni-endereco','ni-responsavel','ni-hora','ni-ambientes','ni-dias','ni-equipe','ni-obs','ni-data'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderInstalacao(); updateBadges();
+  toast('Instalação agendada! ✓');
+}
+
+async function concluirInstalacao(id) {
+  const i = (DB.instalacoes||[]).find(x=>x.id===id); if(!i) return;
+  i.concluida = true;
+  try { await sbFetch('instalacoes?id=eq.'+id,'PATCH',{concluida:true}); } catch(err){}
+  renderInstalacao(); updateBadges();
+  toast('Instalação concluída! ✓');
+}
+
+async function deletarInstalacao(id) {
+  DB.instalacoes = (DB.instalacoes||[]).filter(i=>i.id!==id);
+  try { await sbFetch('instalacoes?id=eq.'+id,'DELETE'); } catch(err){}
+  renderInstalacao(); updateBadges();
+  toast('Instalação removida.');
 }
 
 // ══════════════════════════════════════════
@@ -3270,6 +3536,8 @@ function filterPage(page, val) {
   if (page==='projetos') renderProjetos(val);
   if (page==='perdidos') renderPerdidos(val);
   if (page==='producao') renderProducao(val);
+  if (page==='entrega') renderEntrega(val);
+  if (page==='instalacao') renderInstalacao(val);
 }
 
 // ══════════════════════════════════════════
@@ -4636,6 +4904,114 @@ checkSession();
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('novaTarefa')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarNovaTarefa()">✓ Criar tarefa</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVA ENTREGA -->
+<div class="overlay" id="modal-novaEntrega" onclick="closeModalOutside(event,'novaEntrega')">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🚚 Nova Entrega</span>
+      <div class="icon-btn" onclick="closeModal('novaEntrega')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cliente *</label>
+          <input class="form-input" id="ne-cliente" placeholder="Nome do cliente...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Responsável entrega</label>
+          <input class="form-input" id="ne-responsavel" placeholder="Nome do motorista...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Endereço completo *</label>
+        <input class="form-input" id="ne-endereco" placeholder="Rua, número, bairro, cidade...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <input class="form-input" id="ne-data" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Horário</label>
+          <input class="form-input" id="ne-hora" type="time">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ambientes / Itens</label>
+        <textarea class="form-textarea" id="ne-itens" placeholder="Ex: Cozinha completa, Quarto Master..." style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea class="form-textarea" id="ne-obs" placeholder="Acesso, portaria, elevador..." style="min-height:60px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('novaEntrega')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovaEntrega()">✓ Agendar entrega</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVA INSTALAÇÃO -->
+<div class="overlay" id="modal-novaInstalacao" onclick="closeModalOutside(event,'novaInstalacao')">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🔧 Nova Instalação</span>
+      <div class="icon-btn" onclick="closeModal('novaInstalacao')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cliente *</label>
+          <input class="form-input" id="ni-cliente" placeholder="Nome do cliente...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Responsável instalação</label>
+          <input class="form-input" id="ni-responsavel" placeholder="Nome do instalador...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Endereço completo *</label>
+        <input class="form-input" id="ni-endereco" placeholder="Rua, número, bairro, cidade...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <input class="form-input" id="ni-data" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Horário</label>
+          <input class="form-input" id="ni-hora" type="time">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ambientes a instalar</label>
+        <textarea class="form-textarea" id="ni-ambientes" placeholder="Ex: Cozinha, Quarto Master, Banheiro..." style="min-height:60px"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Dias previstos</label>
+          <input class="form-input" id="ni-dias" type="number" min="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Equipe (nº pessoas)</label>
+          <input class="form-input" id="ni-equipe" type="number" min="1" placeholder="2">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações técnicas</label>
+        <textarea class="form-textarea" id="ni-obs" placeholder="Detalhes de acesso, ferramentas necessárias, pendências..." style="min-height:60px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('novaInstalacao')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovaInstalacao()">✓ Agendar instalação</button>
     </div>
   </div>
 </div>
