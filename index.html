@@ -2884,7 +2884,7 @@ async function gerarProposalComIdioma(projetoId, lang) {
   if (!lead) return;
   const ambientes = lead.ambientesBriefing || [];
 
-  toast('Generating proposal...');
+  toast('⏳ Carregando imagens e gerando proposta...');
 
   // ── TRANSLATIONS ──
   const T = {
@@ -3033,6 +3033,7 @@ async function gerarProposalComIdioma(projetoId, lang) {
     ].filter((v,i,a)=>v&&a.indexOf(v)===i);
 
     const imgs4 = imagens.slice(0,4);
+    // Ambiente images are already stored as base64 data URLs (uploaded by user)
     const gridCols = imgs4.length >= 3 ? 3 : imgs4.length === 2 ? 2 : 1;
     const imgHtml = imgs4.length
       ? `<div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:8px;margin-bottom:20px">
@@ -3274,10 +3275,13 @@ ${['factory-1','factory-2','factory-3','factory-4','factory-5','factory-6'].map(
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
+  // Use Blob URL so images from external origins load correctly
+  const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+  const blobUrl = URL.createObjectURL(blob);
+  const win = window.open(blobUrl, '_blank');
   if (!win) { toast('Allow pop-ups to generate the proposal'); return; }
-  win.document.write(html);
-  win.document.close();
+  // Revoke after 60s
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
 }
 
 async function mudarStatusProjeto(id, status) {
