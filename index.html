@@ -2199,6 +2199,7 @@ async function pushProjeto(p) {
     proposta_aceita: p.propostaAceita||false,
     fin_preco_final: p.finPrecoFinal||0, fin_sobra_pct: p.finSobraPct||0,
     fin_multiplicador: p.finMultiplicador||3, fin_montagem: p.finMontagem||0,
+    fin_desconto: p.finDesconto||0, fin_taxa: p.finTaxa||0,
     fin_comissao: p.finComissao||0, fin_comissao_tipo: p.finComissaoTipo||'percent',
     fin_comissao_ext: p.finComissaoExt||0, fin_comissao_ext_tipo: p.finComissaoExtTipo||'percent',
     fin_frete: p.finFrete||0, fin_custo_extra: p.finCustoExtra||0,
@@ -2309,6 +2310,7 @@ function mapProjeto(p) {
     propostaAceita: p.proposta_aceita||false,
     finPrecoFinal: p.fin_preco_final||0, finSobraPct: p.fin_sobra_pct||0,
     finMultiplicador: p.fin_multiplicador||3, finMontagem: p.fin_montagem||0,
+    finDesconto: p.fin_desconto||0, finTaxa: p.fin_taxa||0,
     finComissao: p.fin_comissao||0, finComissaoTipo: p.fin_comissao_tipo||'percent',
     finComissaoExt: p.fin_comissao_ext||0, finComissaoExtTipo: p.fin_comissao_ext_tipo||'percent',
     finFrete: p.fin_frete||0, finCustoExtra: p.fin_custo_extra||0,
@@ -2978,6 +2980,25 @@ async function gerarProposalComIdioma(projetoId, lang) {
     return `${SB_URL}/storage/v1/object/public/cores/${normalized}.jpg`;
   }
 
+  // ── FETCH IMAGES AS BASE64 (fixes about:blank CORS) ──
+  async function fetchImgB64(url) {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return '';
+      const blob = await resp.blob();
+      return await new Promise(res => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = () => res('');
+        r.readAsDataURL(blob);
+      });
+    } catch { return ''; }
+  }
+  const SB_INST = SB_URL + '/storage/v1/object/public/institucional/';
+  const imgNames = ['project-1','project-2','project-3','project-4','project-5','project-6','factory-1','factory-2','factory-3','factory-4','factory-5','factory-6'];
+  const instImgsArr = await Promise.all(imgNames.map(n => fetchImgB64(SB_INST + n + '.jpg')));
+  const instImgs = Object.fromEntries(imgNames.map((n,i) => [n, instImgsArr[i]]));
+
   // ── DATA ──
   const logoUrl = DB.config?.logoUrl || '';
   const dataHoje = new Date().toLocaleDateString(lang==='en'?'en-US':lang==='es'?'es-ES':'pt-BR', {day:'2-digit', month:'long', year:'numeric'});
@@ -2987,6 +3008,14 @@ async function gerarProposalComIdioma(projetoId, lang) {
     return sum + v;
   }, 0);
   const valorFinal = valorTotalNum; // always use finPrecoFinal-based total
+
+  // ── PRE-FETCH COLOR IMAGES AS BASE64 ──
+  const allCores = [...new Set(ambientes.flatMap(amb => {
+    const x = amb.xmlDados || {};
+    return [...(x.coresPaineis||[]), ...(x.coresBox||[]), ...(x.coresFrontais||[])].filter(Boolean);
+  }))];
+  const coresB64Arr = await Promise.all(allCores.map(c => fetchImgB64(colorImgUrl(c))));
+  const coreB64Map = Object.fromEntries(allCores.map((c,i) => [c, coresB64Arr[i]]));
 
   // ── AMBIENTES HTML ──
   let ambHtml = '';
@@ -3028,7 +3057,7 @@ async function gerarProposalComIdioma(projetoId, lang) {
           ${cores.map(c => `
             <div style="text-align:center">
               <div style="width:100%;height:60px;background:#e8e0d5;border-radius:6px;overflow:hidden;margin-bottom:4px;position:relative">
-                <img src="${colorImgUrl(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"
+                <img src="${coreB64Map[c]||colorImgUrl(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"
                   onerror="this.parentElement.style.background='#e8e0d5';this.style.display='none'">
               </div>
               <div style="font-size:10px;color:#555;line-height:1.3">${stripColorPrefix(c)}</div>
@@ -3040,7 +3069,7 @@ async function gerarProposalComIdioma(projetoId, lang) {
     <div style="page-break-inside:avoid;margin-bottom:50px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid #c9a96e;padding-bottom:10px;margin-bottom:20px">
         <div style="font-size:20px;font-weight:300;color:#111;letter-spacing:0.5px">${nomeAmb}</div>
-        ${valorAmb>0?`<div style="font-size:15px;color:#c9a96e;font-family:'Courier New',monospace;font-weight:700">$ ${valorAmb.toLocaleString('en-US',{minimumFractionDigits:2})}</div>`:''}
+        
       </div>
       ${imgHtml}
       ${amb.descricao?`<p style="font-size:13px;color:#555;margin-bottom:14px;line-height:1.7">${amb.descricao}</p>`:''}
@@ -3065,32 +3094,33 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
   .no-print{display:none!important}
   .page-break{page-break-before:always}
 }
-.cover{min-height:100vh;background:#0d0d0d;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px 40px;text-align:center;position:relative}
-.cover::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#c9a96e,transparent)}
-.cover-logo{font-size:32px;font-weight:700;color:#fff;letter-spacing:6px;text-transform:uppercase;margin-bottom:6px}
-.cover-sub{font-size:10px;color:#555;letter-spacing:3px;text-transform:uppercase;margin-bottom:70px}
-.divider{width:50px;height:1px;background:#c9a96e;margin:0 auto 40px}
-.cover-label{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px}
-.cover-client{font-size:42px;font-weight:200;color:#fff;margin-bottom:10px;letter-spacing:2px}
-.cover-tipo{font-size:13px;color:#666;margin-bottom:70px}
-.cover-date{font-size:11px;color:#444;letter-spacing:1px}
+.cover{min-height:100vh;background:#f8f6f1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px 40px;text-align:center;position:relative;border-bottom:3px solid #c9a96e}
+.cover-logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:60px}
+.cover-logo-img{height:90px;object-fit:contain;margin-bottom:18px}
+.cover-logo{font-size:28px;font-weight:700;color:#1a1a1a;letter-spacing:8px;text-transform:uppercase;margin-bottom:4px}
+.cover-sub{font-size:9px;color:#c9a96e;letter-spacing:4px;text-transform:uppercase}
+.divider{width:50px;height:1.5px;background:#c9a96e;margin:0 auto 40px}
+.cover-label{font-size:9px;color:#999;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px}
+.cover-client{font-size:44px;font-weight:200;color:#1a1a1a;margin-bottom:10px;letter-spacing:2px}
+.cover-tipo{font-size:13px;color:#888;margin-bottom:60px}
+.cover-date{font-size:10px;color:#aaa;letter-spacing:2px}
 .content{max-width:820px;margin:0 auto;padding:70px 40px}
 .section-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#c9a96e;margin-bottom:24px;display:flex;align-items:center;gap:12px}
 .section-label::after{content:'';flex:1;height:0.5px;background:#e0d6c8}
 /* INSTITUTIONAL */
-.institutional{background:#0d0d0d;padding:80px 40px;color:#fff}
+.institutional{background:#1a1a1a;padding:80px 40px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .inst-inner{max-width:820px;margin:0 auto}
 .inst-headline{font-size:36px;font-weight:200;letter-spacing:2px;margin-bottom:24px;color:#fff}
 .inst-headline span{color:#c9a96e}
-.inst-text{font-size:14px;color:#888;line-height:1.9;max-width:600px;margin-bottom:16px}
-.inst-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin:50px 0;border-top:0.5px solid #222;border-bottom:0.5px solid #222;padding:40px 0}
+.inst-text{font-size:14px;color:#aaa;line-height:1.9;max-width:600px;margin-bottom:16px}
+.inst-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin:50px 0;border-top:0.5px solid #333;border-bottom:0.5px solid #333;padding:40px 0}
 .inst-stat-num{font-size:42px;font-weight:700;color:#c9a96e;font-family:'Courier New',monospace}
-.inst-stat-label{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-top:6px}
+.inst-stat-label{font-size:10px;color:#666;letter-spacing:2px;text-transform:uppercase;margin-top:6px}
 .process-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:8px}
-.process-card{background:#111;border:0.5px solid #222;border-radius:8px;padding:24px}
+.process-card{background:#222;border:0.5px solid #333;border-radius:8px;padding:24px}
 .process-num{font-size:28px;font-weight:700;color:#c9a96e;font-family:'Courier New',monospace;opacity:0.4;margin-bottom:10px}
 .process-title{font-size:13px;font-weight:600;color:#fff;margin-bottom:6px}
-.process-desc{font-size:12px;color:#666;line-height:1.6}
+.process-desc{font-size:12px;color:#777;line-height:1.6}
 /* SUMMARY */
 .summary-table{width:100%;border-collapse:collapse;margin-bottom:0}
 .summary-table td{padding:14px 0;border-bottom:0.5px solid #f0ece4;font-size:13px}
@@ -3108,9 +3138,11 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
 
 <!-- ══ COVER ══ -->
 <div class="cover">
-  <img src="${logoUrl||LOGO_LEGNO}" style="height:60px;margin-bottom:24px;object-fit:contain;opacity:0.9">
-  <div class="cover-logo">Legno Home</div>
-  <div class="cover-sub">Custom Cabinets · High-End Cabinetry</div>
+  <div class="cover-logo-wrap">
+    <img class="cover-logo-img" src="${logoUrl||LOGO_LEGNO}" onerror="this.style.display='none'">
+    <div class="cover-logo">Legno Home</div>
+    <div class="cover-sub">Custom Cabinets · High-End Cabinetry</div>
+  </div>
   <div class="divider"></div>
   <div class="cover-label">${T.for}</div>
   <div class="cover-client">${lead.nome}</div>
@@ -3188,23 +3220,13 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
     <!-- OUR WORK gallery -->
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:16px">${lang==='en'?'Our Work':lang==='es'?'Nuestros Proyectos':'Nossos Projetos'}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:40px">
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/project-1.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/project-2.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/project-3.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/project-4.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/project-5.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/project-6.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+${['project-1','project-2','project-3','project-4','project-5','project-6'].map(n=>`<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="${instImgs[n]||''}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#222'"></div>`).join('')}
     </div>
 
     <!-- FACTORY section -->
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:16px">${lang==='en'?'Our Factory':lang==='es'?'Nuestra Fábrica':'Nossa Fábrica'}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:50px">
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/factory-1.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/factory-2.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/factory-3.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/factory-4.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/factory-5.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institucional/factory-6.jpg" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+${['factory-1','factory-2','factory-3','factory-4','factory-5','factory-6'].map(n=>`<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="${instImgs[n]||''}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#222'"></div>`).join('')}
     </div>
 
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:20px">${T.process}</div>
@@ -4189,8 +4211,8 @@ function abrirFinanceiro(projetoId) {
   const ambientes = lead?.ambientesBriefing || [];
   document.getElementById('fin-modal-title').textContent = p.nome || 'Financeiro';
   document.getElementById('fin-modal-sub').textContent = ambientes.length + ' ambiente(s)';
-  document.getElementById('fin-desconto').value = CFG.finDesconto !== undefined ? CFG.finDesconto : 5;
-  document.getElementById('fin-taxa').value = CFG.finTaxa !== undefined ? CFG.finTaxa : 7;
+  document.getElementById('fin-desconto').value = p.finDesconto !== undefined ? p.finDesconto : (CFG.finDesconto !== undefined ? CFG.finDesconto : 5);
+  document.getElementById('fin-taxa').value = p.finTaxa !== undefined ? p.finTaxa : (CFG.finTaxa !== undefined ? CFG.finTaxa : 7);
   document.getElementById('fin-multiplicador').value = p.finMultiplicador !== undefined ? p.finMultiplicador : (CFG.finMultiplicador !== undefined ? CFG.finMultiplicador : 3);
   document.getElementById('fin-montagem').value = p.finMontagem !== undefined ? p.finMontagem : (CFG.finMontagem !== undefined ? CFG.finMontagem : 20);
   document.getElementById('fin-comissao').value = p.finComissao !== undefined ? p.finComissao : (CFG.finComissao !== undefined ? CFG.finComissao : 10);
@@ -4309,6 +4331,8 @@ async function salvarFinanceiro() {
   p.finCustoExtra = parseFloat(document.getElementById('fin-custo-extra').value) || 0;
   p.finMultiplicador = parseFloat(document.getElementById('fin-multiplicador').value) || 3;
   p.finDescontoCliente = parseFloat(document.getElementById('fin-desconto-cliente').value) || 0;
+  p.finDesconto = parseFloat(document.getElementById('fin-desconto').value) || 0;
+  p.finTaxa = parseFloat(document.getElementById('fin-taxa').value) || 0;
   p.finPrecoFinal = parseFloat(document.getElementById('fin-res-preco-final').textContent.replace(/[^0-9.]/g,'')) || 0;
   p.finSobraPct = parseFloat(document.getElementById('fin-res-sobra-pct').textContent) || 0;
   // Push to Supabase
@@ -4328,29 +4352,32 @@ async function salvarFinanceiro() {
   const taxa = parseFloat(document.getElementById('fin-taxa').value) || 0;
   const frete = parseFloat(document.getElementById('fin-frete').value) || 0;
   const multiplicador = parseFloat(document.getElementById('fin-multiplicador').value) || 3;
-  const montagemPct = parseFloat(document.getElementById('fin-montagem').value) || 20;
+  const montagemPct = parseFloat(document.getElementById('fin-montagem').value) || 0;
   const comissaoVal = parseFloat(document.getElementById('fin-comissao').value) || 0;
   const comissaoTipo = document.getElementById('fin-comissao-tipo').value;
+  const comissaoExtVal = parseFloat(document.getElementById('fin-comissao-ext').value) || 0;
+  const comissaoExtTipo = document.getElementById('fin-comissao-ext-tipo').value;
   const custoExtra = parseFloat(document.getElementById('fin-custo-extra').value) || 0;
   const descontoClientePct = parseFloat(document.getElementById('fin-desconto-cliente').value) || 0;
 
   const fmtN = v => parseFloat(v.toFixed(2));
 
-  // Build per-ambiente breakdown
+  // Build per-ambiente breakdown (same logic as calcFinanceiro)
   const ambientesData = ambientes.map(a => {
     const vXML = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
     const proporcao = valorPromobTotal > 0 ? vXML / valorPromobTotal : 0;
     const descontoV = vXML * (desconto/100);
     const taxaV = vXML * (taxa/100);
-    const freteV = frete * proporcao;
-    const custoRealV = vXML - descontoV + taxaV + freteV;
-    const precoClienteV = custoRealV * multiplicador;
-    const descontoClienteV = precoClienteV * (descontoClientePct/100);
-    const precoFinalV = precoClienteV - descontoClienteV;
+    const custoPromobV = vXML - descontoV + taxaV;
+    const precoBaseV = custoPromobV * multiplicador;
+    const descontoClienteV = precoBaseV * (descontoClientePct/100);
+    const precoFinalV = precoBaseV - descontoClienteV;
     const montagemV = precoFinalV * (montagemPct/100);
     const comissaoFinalV = comissaoTipo === 'percent' ? precoFinalV * (comissaoVal/100) : comissaoVal * proporcao;
+    const comissaoExtFinalV = comissaoExtTipo === 'percent' ? precoFinalV * (comissaoExtVal/100) : comissaoExtVal * proporcao;
+    const freteV = frete * proporcao;
     const custoExtraV = custoExtra * proporcao;
-    const totalCustosV = custoRealV + montagemV + comissaoFinalV + custoExtraV;
+    const totalCustosV = (comissaoFinalV + comissaoExtFinalV + descontoClienteV) + montagemV + (custoPromobV + freteV + custoExtraV);
     const sobraV = precoFinalV - totalCustosV;
     const sobraPctV = precoFinalV > 0 ? (sobraV / precoFinalV * 100) : 0;
     // Save to ambiente object
