@@ -2840,26 +2840,31 @@ function gerarProposalCliente(projetoId) {
 
   const finOk = ambSemValor.length === 0 && totalVenda > 0;
 
-  const ambListHtml = ambientes.map(a => {
+  // Build ambient rows with checkboxes (all selected by default)
+  const ambListHtml = ambientes.map((a, idx) => {
     const val = a.finPrecoFinal || 0;
     const ok = val > 0;
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid #2a2a2a">
-      <span style="font-size:13px;color:#ccc">${a.nome||a.tipo}</span>
-      <span style="display:flex;align-items:center;gap:8px">
+    const nome = a.nome || a.tipo;
+    return `<label style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid #2a2a2a;cursor:pointer;gap:8px" onclick="event.stopPropagation()">
+      <span style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <span class="prop-amb-check" data-idx="${idx}" data-val="${val}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${ok?'#c9a96e':'#555'};background:${ok?'rgba(201,169,110,0.15)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:#c9a96e;transition:all 0.15s">${ok?'✓':''}</span>
+        <span style="font-size:13px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         ${ok
-          ? `<span style="font-size:13px;color:#c9a96e;font-family:'DM Mono',monospace">$ ${val.toLocaleString('en-US',{minimumFractionDigits:2})}</span><span style="color:#5cb882;font-size:16px">✓</span>`
-          : `<span style="font-size:12px;color:var(--red)">Sem valor de venda</span><span style="color:var(--red);font-size:16px">✕</span>`
+          ? `<span style="font-size:13px;color:#c9a96e;font-family:'DM Mono',monospace">$ ${val.toLocaleString('en-US',{minimumFractionDigits:2})}</span>`
+          : `<span style="font-size:12px;color:var(--red)">Sem valor</span><span style="color:var(--red);font-size:14px">✕</span>`
         }
       </span>
-    </div>`;
+    </label>`;
   }).join('');
 
   overlay.innerHTML = `
-    <div style="background:#141414;border:0.5px solid #2a2a2a;border-radius:16px;padding:32px;min-width:380px;max-width:480px;width:100%">
+    <div style="background:#141414;border:0.5px solid #2a2a2a;border-radius:16px;padding:32px;min-width:380px;max-width:480px;width:100%;max-height:90dvh;overflow-y:auto">
       <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:4px">📄 Gerar Proposta</div>
-      <div style="font-size:12px;color:#666;margin-bottom:24px">Verificação dos valores de venda</div>
+      <div style="font-size:12px;color:#666;margin-bottom:16px">Selecione os ambientes para incluir</div>
 
-      <div style="margin-bottom:20px">
+      <div style="margin-bottom:16px" id="prop-amb-list">
         ${ambListHtml}
       </div>
 
@@ -2868,14 +2873,14 @@ function gerarProposalCliente(projetoId) {
           <span style="font-size:20px">✅</span>
           <div>
             <div style="font-size:12px;font-weight:600;color:#5cb882">Valores confirmados</div>
-            <div style="font-size:12px;color:#888">Total de venda: <strong style="color:#c9a96e">$ ${totalVenda.toLocaleString('en-US',{minimumFractionDigits:2})}</strong></div>
+            <div style="font-size:12px;color:#888">Total selecionado: <strong style="color:#c9a96e" id="prop-total-label">$ ${totalVenda.toLocaleString('en-US',{minimumFractionDigits:2})}</strong></div>
           </div>
         </div>
         <div style="font-size:12px;color:#666;margin-bottom:16px;text-align:center">Selecione o idioma da proposta</div>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'));gerarProposalComIdioma('${projetoId}','en')" style="padding:12px 24px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">🇺🇸 English</button>
-          <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'));gerarProposalComIdioma('${projetoId}','pt')" style="padding:12px 24px;background:#1e1e1e;color:#ccc;border:1px solid #333;border-radius:8px;font-size:14px;cursor:pointer">🇧🇷 Português</button>
-          <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'));gerarProposalComIdioma('${projetoId}','es')" style="padding:12px 24px;background:#1e1e1e;color:#ccc;border:1px solid #333;border-radius:8px;font-size:14px;cursor:pointer">🇪🇸 Español</button>
+          <button id="prop-btn-en" onclick="__gerarPropostaSelecionada('${projetoId}','en',this)" style="padding:12px 24px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">🇺🇸 English</button>
+          <button id="prop-btn-pt" onclick="__gerarPropostaSelecionada('${projetoId}','pt',this)" style="padding:12px 24px;background:#1e1e1e;color:#ccc;border:1px solid #333;border-radius:8px;font-size:14px;cursor:pointer">🇧🇷 Português</button>
+          <button id="prop-btn-es" onclick="__gerarPropostaSelecionada('${projetoId}','es',this)" style="padding:12px 24px;background:#1e1e1e;color:#ccc;border:1px solid #333;border-radius:8px;font-size:14px;cursor:pointer">🇪🇸 Español</button>
         </div>
       ` : `
         <div style="background:rgba(220,80,80,0.08);border:1px solid rgba(220,80,80,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
@@ -2890,14 +2895,60 @@ function gerarProposalCliente(projetoId) {
       <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'))" style="width:100%;padding:8px;background:none;border:none;color:#555;font-size:12px;cursor:pointer;margin-top:4px">Cancelar</button>
     </div>`;
   document.body.appendChild(overlay);
+
+  // ── Checkbox toggle logic ──
+  overlay.querySelectorAll('.prop-amb-check').forEach(chk => {
+    // start all checked (only those with value)
+    const val = parseFloat(chk.dataset.val) || 0;
+    chk._selected = val > 0;
+    if (!chk._selected) { chk.style.opacity='0.4'; chk.style.pointerEvents='none'; }
+
+    chk.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (!(parseFloat(this.dataset.val) > 0)) return;
+      this._selected = !this._selected;
+      this.style.background = this._selected ? 'rgba(201,169,110,0.15)' : 'transparent';
+      this.style.borderColor = this._selected ? '#c9a96e' : '#555';
+      this.textContent = this._selected ? '✓' : '';
+      // update total
+      let tot = 0;
+      overlay.querySelectorAll('.prop-amb-check').forEach(c => { if(c._selected) tot += parseFloat(c.dataset.val)||0; });
+      const lbl = document.getElementById('prop-total-label');
+      if(lbl) lbl.textContent = '$ ' + tot.toLocaleString('en-US',{minimumFractionDigits:2});
+      // disable buttons if nothing selected
+      const anySelected = tot > 0;
+      ['prop-btn-en','prop-btn-pt','prop-btn-es'].forEach(id => {
+        const btn = document.getElementById(id);
+        if(btn){ btn.disabled = !anySelected; btn.style.opacity = anySelected?'1':'0.4'; btn.style.cursor = anySelected?'pointer':'not-allowed'; }
+      });
+    });
+  });
+
+  // Store overlay ref on window so __gerarPropostaSelecionada can access checks
+  window.__propOverlay = overlay;
+  window.__propAmbientes = ambientes;
 }
 
-async function gerarProposalComIdioma(projetoId, lang) {
+function __gerarPropostaSelecionada(projetoId, lang, btn) {
+  const overlay = window.__propOverlay;
+  const ambientes = window.__propAmbientes || [];
+  // collect selected indices
+  const checks = overlay ? overlay.querySelectorAll('.prop-amb-check') : [];
+  const selecionados = ambientes.filter((a, idx) => {
+    const chk = checks[idx];
+    return chk && chk._selected;
+  });
+  if (selecionados.length === 0) { toast('Selecione ao menos um ambiente'); return; }
+  document.body.removeChild(overlay);
+  gerarProposalComIdioma(projetoId, lang, selecionados);
+}
+
+async function gerarProposalComIdioma(projetoId, lang, ambientesSelecionados) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
   const lead = DB.leads.find(l=>l.id===p.leadId);
   if (!lead) return;
-  const ambientes = lead.ambientesBriefing || [];
+  const ambientes = ambientesSelecionados || lead.ambientesBriefing || [];
 
   toast('⏳ Carregando imagens e gerando proposta...');
 
