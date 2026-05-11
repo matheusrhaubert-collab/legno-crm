@@ -2805,181 +2805,332 @@ function renderProjetos(filter='') {
 }
 
 function gerarProposalCliente(projetoId) {
+  // Language selector modal before generating
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:32px;min-width:320px;text-align:center">
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px">Generate Proposal</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:24px">Select the language / Selecione o idioma / Seleccione el idioma</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="this.closest('div[style]').dataset.lang='en';gerarProposalComIdioma('${projetoId}','en');this.closest('div[style*=fixed]').remove()" style="padding:12px 24px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">🇺🇸 English</button>
+        <button onclick="this.closest('div[style]').dataset.lang='pt';gerarProposalComIdioma('${projetoId}','pt');this.closest('div[style*=fixed]').remove()" style="padding:12px 24px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;font-size:14px;cursor:pointer">🇧🇷 Português</button>
+        <button onclick="this.closest('div[style]').dataset.lang='es';gerarProposalComIdioma('${projetoId}','es');this.closest('div[style*=fixed]').remove()" style="padding:12px 24px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;font-size:14px;cursor:pointer">🇪🇸 Español</button>
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="margin-top:4px;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function gerarProposalComIdioma(projetoId, lang) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
   const lead = DB.leads.find(l=>l.id===p.leadId);
   if (!lead) return;
   const ambientes = lead.ambientesBriefing || [];
 
-  // Collect logo from config if available
-  const logoUrl = DB.config?.logoUrl || '';
+  toast('Generating proposal...');
 
-  // Compute totals
+  // ── TRANSLATIONS ──
+  const T = {
+    en: {
+      proposal: 'Commercial Proposal',
+      for: 'Prepared for',
+      summary: 'Project Summary',
+      room: 'Room',
+      total: 'Project Total',
+      rooms: 'Rooms',
+      colors: 'Colors & Finishes',
+      conditions: 'Terms & Conditions',
+      cond1: 'This proposal is valid for <strong>30 days</strong> from the date of issue. Prices refer exclusively to the supply and installation of custom furniture as specified.',
+      cond2: 'Production lead time will be confirmed upon contract signing. Design changes after approval may result in price revision.',
+      cond3: 'Not included: electrical, plumbing, masonry, flooring, painting, or any civil construction work.',
+      footer: 'Studio Legno · Confidential document',
+      print: '🖨 Save as PDF',
+      about: 'About Us',
+      years: 'Years of Excellence',
+      aboutText: 'Studio Legno was founded with one mission: to craft furniture that stands at the intersection of art and function. Each piece is designed to the millimeter, manufactured with the finest materials, and installed with precision.',
+      aboutText2: 'From modern kitchens to bespoke wardrobes and living spaces, our team of designers and craftsmen bring each project to life — always on time, always impeccable.',
+      showroom: 'Visit Our Showroom',
+      process: 'Our Process',
+      step1: 'Briefing & Design', step1d: 'We listen, measure, and design your spaces down to the millimeter.',
+      step2: 'Material Selection', step2d: 'Premium finishes, hardware, and accessories chosen with you.',
+      step3: 'Precision Manufacturing', step3d: 'Produced in our state-of-the-art facility with CNC technology.',
+      step4: 'Expert Installation', step4d: 'Our certified installers ensure a flawless finish every time.',
+    },
+    pt: {
+      proposal: 'Proposta Comercial',
+      for: 'Preparada para',
+      summary: 'Resumo do Projeto',
+      room: 'Ambiente',
+      total: 'Total do Projeto',
+      rooms: 'Ambientes',
+      colors: 'Cores & Acabamentos',
+      conditions: 'Condições Gerais',
+      cond1: 'Esta proposta tem validade de <strong>30 dias</strong> a partir da data de emissão. Os valores referem-se exclusivamente ao fornecimento e montagem dos móveis conforme especificado.',
+      cond2: 'O prazo de fabricação será confirmado na assinatura do contrato. Alterações após aprovação poderão gerar revisão de valores.',
+      cond3: 'Não estão inclusos: instalações elétricas, hidráulicas, alvenaria, pisos, pintura ou outros serviços de construção civil.',
+      footer: 'Studio Legno · Documento confidencial',
+      print: '🖨 Salvar como PDF',
+      about: 'Sobre Nós',
+      years: 'Anos de Mercado',
+      aboutText: 'O Studio Legno nasceu com uma missão: criar móveis que unem arte e funcionalidade. Cada peça é projetada ao milímetro, fabricada com os melhores materiais e instalada com precisão.',
+      aboutText2: 'De cozinhas modernas a closets sob medida e salas de estar, nossa equipe de designers e marceneiros dá vida a cada projeto — sempre no prazo, sempre impecável.',
+      showroom: 'Visite Nossa Loja',
+      process: 'Nosso Processo',
+      step1: 'Briefing & Projeto', step1d: 'Ouvimos, medimos e projetamos cada ambiente ao milímetro.',
+      step2: 'Seleção de Materiais', step2d: 'Acabamentos premium, ferragens e acessórios escolhidos com você.',
+      step3: 'Fabricação de Precisão', step3d: 'Produzido em nossa fábrica com tecnologia CNC de última geração.',
+      step4: 'Instalação Especializada', step4d: 'Nossa equipe certificada garante um acabamento impecável.',
+    },
+    es: {
+      proposal: 'Propuesta Comercial',
+      for: 'Preparada para',
+      summary: 'Resumen del Proyecto',
+      room: 'Ambiente',
+      total: 'Total del Proyecto',
+      rooms: 'Ambientes',
+      colors: 'Colores & Acabados',
+      conditions: 'Condiciones Generales',
+      cond1: 'Esta propuesta tiene validez de <strong>30 días</strong> desde la fecha de emisión. Los valores se refieren exclusivamente al suministro e instalación de los muebles según lo especificado.',
+      cond2: 'El plazo de fabricación se confirmará al firmar el contrato. Cambios tras la aprobación pueden generar revisión de precios.',
+      cond3: 'No incluye: instalaciones eléctricas, plomería, albañilería, pisos, pintura u otras obras civiles.',
+      footer: 'Studio Legno · Documento confidencial',
+      print: '🖨 Guardar como PDF',
+      about: 'Sobre Nosotros',
+      years: 'Años en el Mercado',
+      aboutText: 'Studio Legno nació con una misión: crear muebles que unen arte y funcionalidad. Cada pieza es proyectada al milímetro, fabricada con los mejores materiales e instalada con precisión.',
+      aboutText2: 'Desde cocinas modernas hasta closets a medida y salas de estar, nuestro equipo de diseñadores y carpinteros da vida a cada proyecto — siempre a tiempo, siempre impecable.',
+      showroom: 'Visita Nuestra Tienda',
+      process: 'Nuestro Proceso',
+      step1: 'Briefing & Diseño', step1d: 'Escuchamos, medimos y diseñamos cada espacio al milímetro.',
+      step2: 'Selección de Materiales', step2d: 'Acabados premium, herrajes y accesorios elegidos junto a usted.',
+      step3: 'Fabricación de Precisión', step3d: 'Producido en nuestra planta con tecnología CNC de última generación.',
+      step4: 'Instalación Especializada', step4d: 'Nuestro equipo certificado garantiza un acabado impecable.',
+    }
+  }[lang] || T?.en;
+
+  // ── SUPABASE STORAGE: color images ──
+  // URL pattern: SB_URL/storage/v1/object/public/cores/{normalized-name}.jpg
+  function colorImgUrl(coreName) {
+    const normalized = coreName.toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9\-]/g, '')
+      .replace(/-+/g, '-');
+    return `${SB_URL}/storage/v1/object/public/cores/${normalized}.jpg`;
+  }
+
+  // ── DATA ──
+  const logoUrl = DB.config?.logoUrl || '';
+  const dataHoje = new Date().toLocaleDateString(lang==='en'?'en-US':lang==='es'?'es-ES':'pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+
   const valorTotalNum = ambientes.reduce((sum, a) => {
     const v = a.xmlDados?.valorTotalNum || parseFloat((a.valor||'0').replace(/[^0-9.]/g,'')) || 0;
     return sum + v;
   }, 0);
   const valorFinal = p.finPrecoFinal || valorTotalNum;
 
-  // Date formatted
-  const dataHoje = new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
-
-  // Build ambientes HTML
+  // ── AMBIENTES HTML ──
   let ambHtml = '';
   ambientes.forEach((amb, idx) => {
-    const nomeAmb = amb.nome || amb.tipo || `Ambiente ${idx+1}`;
+    const nomeAmb = amb.nome || amb.tipo || `${T.room} ${idx+1}`;
     const imagens = amb.imagens || [];
     const xmlD = amb.xmlDados || {};
     const valorAmb = xmlD.valorTotalNum || parseFloat((amb.valor||'0').replace(/[^0-9.]/g,'')) || 0;
+
+    // Collect all unique colors
     const cores = [
       ...(xmlD.coresPaineis||[]),
       ...(xmlD.coresBox||[]),
       ...(xmlD.coresFrontais||[])
-    ].filter((v,i,a)=>a.indexOf(v)===i);
+    ].filter((v,i,a)=>v&&a.indexOf(v)===i);
 
-    // Images row (up to 4)
     const imgs4 = imagens.slice(0,4);
+    const gridCols = imgs4.length >= 3 ? 3 : imgs4.length === 2 ? 2 : 1;
     const imgHtml = imgs4.length
-      ? `<div style="display:grid;grid-template-columns:repeat(${Math.min(imgs4.length,2)},1fr);gap:8px;margin-bottom:16px">
-          ${imgs4.map(img=>`<img src="${img.url||img}" style="width:100%;height:180px;object-fit:cover;border-radius:8px;display:block">`).join('')}
+      ? `<div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:8px;margin-bottom:20px">
+          ${imgs4.map(img=>`<img src="${img.url||img}" style="width:100%;height:200px;object-fit:cover;border-radius:6px;display:block" onerror="this.style.display='none'">`).join('')}
         </div>`
       : '';
 
-    // Contagem
     const cnt = xmlD.contagem || {};
     const cntItems = [
-      cnt.cabinets>0 && `<span>${cnt.cabinets} Cabinets</span>`,
-      cnt.gavetas>0 && `<span>${cnt.gavetas} Gavetas</span>`,
-      cnt.portas>0 && `<span>${cnt.portas} Portas</span>`,
-      cnt.ripado>0 && `<span>${cnt.ripado} Ripado</span>`,
-      cnt.vidro>0 && `<span>${cnt.vidro} Porta Vidro</span>`,
-      cnt.metrosLED>0 && `<span>${cnt.metrosLED}m LED</span>`,
-    ].filter(Boolean).join('');
+      cnt.cabinets>0 && `${cnt.cabinets} Cabinets`,
+      cnt.gavetas>0 && `${cnt.gavetas} ${lang==='en'?'Drawers':lang==='es'?'Cajones':'Gavetas'}`,
+      cnt.portas>0 && `${cnt.portas} ${lang==='en'?'Doors':lang==='es'?'Puertas':'Portas'}`,
+      cnt.ripado>0 && `${cnt.ripado} ${lang==='en'?'Slats':lang==='es'?'Listones':'Ripado'}`,
+      cnt.vidro>0 && `${cnt.vidro} ${lang==='en'?'Glass Doors':lang==='es'?'Puertas de Vidrio':'Porta Vidro'}`,
+      cnt.metrosLED>0 && `${cnt.metrosLED}m LED`,
+    ].filter(Boolean);
 
-    // Cores
-    const coresHtml = cores.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-          ${cores.map(c=>`<span style="font-size:11px;padding:3px 10px;background:#1e1e1e;border:1px solid #333;border-radius:99px;color:#aaa">${c}</span>`).join('')}
-        </div>`
-      : '';
+    const coresHtml = cores.length ? `
+      <div style="margin-top:16px">
+        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#999;margin-bottom:10px">${T.colors}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">
+          ${cores.map(c => `
+            <div style="text-align:center">
+              <div style="width:100%;height:60px;background:#e8e0d5;border-radius:6px;overflow:hidden;margin-bottom:4px;position:relative">
+                <img src="${colorImgUrl(c)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px"
+                  onerror="this.parentElement.style.background='#e8e0d5';this.style.display='none'">
+              </div>
+              <div style="font-size:10px;color:#555;line-height:1.3">${c}</div>
+            </div>`).join('')}
+        </div>
+      </div>` : '';
 
     ambHtml += `
-    <div style="page-break-inside:avoid;margin-bottom:40px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #c9a96e;padding-bottom:8px;margin-bottom:16px">
-        <div style="font-size:18px;font-weight:600;color:#c9a96e;letter-spacing:0.5px">${nomeAmb}</div>
-        ${valorAmb>0?`<div style="font-size:16px;color:#c9a96e;font-family:'Courier New',monospace;font-weight:600">$ ${valorAmb.toLocaleString('en-US',{minimumFractionDigits:2})}</div>`:''}
+    <div style="page-break-inside:avoid;margin-bottom:50px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid #c9a96e;padding-bottom:10px;margin-bottom:20px">
+        <div style="font-size:20px;font-weight:300;color:#111;letter-spacing:0.5px">${nomeAmb}</div>
+        ${valorAmb>0?`<div style="font-size:15px;color:#c9a96e;font-family:'Courier New',monospace;font-weight:700">$ ${valorAmb.toLocaleString('en-US',{minimumFractionDigits:2})}</div>`:''}
       </div>
       ${imgHtml}
-      ${amb.descricao?`<p style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.6">${amb.descricao}</p>`:''}
-      ${cntItems?`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;font-size:12px;color:#999">${cntItems}</div>`:''}
+      ${amb.descricao?`<p style="font-size:13px;color:#555;margin-bottom:14px;line-height:1.7">${amb.descricao}</p>`:''}
+      ${cntItems.length?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">${cntItems.map(i=>`<span style="font-size:11px;padding:4px 12px;background:#f4f1ec;border-radius:99px;color:#555">${i}</span>`).join('')}</div>`:''}
       ${coresHtml}
-      ${amb.obs?`<p style="font-size:11px;color:#666;border-left:2px solid #333;padding-left:10px;margin-bottom:0">${amb.obs}</p>`:''}
+      ${amb.obs?`<p style="font-size:11px;color:#888;border-left:2px solid #ddd;padding-left:10px;margin-top:12px">${amb.obs}</p>`:''}
     </div>`;
   });
 
-  // Full HTML document
+  // ── FULL HTML ──
   const html = `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${lang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Proposta — ${lead.nome}</title>
+<title>${T.proposal} — ${lead.nome}</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6}
-  @media print{
-    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .no-print{display:none}
-    .page-break{page-break-before:always}
-  }
-  .cover{
-    min-height:100vh;background:#0d0d0d;display:flex;flex-direction:column;
-    justify-content:center;align-items:center;padding:60px 40px;text-align:center;
-  }
-  .cover-logo{font-size:28px;font-weight:700;color:#fff;letter-spacing:4px;text-transform:uppercase;margin-bottom:8px}
-  .cover-sub{font-size:11px;color:#555;letter-spacing:3px;text-transform:uppercase;margin-bottom:60px}
-  .cover-divider{width:60px;height:1px;background:#c9a96e;margin:0 auto 40px}
-  .cover-label{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
-  .cover-client{font-size:36px;font-weight:300;color:#fff;margin-bottom:8px;letter-spacing:1px}
-  .cover-tipo{font-size:14px;color:#888;margin-bottom:60px}
-  .cover-date{font-size:11px;color:#444;letter-spacing:1px}
-  .content{max-width:800px;margin:0 auto;padding:60px 40px}
-  .section-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#c9a96e;margin-bottom:20px}
-  .summary-table{width:100%;border-collapse:collapse;margin-bottom:40px}
-  .summary-table td{padding:12px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
-  .summary-table td:last-child{text-align:right;font-family:'Courier New',monospace;font-weight:600}
-  .total-row td{font-size:16px;color:#c9a96e;border-top:2px solid #c9a96e;border-bottom:none;padding-top:16px}
-  .footer-doc{margin-top:60px;padding-top:20px;border-top:1px solid #eee;text-align:center;font-size:10px;color:#aaa;letter-spacing:1px}
-  .print-btn{
-    position:fixed;bottom:32px;right:32px;background:#c9a96e;color:#0d0d0d;border:none;
-    padding:14px 28px;font-size:13px;font-weight:600;border-radius:4px;cursor:pointer;
-    letter-spacing:1px;text-transform:uppercase;box-shadow:0 4px 20px rgba(201,169,110,0.4)
-  }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:1.6}
+@media print{
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .no-print{display:none!important}
+  .page-break{page-break-before:always}
+}
+.cover{min-height:100vh;background:#0d0d0d;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:80px 40px;text-align:center;position:relative}
+.cover::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#c9a96e,transparent)}
+.cover-logo{font-size:32px;font-weight:700;color:#fff;letter-spacing:6px;text-transform:uppercase;margin-bottom:6px}
+.cover-sub{font-size:10px;color:#555;letter-spacing:3px;text-transform:uppercase;margin-bottom:70px}
+.divider{width:50px;height:1px;background:#c9a96e;margin:0 auto 40px}
+.cover-label{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px}
+.cover-client{font-size:42px;font-weight:200;color:#fff;margin-bottom:10px;letter-spacing:2px}
+.cover-tipo{font-size:13px;color:#666;margin-bottom:70px}
+.cover-date{font-size:11px;color:#444;letter-spacing:1px}
+.content{max-width:820px;margin:0 auto;padding:70px 40px}
+.section-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#c9a96e;margin-bottom:24px;display:flex;align-items:center;gap:12px}
+.section-label::after{content:'';flex:1;height:0.5px;background:#e0d6c8}
+/* INSTITUTIONAL */
+.institutional{background:#0d0d0d;padding:80px 40px;color:#fff}
+.inst-inner{max-width:820px;margin:0 auto}
+.inst-headline{font-size:36px;font-weight:200;letter-spacing:2px;margin-bottom:24px;color:#fff}
+.inst-headline span{color:#c9a96e}
+.inst-text{font-size:14px;color:#888;line-height:1.9;max-width:600px;margin-bottom:16px}
+.inst-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin:50px 0;border-top:0.5px solid #222;border-bottom:0.5px solid #222;padding:40px 0}
+.inst-stat-num{font-size:42px;font-weight:700;color:#c9a96e;font-family:'Courier New',monospace}
+.inst-stat-label{font-size:10px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-top:6px}
+.process-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:8px}
+.process-card{background:#111;border:0.5px solid #222;border-radius:8px;padding:24px}
+.process-num{font-size:28px;font-weight:700;color:#c9a96e;font-family:'Courier New',monospace;opacity:0.4;margin-bottom:10px}
+.process-title{font-size:13px;font-weight:600;color:#fff;margin-bottom:6px}
+.process-desc{font-size:12px;color:#666;line-height:1.6}
+/* SUMMARY */
+.summary-table{width:100%;border-collapse:collapse;margin-bottom:0}
+.summary-table td{padding:14px 0;border-bottom:0.5px solid #f0ece4;font-size:13px}
+.summary-table td:last-child{text-align:right;font-family:'Courier New',monospace;font-weight:600;color:#333}
+.total-row td{font-size:17px;color:#c9a96e!important;border-top:2px solid #c9a96e;border-bottom:none;padding-top:18px;font-weight:700!important}
+/* CONDITIONS */
+.conditions{background:#f9f8f5;padding:50px 40px;margin-top:0}
+.cond-inner{max-width:820px;margin:0 auto}
+.cond-item{font-size:12px;color:#666;line-height:1.9;padding:14px 0;border-bottom:0.5px solid #e8e2d8}
+.footer-doc{padding:30px 40px;text-align:center;font-size:10px;color:#bbb;letter-spacing:1px;border-top:0.5px solid #eee}
+.print-btn{position:fixed;bottom:30px;right:30px;background:#c9a96e;color:#0d0d0d;border:none;padding:14px 28px;font-size:13px;font-weight:700;border-radius:4px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;box-shadow:0 4px 24px rgba(201,169,110,0.5);z-index:100}
 </style>
 </head>
 <body>
 
-<!-- CAPA -->
+<!-- ══ COVER ══ -->
 <div class="cover">
-  ${logoUrl?`<img src="${logoUrl}" style="height:50px;margin-bottom:20px;object-fit:contain">`:''}
+  ${logoUrl?`<img src="${logoUrl}" style="height:45px;margin-bottom:24px;object-fit:contain;opacity:0.9">`:'<div style="font-size:11px;color:#333;letter-spacing:3px;text-transform:uppercase;margin-bottom:24px">EST. 2018</div>'}
   <div class="cover-logo">Studio Legno</div>
-  <div class="cover-sub">Marcenaria de alto padrão</div>
-  <div class="cover-divider"></div>
-  <div class="cover-label">Proposta comercial para</div>
+  <div class="cover-sub">Custom Furniture · High-End Cabinetry</div>
+  <div class="divider"></div>
+  <div class="cover-label">${T.for}</div>
   <div class="cover-client">${lead.nome}</div>
   <div class="cover-tipo">${lead.tipo||''}</div>
-  <div class="cover-divider"></div>
+  <div class="divider"></div>
   <div class="cover-date">${dataHoje}</div>
 </div>
 
-<!-- SUMÁRIO DE AMBIENTES -->
-<div class="content">
-  <div class="section-title">Resumo do projeto</div>
-  <table class="summary-table">
-    ${ambientes.map(a=>{
-      const v = a.xmlDados?.valorTotalNum || parseFloat((a.valor||'0').replace(/[^0-9.]/g,'')) || 0;
-      return `<tr>
-        <td>${a.nome||a.tipo}</td>
-        <td>${v>0?'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2}):'—'}</td>
-      </tr>`;
-    }).join('')}
-    ${valorFinal>0?`<tr class="total-row">
-      <td><strong>Total do projeto</strong></td>
-      <td><strong>$ ${valorFinal.toLocaleString('en-US',{minimumFractionDigits:2})}</strong></td>
-    </tr>`:''}
-  </table>
+<!-- ══ INSTITUTIONAL ══ -->
+<div class="institutional">
+  <div class="inst-inner">
+    <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:24px">${T.about}</div>
+    <div class="inst-headline">Crafted to <span>perfection.</span><br>Built to last.</div>
+    <p class="inst-text">${T.aboutText}</p>
+    <p class="inst-text">${T.aboutText2}</p>
 
-  <!-- AMBIENTES DETALHADOS -->
-  <div class="section-title" style="margin-top:40px">Ambientes</div>
-  ${ambHtml}
+    <div class="inst-stats">
+      <div>
+        <div class="inst-stat-num">7+</div>
+        <div class="inst-stat-label">${T.years}</div>
+      </div>
+      <div>
+        <div class="inst-stat-num">500+</div>
+        <div class="inst-stat-label">${lang==='en'?'Projects Delivered':lang==='es'?'Proyectos Entregados':'Projetos Entregues'}</div>
+      </div>
+      <div>
+        <div class="inst-stat-num">98%</div>
+        <div class="inst-stat-label">${lang==='en'?'Client Satisfaction':lang==='es'?'Satisfacción del Cliente':'Satisfação dos Clientes'}</div>
+      </div>
+    </div>
 
-  <!-- OBSERVAÇÕES GERAIS -->
-  <div class="page-break"></div>
-  <div style="background:#f9f8f6;border-radius:8px;padding:30px;margin-bottom:40px">
-    <div class="section-title">Condições gerais</div>
-    <p style="font-size:12px;color:#555;line-height:1.8;margin-bottom:12px">
-      Esta proposta tem validade de <strong>30 dias</strong> a partir da data de emissão. Os valores apresentados referem-se exclusivamente ao fornecimento e montagem dos móveis conforme especificado em projeto.
-    </p>
-    <p style="font-size:12px;color:#555;line-height:1.8;margin-bottom:12px">
-      O prazo de fabricação será informado no momento da aprovação e assinatura do contrato. Eventuais alterações de projeto após aprovação poderão gerar revisão de valores.
-    </p>
-    <p style="font-size:12px;color:#555;line-height:1.8">
-      Não estão inclusos nesta proposta: instalações elétricas e hidráulicas, alvenaria, pisos, pintura e demais serviços de construção civil.
-    </p>
-  </div>
-
-  <div class="footer-doc">
-    Studio Legno · Proposta gerada em ${dataHoje} · Documento confidencial
+    <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:20px">${T.process}</div>
+    <div class="process-grid">
+      <div class="process-card"><div class="process-num">01</div><div class="process-title">${T.step1}</div><div class="process-desc">${T.step1d}</div></div>
+      <div class="process-card"><div class="process-num">02</div><div class="process-title">${T.step2}</div><div class="process-desc">${T.step2d}</div></div>
+      <div class="process-card"><div class="process-num">03</div><div class="process-title">${T.step3}</div><div class="process-desc">${T.step3d}</div></div>
+      <div class="process-card"><div class="process-num">04</div><div class="process-title">${T.step4}</div><div class="process-desc">${T.step4d}</div></div>
+    </div>
   </div>
 </div>
 
-<button class="print-btn no-print" onclick="window.print()">🖨 Salvar / Imprimir</button>
+<!-- ══ SUMMARY ══ -->
+<div class="content">
+  <div class="section-label">${T.summary}</div>
+  <table class="summary-table">
+    ${ambientes.map(a=>{
+      const v = a.xmlDados?.valorTotalNum || parseFloat((a.valor||'0').replace(/[^0-9.]/g,'')) || 0;
+      return `<tr><td style="color:#333">${a.nome||a.tipo}</td><td>${v>0?'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2}):'—'}</td></tr>`;
+    }).join('')}
+    ${valorFinal>0?`<tr class="total-row"><td>${T.total}</td><td>$ ${valorFinal.toLocaleString('en-US',{minimumFractionDigits:2})}</td></tr>`:''}
+  </table>
+</div>
+
+<!-- ══ ROOMS ══ -->
+<div class="content" style="padding-top:0">
+  <div class="section-label" style="margin-bottom:36px">${T.rooms}</div>
+  ${ambHtml}
+</div>
+
+<!-- ══ CONDITIONS ══ -->
+<div class="conditions">
+  <div class="cond-inner">
+    <div class="section-label" style="margin-bottom:20px">${T.conditions}</div>
+    <div class="cond-item">${T.cond1}</div>
+    <div class="cond-item">${T.cond2}</div>
+    <div class="cond-item" style="border-bottom:none">${T.cond3}</div>
+  </div>
+</div>
+
+<div class="footer-doc">${T.footer} · ${dataHoje}</div>
+
+<button class="print-btn no-print" onclick="window.print()">${T.print}</button>
 
 </body>
 </html>`;
 
   const win = window.open('', '_blank');
-  if (!win) { toast('Permita pop-ups para gerar a proposta'); return; }
+  if (!win) { toast('Allow pop-ups to generate the proposal'); return; }
   win.document.write(html);
   win.document.close();
 }
