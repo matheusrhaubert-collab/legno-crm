@@ -275,6 +275,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 /* ── AGENDA ── */
 .agenda-day-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);margin:1px auto 0}
+.filtro-rapido{border-color:var(--border2);color:var(--text2)}
+.filtro-rapido.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold2)}
 
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -423,11 +425,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <div class="stat"><div class="stat-label">Total tarefas</div><div class="stat-val" id="sa-total">0</div></div>
         </div>
         <!-- Controles -->
-        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-sm" id="btn-agenda-semana" onclick="setAgendaView('semana')" style="background:var(--gold-dim);border-color:var(--gold);color:var(--gold2)">Semanal</button>
           <button class="btn btn-sm" id="btn-agenda-mes" onclick="setAgendaView('mes')">Mensal</button>
           <div style="flex:1"></div>
           <button class="btn btn-sm btn-primary" id="btn-nova-tarefa-agenda" onclick="openModal('novaTarefa')">＋ Nova tarefa</button>
+        </div>
+        <!-- Filtros rápidos -->
+        <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap" id="filtros-rapidos-agenda">
+          <button class="btn btn-sm filtro-rapido active" data-filtro="tudo" onclick="setFiltroRapido('tudo')">Tudo</button>
+          <button class="btn btn-sm filtro-rapido" data-filtro="hoje" onclick="setFiltroRapido('hoje')">📅 Hoje</button>
+          <button class="btn btn-sm filtro-rapido" data-filtro="atrasadas" onclick="setFiltroRapido('atrasadas')" style="color:var(--red)">⚠ Atrasadas</button>
+          <button class="btn btn-sm filtro-rapido" data-filtro="feitas" onclick="setFiltroRapido('feitas')" style="color:var(--green)">✓ Feitas</button>
+          <div id="btns-por-usuario" style="display:flex;gap:6px;flex-wrap:wrap"></div>
         </div>
         <!-- Calendário -->
         <div id="agenda-calendario" style="margin-bottom:20px"></div>
@@ -4131,6 +4141,26 @@ async function abrirObsProd(prodId) {
 // ══════════════════════════════════════════
 let agendaView = 'semana'; // 'semana' | 'mes'
 let agendaDataBase = new Date(); // data de referência
+let filtroRapidoAtivo = 'tudo'; // 'tudo' | 'hoje' | 'atrasadas' | 'feitas' | usuario
+
+function setFiltroRapido(valor) {
+  filtroRapidoAtivo = valor;
+  document.querySelectorAll('.filtro-rapido').forEach(b => {
+    b.classList.toggle('active', b.dataset.filtro === valor);
+  });
+  renderAgenda();
+}
+
+function renderBtnsPorUsuario() {
+  const el = document.getElementById('btns-por-usuario');
+  if (!el) return;
+  const usuarios = DB.usuarios && DB.usuarios.length
+    ? DB.usuarios.map(u => u.nome)
+    : [...new Set((DB.tarefas||[]).map(t=>t.responsavel).filter(Boolean))];
+  el.innerHTML = usuarios.map(nome =>
+    `<button class="btn btn-sm filtro-rapido" data-filtro="user:${nome}" onclick="setFiltroRapido('user:${nome}')" style="${filtroRapidoAtivo==='user:'+nome?'background:var(--gold-dim);border-color:var(--gold);color:var(--gold2)':''}">👤 ${nome}</button>`
+  ).join('');
+}
 
 function setAgendaView(view) {
   agendaView = view;
@@ -4157,6 +4187,9 @@ function renderAgenda() {
   const tituloEl = document.getElementById('agenda-lista-titulo');
   if (!calEl || !listaEl) return;
 
+  // Render user filter buttons
+  renderBtnsPorUsuario();
+
   // Update responsavel filter options (admin only)
   const isAdminFilter = !usuarioAtual || usuarioAtual.perfil === 'admin';
   const filtroEl = document.getElementById('filtro-responsavel-agenda');
@@ -4171,6 +4204,7 @@ function renderAgenda() {
   const filtroResp = isAdmin ? (document.getElementById('filtro-responsavel-agenda')?.value || '') : (usuarioAtual?.nome || '');
   const hoje = new Date();
   hoje.setHours(0,0,0,0);
+  const hojeStr = hoje.toISOString().slice(0,10);
 
   // Show/hide admin controls
   const filtroCtrlEl = document.getElementById('filtro-responsavel-agenda');
@@ -4179,9 +4213,23 @@ function renderAgenda() {
   if (novaTarefaBtn) novaTarefaBtn.style.display = isAdmin ? 'inline-flex' : 'none';
 
   function filtrarTarefas(lista) {
-    if (!isAdmin) return lista.filter(t => (t.responsavel||'').toLowerCase() === (usuarioAtual?.nome||'').toLowerCase());
-    if (filtroResp) return lista.filter(t => t.responsavel === filtroResp);
-    return lista;
+    // Apply perfil filter first
+    let result = lista;
+    if (!isAdmin) result = result.filter(t => (t.responsavel||'').toLowerCase() === (usuarioAtual?.nome||'').toLowerCase());
+    else if (filtroResp) result = result.filter(t => t.responsavel === filtroResp);
+
+    // Apply filtro rápido
+    if (filtroRapidoAtivo === 'hoje') {
+      result = result.filter(t => t.data === hojeStr && !t.concluida);
+    } else if (filtroRapidoAtivo === 'atrasadas') {
+      result = result.filter(t => !t.concluida && t.data && t.data < hojeStr);
+    } else if (filtroRapidoAtivo === 'feitas') {
+      result = result.filter(t => t.concluida);
+    } else if (filtroRapidoAtivo.startsWith('user:')) {
+      const nomeUser = filtroRapidoAtivo.slice(5);
+      result = result.filter(t => t.responsavel === nomeUser);
+    }
+    return result;
   }
   function sortTarefas(lista) {
     return lista.sort((a,b) => {
@@ -4194,6 +4242,31 @@ function renderAgenda() {
     });
   }
 
+  function tituloFiltro() {
+    if (filtroRapidoAtivo === 'hoje') return 'Tarefas de hoje';
+    if (filtroRapidoAtivo === 'atrasadas') return '⚠ Tarefas atrasadas';
+    if (filtroRapidoAtivo === 'feitas') return '✓ Tarefas concluídas';
+    if (filtroRapidoAtivo.startsWith('user:')) return `Tarefas — ${filtroRapidoAtivo.slice(5)}`;
+    return isAdmin ? 'Tarefas da semana' : 'Minhas tarefas da semana';
+  }
+  function tituloFiltroMes() {
+    if (filtroRapidoAtivo === 'hoje') return 'Tarefas de hoje';
+    if (filtroRapidoAtivo === 'atrasadas') return '⚠ Tarefas atrasadas';
+    if (filtroRapidoAtivo === 'feitas') return '✓ Tarefas concluídas';
+    if (filtroRapidoAtivo.startsWith('user:')) return `Tarefas — ${filtroRapidoAtivo.slice(5)}`;
+    return isAdmin ? 'Tarefas do mês' : 'Minhas tarefas do mês';
+  }
+
+  // For "atrasadas" and "feitas" and "hoje" — show all tasks regardless of calendar period
+  if (['atrasadas','feitas','hoje'].includes(filtroRapidoAtivo) || filtroRapidoAtivo.startsWith('user:')) {
+    renderCalendarioSemanal(calEl, hoje);
+    let tarefas = filtrarTarefas(DB.tarefas || []);
+    tarefas = sortTarefas(tarefas);
+    if (tituloEl) tituloEl.textContent = tituloFiltro();
+    renderListaTarefas(listaEl, tarefas);
+    return;
+  }
+
   if (agendaView === 'semana') {
     renderCalendarioSemanal(calEl, hoje);
     const inicioSemana = new Date(hoje);
@@ -4204,14 +4277,14 @@ function renderAgenda() {
     const fim = fimSemana.toISOString().slice(0,10);
     let tarefas = (DB.tarefas||[]).filter(t => t.data >= ini && t.data <= fim);
     tarefas = sortTarefas(filtrarTarefas(tarefas));
-    if(tituloEl) tituloEl.textContent = isAdmin ? 'Tarefas da semana' : `Minhas tarefas da semana`;
+    if(tituloEl) tituloEl.textContent = tituloFiltro();
     renderListaTarefas(listaEl, tarefas);
   } else {
     renderCalendarioMensal(calEl, hoje);
     const anoMes = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
     let tarefas = (DB.tarefas||[]).filter(t => t.data && t.data.startsWith(anoMes));
     tarefas = sortTarefas(filtrarTarefas(tarefas));
-    if(tituloEl) tituloEl.textContent = isAdmin ? 'Tarefas do mês' : `Minhas tarefas do mês`;
+    if(tituloEl) tituloEl.textContent = tituloFiltroMes();
     renderListaTarefas(listaEl, tarefas);
   }
 }
