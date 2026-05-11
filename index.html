@@ -693,18 +693,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 // DATA STORE
 // ══════════════════════════════════════════
 let DB = {
-  leads: [
-
-  ],
+  leads: [],
   projetos: [],
-  fechados: [
-    {id:'F001',nome:'Pedro Santos',tipo:'Residencial',status:'contrato_pendente',data:'2026-04-25',valor:'$ 21.000',ambientes:['Sala de Estar','Quarto Master'],contrato:false},
-    {id:'F002',nome:'Aline Ferreira',tipo:'Projeto completo',status:'contrato_gerado',data:'2026-04-10',valor:'$ 45.000',ambientes:['Sala de Estar','Sala de Jantar','Cozinha','Quarto Master','Quarto 2','Home Office'],contrato:true},
-  ],
-  perdidos: [
-    {id:'X001',nome:'Bruno Cardoso',tipo:'Comercial',status:'perdido',data:'2026-04-05',motivo:'Orçamento acima do esperado'},
-    {id:'X002',nome:'Tatiana Ramos',tipo:'Residencial',status:'perdido',data:'2026-03-20',motivo:'Escolheu outro escritório'},
-  ],
+  fechados: [],
+  perdidos: [],
   uploads: [],
   tarefas: [],
   producao: []
@@ -2042,6 +2034,8 @@ function init() {
 }
 
 function checkSession() {
+  // Clear any stale localStorage data keys (keep only user session and config)
+  ['studioDB','studioProjetos','pendingSync','lastSync'].forEach(k => localStorage.removeItem(k));
   const saved = localStorage.getItem('studioUser');
   if (saved) {
     try {
@@ -2910,11 +2904,16 @@ async function salvarBriefing() {
   const nome = document.getElementById('bf-nome').value.trim();
   const endereco = document.getElementById('bf-endereco').value.trim();
   const tipo = document.getElementById('bf-tipo').value;
-  if (!nome) { toast('Preencha o nome completo'); return; }
-  if (!endereco) { toast('Preencha o endereço'); return; }
-  if (!tipo) { toast('Selecione o tipo de cliente'); return; }
+  const highlightError = (id, msg) => {
+    const el = document.getElementById(id);
+    if (el) { el.style.borderColor = 'var(--red)'; el.focus(); setTimeout(()=>el.style.borderColor='',3000); }
+    toast('⚠️ ' + msg);
+  };
+  if (!nome) { highlightError('bf-nome', 'Preencha o nome completo'); return; }
+  if (!endereco) { highlightError('bf-endereco', 'Preencha o endereço'); return; }
+  if (!tipo) { highlightError('bf-tipo', 'Selecione o tipo de cliente'); return; }
   const ambValidos = _briefingAmbientes.filter(a => a.tipo || a.nome.trim()).map(a => ({...a, nome: a.nome||a.tipo}));
-  if (!ambValidos.length) { toast('Adicione pelo menos um ambiente'); return; }
+  if (!ambValidos.length) { toast('⚠️ Adicione pelo menos um ambiente'); return; }
 
   const l = DB.leads.find(x => x.id === _briefingLeadId);
   if (!l) return;
@@ -3394,7 +3393,7 @@ async function refreshAll() {
 // TOAST
 // ══════════════════════════════════════════
 let toastT;
-function toast(msg, dur=2800) {
+function toast(msg, dur=3500) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
