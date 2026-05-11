@@ -2638,7 +2638,7 @@ function renderProjetos(filter='') {
       <div class="card" onclick="abrirAmbiente('${p.id}','${a.nome||a.tipo}')">
         <div class="card-header">
           <div>
-            <div class="card-name">${a.nome||a.tipo||'Ambiente'}</div>
+            <div class="card-name">${a.tipo && a.nome && a.nome!==a.tipo ? a.tipo+' — '+a.nome : (a.tipo||a.nome||'Ambiente')}</div>
             <div class="card-sub">${p.nome}</div>
           </div>
           <div style="text-align:right">
