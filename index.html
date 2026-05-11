@@ -951,30 +951,65 @@ function renderImagensAmbiente() {
   if (!imgs.length) { grid.innerHTML = `<div style="font-size:12px;color:var(--text3)">Nenhuma imagem adicionada</div>`; return; }
   grid.innerHTML = imgs.map((img,i) => `
     <div style="position:relative;border-radius:var(--radius-sm);overflow:hidden;aspect-ratio:1;background:var(--bg3)">
-      <img src="${img.data}" style="width:100%;height:100%;object-fit:cover">
+      <img src="${img.url||img.data}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%2250%25%22 font-size=%2240%22>🖼</text></svg>'">
       <div onclick="removerImagemAmbiente(${i})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:white">✕</div>
     </div>`).join('');
 }
 
-function adicionarImagensAmbiente(event) {
+async function adicionarImagensAmbiente(event) {
   const files = Array.from(event.target.files);
+  if (!files.length) return;
   if (!_ambObj.imagens) _ambObj.imagens = [];
-  let loaded = 0;
-  files.forEach(f => {
-    const r = new FileReader();
-    r.onload = e => {
-      _ambObj.imagens.push({nome:f.name, data:e.target.result});
-      loaded++;
-      if (loaded === files.length) renderImagensAmbiente();
-    };
-    r.readAsDataURL(f);
-  });
+  
+  const p = DB.projetos.find(x=>x.id===_ambProjetoId);
+  const lead = DB.leads.find(l=>l.id===p?.leadId);
+  const clienteNome = lead?.nome || p?.nome || 'cliente';
+  const ambienteNome = _ambNome || 'ambiente';
+  
+  toast('Enviando imagens...');
+  
+  for (const f of files) {
+    try {
+      const { url, path } = await uploadImagemSupabase(f, clienteNome, ambienteNome);
+      _ambObj.imagens.push({ nome: f.name, url, path, data: url });
+      renderImagensAmbiente();
+    } catch(e) {
+      toast('Erro no upload: ' + e.message);
+    }
+  }
+  
+  // Save updated imagens to lead
+  if (lead?.ambientesBriefing) {
+    const idx = lead.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
+    if (idx>=0) lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
+    try { await pushLead(lead); } catch(e) {}
+  }
+  
+  toast('✓ Imagens salvas no banco!');
   event.target.value = '';
 }
 
-function removerImagemAmbiente(i) {
+async function removerImagemAmbiente(i) {
+  const img = _ambObj.imagens[i];
+  // Delete from Supabase Storage if has path
+  if (img?.path) {
+    try {
+      await fetch(`${SB_URL}/storage/v1/object/imagens/${img.path}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+    } catch(e) { console.warn('Storage delete error:', e); }
+  }
   _ambObj.imagens.splice(i,1);
   renderImagensAmbiente();
+  // Save updated imagens to lead
+  const p = DB.projetos.find(x=>x.id===_ambProjetoId);
+  const lead = DB.leads.find(l=>l.id===p?.leadId);
+  if (lead?.ambientesBriefing) {
+    const idx = lead.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
+    if (idx>=0) lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
+    try { await pushLead(lead); } catch(e) {}
+  }
 }
 
 function carregarXML(event) {
@@ -1843,6 +1878,34 @@ async function sbDelete(table, id) {
   return sbFetch(table + '?id=eq.' + encodeURIComponent(id), 'DELETE');
 }
 
+// ── Supabase Storage Upload ──
+async function uploadImagemSupabase(file, clienteNome, ambienteNome) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const nomeSeguro = clienteNome.replace(/[^a-zA-Z0-9]/g, '_');
+  const ambSeguro = ambienteNome.replace(/[^a-zA-Z0-9]/g, '_');
+  const timestamp = Date.now();
+  const path = `${nomeSeguro}/${ambSeguro}/${timestamp}.${ext}`;
+  
+  const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': file.type,
+      'x-upsert': 'true'
+    },
+    body: file
+  });
+  
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error('Upload error: ' + err);
+  }
+  
+  const publicUrl = `${SB_URL}/storage/v1/object/public/imagens/${path}`;
+  return { path, url: publicUrl };
+}
+
 let usuarioAtual = null;
 
 async function fazerLogin() {
@@ -2349,7 +2412,7 @@ function renderLeads(filter='') {
   const el = document.getElementById('list-leads');
   if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◎</span><p>Nenhum lead encontrado.</p><button class="btn btn-primary" onclick="openModal('novoLead')">＋ Adicionar lead</button></div>`; return; }
   el.innerHTML = items.map(l => `
-    <div class="card${l.novo?' card-novo':''}" onclick="openDetalhe('lead','${l.id}')">
+    <div class="card${l.novo && !DB.projetos.find(p=>p.leadId===l.id)?' card-novo':''}" onclick="openDetalhe('lead','${l.id}')">
       <div class="card-header">
         <div><div class="card-name">${l.nome}</div><div class="card-sub">${l.tipo} · ${l.origem}</div></div>
         ${statusBadge(l.status)}
