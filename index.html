@@ -1927,6 +1927,21 @@ async function imprimirBriefing(leadId) {
 // ── SUPABASE CONFIG ──
 const SB_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I';
+async function diagnosticoImagens() {
+  const SB_INST = SB_URL + '/storage/v1/object/public/institutional/';
+  const SB_CORES = SB_URL + '/storage/v1/object/public/cores/';
+  // List institutional bucket
+  try {
+    const r = await fetch(SB_URL + '/storage/v1/object/list/institutional', {
+      method: 'POST',
+      headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify({limit:100, offset:0, prefix:'', sortBy:{column:'name',order:'asc'}})
+    });
+    const files = await r.json();
+    const names = Array.isArray(files) ? files.map(f=>f.name).join(', ') : JSON.stringify(files);
+    alert('institutional bucket files: ' + names);
+  } catch(e) { alert('Erro: ' + e.message); }
+}
 
 async function sbFetch(path, method='GET', body=null, prefer='') {
   const preferHeader = prefer
@@ -2972,12 +2987,43 @@ async function gerarProposalComIdioma(projetoId, lang) {
   }
 
   function colorImgUrl(coreName) {
-    const clean = stripColorPrefix(coreName);
-    const normalized = clean.toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9\-]/g, '')
-      .replace(/-+/g, '-');
-    return `${SB_URL}/storage/v1/object/public/cores/${normalized}.jpg`;
+    const clean = stripColorPrefix(coreName).trim();
+    // Manual mapping for names that differ between XML and Supabase filenames
+    const nameMap = {
+      'cashmere grey': 'Cashemere',
+      'cashemere grey': 'Cashemere',
+      'cashmere': 'Cashemere',
+      'cashemere': 'Cashemere',
+      'white 01': 'White',
+      'white 02': 'White',
+      'white': 'White',
+      'black': 'Black',
+      'beige textile': 'Beige-Textile',
+      'beige-textile': 'Beige-Textile',
+      'chocolate carini': 'Chocolate-Carini',
+      'diamond': 'Diamond',
+      'fog grey': 'Fog-Grey',
+      'fox grey tossini': 'Fox-Grey-Tossini',
+      'honey carini': 'Honey-Carini',
+      'natural carini': 'Natural-Carini',
+      'natural halifax': 'Natural-Halifax',
+      'reed green': 'Reed-Green',
+      'rusty red': 'Rusty-Red',
+      'silver grey': 'Silver-Grey',
+      'stone grey': 'Stone-Grey',
+      'vicenza': 'Vicenza',
+      'white tossini': 'White-Tossini',
+    };
+    const key = clean.toLowerCase().replace(/\s+/g,' ').trim();
+    const mapped = nameMap[key];
+    if (mapped) return `${SB_URL}/storage/v1/object/public/cores/${mapped}.jpg?apikey=${SB_KEY}`;
+    // Fallback: capitalize each word and join with hyphen
+    const normalized = clean
+      .split(/\s+/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join('-')
+      .replace(/[^a-zA-Z0-9\-]/g, '');
+    return `${SB_URL}/storage/v1/object/public/cores/${normalized}.jpg?apikey=${SB_KEY}`;
   }
 
   // ── DATA ──
@@ -3195,23 +3241,23 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
     <!-- OUR WORK gallery -->
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:16px">${lang==='en'?'Our Work':lang==='es'?'Nuestros Proyectos':'Nossos Projetos'}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:40px">
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-1.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-2.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-3.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-4.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-5.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-6.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-1.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-2.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-3.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-4.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-4.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/project-6.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
     </div>
 
     <!-- FACTORY section -->
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:16px">${lang==='en'?'Our Factory':lang==='es'?'Nuestra Fábrica':'Nossa Fábrica'}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:50px">
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-1.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-2.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-3.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-4.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-5.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
-<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-6.jpg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-1.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-2.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-3.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-4.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-5.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
+<div style="overflow:hidden;border-radius:6px;aspect-ratio:4/3"><img src="https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/institutional/factory-6.jpeg?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='#333';this.style.display='none'"></div>
     </div>
 
     <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#555;margin-bottom:20px">${T.process}</div>
