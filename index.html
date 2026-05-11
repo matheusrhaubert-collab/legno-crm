@@ -1625,6 +1625,17 @@ function gerarProposal() {
 // ══════════════════════════════════════════
 // IMPRIMIR BRIEFING
 // ══════════════════════════════════════════
+async function salvarBriefingEFechar() {
+  const btn = document.getElementById('btn-salvar-briefing');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  await salvarBriefing();
+  closeModal('briefing');
+  // Show PDF button after first save
+  const pdfBtn = document.getElementById('btn-salvar-pdf');
+  if (pdfBtn) pdfBtn.style.display = 'inline-flex';
+  if (btn) { btn.disabled = false; btn.textContent = '✓ Salvar'; }
+}
+
 async function salvarEGerarPDF() {
   const btn = document.getElementById('btn-salvar-briefing');
   btn.disabled = true; btn.textContent = '⏳ Salvando...';
@@ -2792,6 +2803,8 @@ function abrirBriefing(id) {
   // Show visualizar button if briefing already exists
   const vizBtn = document.getElementById('btn-visualizar-pdf');
   if (vizBtn) vizBtn.style.display = l.ambientesBriefing?.length ? 'inline-flex' : 'none';
+  const pdfBtn2 = document.getElementById('btn-salvar-pdf');
+  if (pdfBtn2) pdfBtn2.style.display = l.ambientesBriefing?.length ? 'inline-flex' : 'none';
   openModal('briefing');
   setTimeout(atualizarSoma, 50);
 }
@@ -2909,6 +2922,7 @@ async function salvarBriefing() {
   l.nome = nome;
   l.obs = endereco;
   l.tipo = tipo;
+  l.novo = false;
   l.especificador = document.getElementById('bf-especificador').value.trim();
   const valorTotal = document.getElementById('bf-valor-total').value || _valorTotalBriefing || document.getElementById('bf-valor-livre').value.trim();
   const somaAmb = _briefingAmbientes.reduce((acc,a) => acc + (parseFloat((a.valor||'').replace(/[^0-9.,]/g,'').replace(',','.')) || 0), 0);
@@ -4340,7 +4354,8 @@ checkSession();
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('briefing')">Cancelar</button>
       <button class="btn" id="btn-visualizar-pdf" onclick="imprimirBriefing(_briefingLeadId)" style="display:none;border-color:var(--border2)">👁 Visualizar PDF</button>
-      <button class="btn btn-primary" id="btn-salvar-briefing" onclick="salvarEGerarPDF()">✓ Salvar e Gerar PDF</button>
+      <button class="btn btn-primary" id="btn-salvar-briefing" onclick="salvarBriefingEFechar()">✓ Salvar</button>
+      <button class="btn" id="btn-salvar-pdf" onclick="salvarEGerarPDF()" style="display:none">🖨 Salvar e PDF</button>
     </div>
   </div>
 </div>
