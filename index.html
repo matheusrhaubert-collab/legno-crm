@@ -983,6 +983,11 @@ function getAmbObj(projetoId, nomeAmb) {
 }
 
 function abrirAmbiente(projetoId, nomeAmb) {
+  const _pAmb = DB.projetos.find(x=>x.id===projetoId);
+  if (_pAmb?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Ambientes travados após aprovação da proposta');
+    return;
+  }
   _ambProjetoId = projetoId;
   _ambNome = nomeAmb;
   const p = DB.projetos.find(x=>x.id===projetoId);
@@ -2330,6 +2335,9 @@ async function pushProjeto(p) {
     ambientes: p.ambientes||[], lead_id: p.leadId||null,
     contrato_aprovado: p.contratoAprovado||false,
     proposta_aceita: p.propostaAceita||false,
+    proposta_travada: p.propostaTravada||false,
+    proposta_travada_por: p.propostaTravadaPor||'',
+    pagamento: p.pagamento||'', prazo: p.prazo||'',
     fin_preco_final: p.finPrecoFinal||0, fin_sobra_pct: p.finSobraPct||0,
     fin_multiplicador: p.finMultiplicador||3, fin_montagem: p.finMontagem||0,
     fin_desconto: p.finDesconto||0, fin_taxa: p.finTaxa||0,
@@ -2442,6 +2450,9 @@ function mapProjeto(p) {
     ambientes: p.ambientes||[], leadId: p.lead_id||'',
     contratoAprovado: p.contrato_aprovado||false,
     propostaAceita: p.proposta_aceita||false,
+    propostaTravada: p.proposta_travada||false,
+    propostaTravadaPor: p.proposta_travada_por||'',
+    pagamento: p.pagamento||'', prazo: p.prazo||'',
     finPrecoFinal: p.fin_preco_final||0, finSobraPct: p.fin_sobra_pct||0,
     finMultiplicador: p.fin_multiplicador||3, finMontagem: p.fin_montagem||0,
     finDesconto: p.fin_desconto||0, finTaxa: p.fin_taxa||0,
@@ -2817,7 +2828,7 @@ function renderProjetos(filter='') {
       const todos2 = ambientes;
       const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
       const btnProposta = p.propostaAceita
-        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);cursor:default" onclick="event.stopPropagation()">✓ Proposta aceita</button>`
+        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${usuarioAtual?.perfil==='administrativo'?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'}" title="${usuarioAtual?.perfil==='administrativo'?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${usuarioAtual?.perfil==='administrativo'?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
         : proposalPronta
           ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Proposta aceita</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
@@ -2854,7 +2865,7 @@ function renderProjetos(filter='') {
         </div>
 
         <!-- ── 4 PAINÉIS ── -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 14px 14px">
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:0 14px 14px">
 
           <!-- BRIEFING -->
           <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:12px;padding:14px;cursor:pointer" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">
@@ -3028,6 +3039,38 @@ function renderProjetos(filter='') {
             })() : `<div style="color:var(--text3);font-size:12px;line-height:1.6">Nenhum dado financeiro registrado ainda.</div>`}
             <div style="margin-top:12px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro</button>
+            </div>
+          </div>
+
+          <!-- PAGAMENTO -->
+          <div style="background:#0d1a1a;border:1px solid rgba(92,184,130,0.2);border-radius:12px;padding:14px">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+              <span style="font-size:18px">💳</span>
+              <span style="font-size:13px;font-weight:600;color:var(--text)">Pagamento</span>
+            </div>
+            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${p.pagamento?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${p.pagamento?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${p.pagamento?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${p.pagamento?'Definido':'Pendente'}</div>
+            ${p.pagamento
+              ? `<div style="font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap">${p.pagamento}</div>`
+              : `<div style="color:var(--text3);font-size:12px">Condição de pagamento não definida.</div>`
+            }
+            <div style="margin-top:12px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.25);color:var(--green)" onclick="event.stopPropagation();editarPagamentoPrazo('${p.id}','pagamento')">✏ Editar</button>
+            </div>
+          </div>
+
+          <!-- PRAZO -->
+          <div style="background:#0d1520;border:1px solid rgba(96,144,208,0.2);border-radius:12px;padding:14px">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+              <span style="font-size:18px">📅</span>
+              <span style="font-size:13px;font-weight:600;color:var(--text)">Prazo</span>
+            </div>
+            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${p.prazo?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${p.prazo?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${p.prazo?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${p.prazo?'Definido':'Pendente'}</div>
+            ${p.prazo
+              ? `<div style="font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap">${p.prazo}</div>`
+              : `<div style="color:var(--text3);font-size:12px">Prazo de entrega/instalação não definido.</div>`
+            }
+            <div style="margin-top:12px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.25);color:var(--blue)" onclick="event.stopPropagation();editarPagamentoPrazo('${p.id}','prazo')">✏ Editar</button>
             </div>
           </div>
 
@@ -3217,6 +3260,10 @@ function renderProjetos(filter='') {
 function gerarProposalCliente(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
+  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Proposta travada após aprovação. Apenas admin pode desbloquear.');
+    return;
+  }
   const lead = DB.leads.find(l=>l.id===p.leadId);
   if (!lead) return;
   const ambientes = lead.ambientesBriefing || [];
@@ -4086,7 +4133,19 @@ function atualizarLeadSheets(lead, extra={}) { saveDB(); }
 let _briefingLeadId = null;
 let _briefingAmbientes = [];
 
+function isProjetoBloqueado(leadId) {
+  const proj = DB.projetos.find(p=>p.leadId===leadId);
+  return proj?.propostaTravada || false;
+}
+
 function abrirBriefing(id) {
+  if (isProjetoBloqueado(id)) {
+    const proj = DB.projetos.find(p=>p.leadId===id);
+    if (usuarioAtual?.perfil !== 'administrativo') {
+      toast('🔒 Briefing travado após aprovação da proposta');
+      return;
+    }
+  }
   _briefingLeadId = id;
   const l = DB.leads.find(x => x.id === id);
   if (!l) return;
@@ -4734,6 +4793,10 @@ let _finProjetoId = null;
 function abrirFinanceiro(projetoId) {
   _finProjetoId = projetoId;
   const p = DB.projetos.find(x=>x.id===projetoId);
+  if (p?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Financeiro travado após aprovação da proposta');
+    return;
+  }
   if (!p) { toast('Projeto não encontrado.'); return; }
   const lead = DB.leads.find(l=>l.id===p.leadId);
   const ambientes = lead?.ambientesBriefing || [];
@@ -5053,14 +5116,105 @@ async function enviarProducao(projetoId) {
 }
 
 
-async function aceitarProposta(projetoId) {
+function editarPagamentoPrazo(projetoId, campo) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const titulo = campo === 'pagamento' ? '💳 Condição de Pagamento' : '📅 Prazo de Entrega';
+  const placeholder = campo === 'pagamento'
+    ? 'Ex: 50% na assinatura, 50% na entrega
+Ou: 3x sem juros no cartão'
+    : 'Ex: 45 dias úteis após aprovação
+Entrega prevista: Julho/2025';
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:#141414;border:0.5px solid #2a2a2a;border-radius:16px;padding:28px;max-width:440px;width:100%">
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px">${titulo}</div>
+      <textarea id="pp-valor" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;padding:12px;outline:none;resize:vertical;min-height:100px" placeholder="${placeholder}">${p[campo]||''}</textarea>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'))" style="flex:1;padding:10px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>
+        <button onclick="(async()=>{const v=document.getElementById('pp-valor').value;const p=DB.projetos.find(x=>x.id==='${projetoId}');if(p){p['${campo}']=v;try{await pushProjeto(p);renderProjetos();toast('✓ ${campo==='pagamento'?'Pagamento':'Prazo'} salvo!');}catch(e){toast('Erro: '+e.message);}};document.body.removeChild(this.closest('div[style*=fixed]'));})()" style="flex:1;padding:10px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">✓ Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function aceitarProposta(projetoId) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  // Show confirmation overlay
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:#141414;border:1px solid rgba(201,169,110,0.3);border-radius:16px;padding:32px;max-width:440px;width:100%">
+      <div style="font-size:20px;margin-bottom:8px">🔒 Aprovar proposta</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">${p.nome}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">
+        Ao aprovar a proposta, os seguintes processos serão <strong style="color:var(--gold)">travados</strong>:<br><br>
+        🔒 Briefing — edição bloqueada<br>
+        🔒 Ambientes / XML — bloqueados<br>
+        🔒 Financeiro — valor de venda fixado<br>
+        🔒 Nova proposta — bloqueada<br><br>
+        <span style="color:var(--text3);font-size:12px">Para desbloquear será necessário usuário administrativo.</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'))" style="flex:1;padding:12px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:14px;cursor:pointer">Cancelar</button>
+        <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'));_confirmarAceitarProposta('${projetoId}')" style="flex:1;padding:12px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">✓ Confirmar e travar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+async function _confirmarAceitarProposta(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
   p.propostaAceita = true;
+  p.propostaTravada = true;
+  p.propostaTravadaEm = new Date().toISOString();
+  p.propostaTravadaPor = usuarioAtual?.nome || '';
   try {
     await pushProjeto(p);
     renderProjetos();
-    toast('✓ Proposta aceita!');
+    toast('🔒 Proposta aceita e processos travados!');
+  } catch(e) { toast('Erro: ' + e.message); }
+}
+
+function desbloquearProposta(projetoId) {
+  if (usuarioAtual?.perfil !== 'administrativo') {
+    toast('⛔ Apenas usuários administrativos podem desbloquear');
+    return;
+  }
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:#141414;border:1px solid rgba(224,96,96,0.3);border-radius:16px;padding:32px;max-width:400px;width:100%">
+      <div style="font-size:20px;margin-bottom:8px">🔓 Desbloquear projeto</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">${p.nome}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">
+        Isso irá <strong style="color:var(--red)">remover a aprovação da proposta</strong> e desbloquear briefing, ambientes e financeiro para edição.<br><br>
+        <span style="color:var(--text3);font-size:12px">Travado por: ${p.propostaTravadaPor||'—'} em ${p.propostaTravadaEm?new Date(p.propostaTravadaEm).toLocaleDateString('pt-BR'):'—'}</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'))" style="flex:1;padding:12px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:14px;cursor:pointer">Cancelar</button>
+        <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'));_confirmarDesbloquear('${projetoId}')" style="flex:1;padding:12px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🔓 Desbloquear</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+async function _confirmarDesbloquear(projetoId) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  p.propostaAceita = false;
+  p.propostaTravada = false;
+  p.propostaTravadaEm = null;
+  p.propostaTravadaPor = '';
+  try {
+    await pushProjeto(p);
+    renderProjetos();
+    toast('🔓 Projeto desbloqueado!');
   } catch(e) { toast('Erro: ' + e.message); }
 }
 async function aprovarContratoProjeto(projetoId) {
