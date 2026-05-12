@@ -2448,7 +2448,9 @@ function mapProjeto(p) {
     finComissao: p.fin_comissao||0, finComissaoTipo: p.fin_comissao_tipo||'percent',
     finComissaoExt: p.fin_comissao_ext||0, finComissaoExtTipo: p.fin_comissao_ext_tipo||'percent',
     finFrete: p.fin_frete||0, finCustoExtra: p.fin_custo_extra||0,
-    finDescontoCliente: p.fin_desconto_cliente||0
+    finDescontoCliente: p.fin_desconto_cliente||0,
+    pdfProposta: (p.proposta_html||p.proposta_data) ? 'local:'+p.id : '',
+    pdfPropostaData: p.proposta_data||''
   };
 }
 function mapTarefa(t) {
@@ -2919,15 +2921,6 @@ function renderProjetos(filter='') {
                   <span style="font-size:12px;color:var(--gold);font-family:'DM Mono',monospace">$ ${(a.finPrecoFinal||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                 </div>`).join('')}
               ${ambientes.length>3?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-3} mais</div>`:''}
-              ${p.pdfProposta ? `
-                <div style="margin-top:10px;padding:8px 10px;background:rgba(96,144,208,0.08);border:1px solid rgba(96,144,208,0.2);border-radius:8px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="event.stopPropagation();verPropostaPDF('${p.id}')">
-                  <span style="font-size:16px">📑</span>
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:11px;color:var(--blue);font-weight:600">Última proposta gerada</div>
-                    <div style="font-size:10px;color:var(--text3)">${p.pdfPropostaData||'Disponível'} · clique para abrir</div>
-                  </div>
-                  <span style="font-size:16px;color:var(--blue)">↗</span>
-                </div>` : ''}
             ` : `
               <div style="text-align:center;padding:16px 0">
                 <div style="font-size:28px;margin-bottom:8px;opacity:0.4">📄</div>
@@ -2940,6 +2933,14 @@ function renderProjetos(filter='') {
                 ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
                 : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.3);color:var(--blue);opacity:0.4;cursor:not-allowed" disabled>📄 Gerar proposta</button>`
               }
+              ${p.pdfProposta ? `
+              <div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="margin-top:8px;padding:8px 10px;background:rgba(96,144,208,0.07);border:1px solid rgba(96,144,208,0.18);border-radius:8px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(96,144,208,0.14)'" onmouseout="this.style.background='rgba(96,144,208,0.07)'">
+                <span style="font-size:20px">📑</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:11px;color:var(--blue);font-weight:600;white-space:nowrap">Última proposta</div>
+                  <div style="font-size:10px;color:var(--text3)">${p.pdfPropostaData||'Salva'} · abrir ↗</div>
+                </div>
+              </div>` : ''}
             </div>
           </div>
 
@@ -3743,17 +3744,26 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
 </body>
 </html>`;
 
-  // Save HTML to localStorage for quick re-open
-  try {
-    localStorage.setItem('proposta_html_' + projetoId, html);
-    const p2 = DB.projetos.find(x=>x.id===projetoId);
-    if (p2) {
-      p2.pdfProposta = 'local:' + projetoId;
-      p2.pdfPropostaData = new Date().toLocaleDateString('pt-BR');
-      pushProjeto(p2).catch(()=>{});
-      renderProjetos();
-    }
-  } catch(e) { /* localStorage full - ignore */ }
+  // Save HTML — localStorage (fast) + Supabase (permanent)
+  const p2 = DB.projetos.find(x=>x.id===projetoId);
+  if (p2) {
+    p2.pdfProposta = 'local:' + projetoId;
+    p2.pdfPropostaData = new Date().toLocaleDateString('pt-BR');
+    p2.propostaHtml = html;
+    try { localStorage.setItem('proposta_html_' + projetoId, html); } catch(e) {}
+    // Save to Supabase for permanence
+    try {
+      const SUPA_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
+      const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos';
+      await fetch(SUPA_URL + '/rest/v1/projetos?id=eq.' + projetoId, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
+        body: JSON.stringify({proposta_html: html, proposta_data: p2.pdfPropostaData})
+      });
+    } catch(e) { /* network error - localStorage fallback still works */ }
+    pushProjeto(p2).catch(()=>{});
+    renderProjetos();
+  }
 
   // Use Blob URL so images from external origins load correctly
   const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
@@ -3763,8 +3773,24 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
 }
 
-function verPropostaPDF(projetoId) {
-  const html = localStorage.getItem('proposta_html_' + projetoId);
+async function verPropostaPDF(projetoId) {
+  let html = localStorage.getItem('proposta_html_' + projetoId);
+  // Try Supabase if not in localStorage
+  if (!html) {
+    toast('⏳ Carregando proposta...');
+    try {
+      const SUPA_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
+      const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos';
+      const r = await fetch(SUPA_URL + '/rest/v1/projetos?id=eq.' + projetoId + '&select=proposta_html', {
+        headers: {'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}
+      });
+      const data = await r.json();
+      html = data?.[0]?.proposta_html || null;
+      if (html) {
+        try { localStorage.setItem('proposta_html_' + projetoId, html); } catch(e) {}
+      }
+    } catch(e) {}
+  }
   if (!html) { toast('Nenhuma proposta salva. Gere a proposta primeiro.'); return; }
   const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
   const blobUrl = URL.createObjectURL(blob);
