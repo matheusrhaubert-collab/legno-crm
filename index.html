@@ -2342,10 +2342,12 @@ async function pushProjeto(p) {
     pagamento: p.pagamento||'', prazo: p.prazo||'',
     condicaoTipo: p.condicao_tipo||'parcelado', condicaoDesconto: p.condicao_desconto||0,
     condicaoJuros: p.condicao_juros||0, condicaoParcelas: p.condicao_parcelas||1,
+    condicaoDownPct: p.condicao_down_pct||20,
     condicaoEtapas: (()=>{try{return JSON.parse(p.condicao_etapas||'[]');}catch(e){return [];}})(),
     condicaoPrecoFinal: p.condicao_preco_final||0,
     condicao_tipo: p.condicaoTipo||'parcelado', condicao_desconto: p.condicaoDesconto||0,
     condicao_juros: p.condicaoJuros||0, condicao_parcelas: p.condicaoParcelas||1,
+    condicao_down_pct: p.condicaoDownPct||20,
     condicao_etapas: JSON.stringify(p.condicaoEtapas||[]), condicao_preco_final: p.condicaoPrecoFinal||0,
     fin_preco_final: p.finPrecoFinal||0, fin_sobra_pct: p.finSobraPct||0,
     fin_multiplicador: p.finMultiplicador||3, fin_montagem: p.finMontagem||0,
@@ -3051,6 +3053,8 @@ function renderProjetos(filter='') {
             </div>
           </div>
 
+        </div><!-- /4-panel grid -->
+
         <!-- ── 2ª LINHA: CONDIÇÕES + PAGAMENTO + PRAZO ── -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px">
 
@@ -3074,7 +3078,18 @@ function renderProjetos(filter='') {
                 +(precoFinal>0?'<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--text3)">Preço negociado</div><div style="font-size:18px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div>'+(precoBase&&Math.abs(precoFinal-precoBase)>1?'<div style="font-size:10px;color:var(--text3)">Base: '+fmtV(precoBase)+'</div>':'')+'</div>':'')
                 +(tipo==='parcelado'?'<div>'+etapas.map(e=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:10px;color:var(--text3)">'+e.label+' ('+e.pct+'%)</span><span style="font-size:10px;color:var(--text2);font-family:DM Mono,monospace">'+fmtV((precoFinal||precoBase)*(e.pct/100))+'</span></div>').join('')+'</div>':'')
                 +(tipo==='avista'&&p.condicaoDesconto>0?'<div style="font-size:11px;color:var(--green)">✓ Desconto: '+p.condicaoDesconto+'%</div>':'')
-                +(tipo==='financiado'?'<div style="font-size:11px;color:var(--blue)">'+p.condicaoParcelas+'x · '+p.condicaoJuros+'% juros<br>Parcela: '+fmtV((precoFinal||precoBase)/p.condicaoParcelas)+'</div>':'');
+                +(tipo==='financiado'?(()=>{
+                  const parc = p.condicaoParcelas||1;
+                  const juros = p.condicaoJuros||0;
+                  const pf2 = precoFinal||precoBase;
+                  const downPct = p.condicaoDownPct||20;
+                  const downVal = pf2*(downPct/100);
+                  const finVal = pf2 - downVal;
+                  const parcelVal = parc>0?finVal/parc:0;
+                  return '<div style="margin-bottom:6px"><div style="font-size:10px;color:var(--text3)">Down payment ('+downPct+'%)</div><div style="font-size:14px;font-weight:700;color:var(--green)">'+fmtV(downVal)+'</div></div>'
+                    +'<div style="margin-bottom:6px"><div style="font-size:10px;color:var(--text3)">Financiado em '+parc+'x'+(juros>0?' · '+juros+'% juros':'')+'</div><div style="font-size:14px;font-weight:700;color:var(--blue)">'+fmtV(parcelVal)+'/mês</div></div>'
+                    +'<div style="font-size:10px;color:var(--text3)">Total: '+fmtV(pf2)+'</div>';
+                })():'');
             })()}
             <div style="margin-top:10px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirCondicoes('${p.id}')">🤝 Negociar</button>
@@ -5235,17 +5250,33 @@ function abrirCondicoes(projetoId) {
         +'<span style="font-size:14px;font-weight:700;color:var(--green)">'+fmtV(precoFinal)+'</span>'
         +'</div></div>'
       :
-        '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:16px;margin-bottom:16px">'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-        +'<div><div style="font-size:11px;color:var(--text3);margin-bottom:6px">Nº de parcelas</div>'
-        +'<input id="cond-parcelas" type="number" min="1" max="120" value="'+parcelas+'" style="width:100%;background:#222;border:1px solid #333;border-radius:6px;color:var(--blue);font-size:16px;padding:10px;outline:none;text-align:center"></div>'
-        +'<div><div style="font-size:11px;color:var(--text3);margin-bottom:6px">Taxa de juros total (%)</div>'
-        +'<input id="cond-juros" type="number" min="0" step="0.5" value="'+juros+'" style="width:100%;background:#222;border:1px solid #333;border-radius:6px;color:var(--blue);font-size:16px;padding:10px;outline:none;text-align:center"></div>'
-        +'</div>'
-        +'<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">'
-        +'<div><div style="font-size:11px;color:var(--text3)">Valor por parcela</div><div style="font-size:16px;font-weight:700;color:var(--blue)">'+fmtV(precoFinal/parcelas)+'</div></div>'
-        +'<div style="text-align:right"><div style="font-size:11px;color:var(--text3)">Total financiado</div><div style="font-size:16px;font-weight:700;color:var(--text)">'+fmtV(precoFinal)+'</div></div>'
-        +'</div></div>'
+        (()=>{
+          const downPct2 = p.condicaoDownPct||20;
+          const downVal2 = precoBase*(downPct2/100);
+          const finVal2 = precoBase - downVal2;
+          const parcelVal2 = parcelas>0?finVal2/parcelas:0;
+          return '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:16px;margin-bottom:16px">'
+          +'<div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Entrada e financiamento</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
+          +'<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Down payment (%)</div>'
+          +'<input id="cond-down" type="number" min="0" max="100" step="5" value="'+downPct2+'" style="width:100%;background:#222;border:1px solid rgba(92,184,130,0.4);border-radius:6px;color:var(--green);font-size:16px;padding:10px;outline:none;text-align:center">'
+          +'<div style="font-size:10px;color:var(--green);margin-top:4px;text-align:center">'+fmtV(downVal2)+'</div></div>'
+          +'<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Valor financiado</div>'
+          +'<div style="background:#111;border:1px solid #333;border-radius:6px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:var(--blue)">'+fmtV(finVal2)+'</div></div></div>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+          +'<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Nº de parcelas</div>'
+          +'<input id="cond-parcelas" type="number" min="1" max="120" value="'+parcelas+'" style="width:100%;background:#222;border:1px solid #333;border-radius:6px;color:var(--blue);font-size:16px;padding:10px;outline:none;text-align:center"></div>'
+          +'<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Juros total (%)</div>'
+          +'<input id="cond-juros" type="number" min="0" step="0.5" value="'+juros+'" style="width:100%;background:#222;border:1px solid #333;border-radius:6px;color:var(--text2);font-size:16px;padding:10px;outline:none;text-align:center"></div>'
+          +'</div>'
+          +'<div style="margin-top:12px;padding:10px;background:rgba(96,144,208,0.08);border:1px solid rgba(96,144,208,0.2);border-radius:8px">'
+          +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">Down payment</span><span style="font-size:12px;font-weight:600;color:var(--green)">'+fmtV(downVal2)+'</span></div>'
+          +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">'+parcelas+'x mensais</span><span style="font-size:12px;font-weight:600;color:var(--blue)">'+fmtV(parcelVal2)+'/mês</span></div>'
+          +'<div style="display:flex;justify-content:space-between;padding-top:6px;border-top:0.5px solid rgba(255,255,255,0.06)"><span style="font-size:11px;color:var(--text)">Total</span><span style="font-size:13px;font-weight:700;color:var(--text)">'+fmtV(precoBase)+'</span></div>'
+          +'</div>'
+          +'</div>';
+        })()
       )
 
       // Hidden tipo field
@@ -5272,6 +5303,7 @@ function abrirCondicoes(projetoId) {
       const descFinal = parseFloat(div.querySelector('#cond-desc')?.value||'0')||0;
       const jurosFinal = parseFloat(div.querySelector('#cond-juros')?.value||'0')||0;
       const parcelasFinal = parseInt(div.querySelector('#cond-parcelas')?.value||'1')||1;
+      const downPctFinal = parseFloat(div.querySelector('#cond-down')?.value||'20')||20;
       let precoFinalSave = precoBase;
       if (tipoFinal==='avista') precoFinalSave = precoBase*(1-descFinal/100);
       if (tipoFinal==='financiado') precoFinalSave = precoBase*Math.pow(1+jurosFinal/100,parcelasFinal);
@@ -5289,6 +5321,7 @@ function abrirCondicoes(projetoId) {
       p.condicaoDesconto = descFinal;
       p.condicaoJuros = jurosFinal;
       p.condicaoParcelas = parcelasFinal;
+      p.condicaoDownPct = downPctFinal;
       p.condicaoEtapas = etapasSave;
       p.condicaoPrecoFinal = precoFinalSave;
       try { await pushProjeto(p); renderProjetos(); toast('✓ Condição salva!'); }
