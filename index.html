@@ -2979,6 +2979,7 @@ function renderProjetos(filter='') {
               const fmtN = n=>(isNaN(n)?0:n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
               const finCor2 = margemPct2>=40?'#b090e0':margemPct2>=30?'var(--green)':margemPct2>=15?'var(--amber)':'var(--red)';
               const rows = [
+                ['Produtos (Promob)', valorPromob, true],
                 descClienteVal>0  ? ['Desconto cliente',  descClienteVal, true]  : null,
                 taxaFabVal>0      ? ['Taxa fábrica',       taxaFabVal,     true]  : null,
                 descontoFabVal>0  ? ['Desc. fábrica',      descontoFabVal, false] : null, // crédito = verde
