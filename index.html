@@ -2943,20 +2943,14 @@ async function pushLead(l) {
 }
 
 async function pushProjeto(p) {
-  await sbFetch('projetos?on_conflict=id', 'POST', [{
+  const _base = {
     id: p.id, nome: p.nome, tipo: p.tipo||'', status: p.status||'inicial',
     data: p.data||new Date().toISOString().slice(0,10), estimate: p.estimate||'',
     ambientes: p.ambientes||[], lead_id: p.leadId||null,
     contrato_aprovado: p.contratoAprovado||false,
     proposta_aceita: p.propostaAceita||false,
-    proposta_travada: p.propostaTravada||false,
-    proposta_travada_por: p.propostaTravadaPor||'',
-    pagamento: p.pagamento||'', prazo: p.prazo||'',
     condicao_tipo: p.condicaoTipo||'parcelado',
     condicao_preco_final: p.condicaoPrecoFinal||0,
-    prazos: JSON.stringify(p.prazos||{}),
-    dias_instalacao: p.diasInstalacao||7,
-    checklist_entrega: JSON.stringify(p.checklistEntrega||[]),
     fin_preco_final: p.finPrecoFinal||0, fin_sobra_pct: p.finSobraPct||0,
     fin_multiplicador: p.finMultiplicador||3, fin_montagem: p.finMontagem||0,
     fin_desconto: p.finDesconto||0, fin_taxa: p.finTaxa||0,
@@ -2964,7 +2958,25 @@ async function pushProjeto(p) {
     fin_comissao_ext: p.finComissaoExt||0, fin_comissao_ext_tipo: p.finComissaoExtTipo||'percent',
     fin_frete: p.finFrete||0, fin_custo_extra: p.finCustoExtra||0,
     fin_desconto_cliente: p.finDescontoCliente||0
-  }], 'resolution=merge-duplicates');
+  };
+  // Extra columns — only sent if column exists in Supabase
+  // Run the SQL below to enable them, then they'll save automatically
+  const _extras = {
+    proposta_travada: p.propostaTravada||false,
+    proposta_travada_por: p.propostaTravadaPor||'',
+    pagamento: p.pagamento||'', prazo: p.prazo||'',
+    prazos: JSON.stringify(p.prazos||{}),
+    dias_instalacao: p.diasInstalacao||7,
+    checklist_entrega: JSON.stringify(p.checklistEntrega||[]),
+    fin_pagamentos: JSON.stringify(p.finPagamentos||[]),
+  };
+  try {
+    await sbFetch('projetos?on_conflict=id', 'POST', [{..._base,..._extras}], 'resolution=merge-duplicates');
+  } catch(e) {
+    if (e.message?.includes('column')||e.message?.includes('schema cache')) {
+      await sbFetch('projetos?on_conflict=id', 'POST', [_base], 'resolution=merge-duplicates');
+    } else throw e;
+  }
 }
 
 async function pushTarefa(t) {
