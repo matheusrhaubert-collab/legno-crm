@@ -1655,6 +1655,10 @@ async function gerarDescricaoIA() {
 }
 
 async function salvarAmbienteDetalhe() {
+  const _projLockA = DB.projetos.find(p=>p.id===_ambProjetoId);
+  if (_projLockA?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Projeto travado — proposta já aprovada'); return;
+  }
   _ambObj.descricao = document.getElementById('amb-descricao').value;
   _ambObj.cores = _coresSelecionadas;
   // Save back to lead
@@ -2557,7 +2561,6 @@ async function pushLead(l) {
     valor: l.valor||'', valor_total: l.valorTotal||'',
     especificador: l.especificador||'', previsao_instalacao: l.previsaoInstalacao||'',
     motivo_desq: l.motivoDesq||'', novo: l.novo||false,
-    responsavel: l.responsavel||'', updated_at: l.updatedAt,
     ambientes_briefing: l.ambientesBriefing||[]
   }], 'resolution=merge-duplicates');
 }
@@ -4309,6 +4312,24 @@ function abrirBriefing(id) {
   _briefingLeadId = id;
   const l = DB.leads.find(x => x.id === id);
   if (!l) return;
+  // Show/hide save button based on lock status
+  const _bl = DB.projetos.find(pp=>pp.leadId===id);
+  const _locked = _bl?.propostaTravada && usuarioAtual?.perfil !== 'administrativo';
+  // Update save button state after modal opens
+  setTimeout(()=>{
+    const _btn = document.getElementById('btn-salvar-briefing');
+    if (_btn) {
+      _btn.disabled = _locked;
+      _btn.style.opacity = _locked ? '0.4' : '1';
+      _btn.style.cursor = _locked ? 'not-allowed' : 'pointer';
+      _btn.title = _locked ? '🔒 Travado — proposta aprovada' : '';
+    }
+    // Also disable all form inputs
+    document.querySelectorAll('#modal-briefing input, #modal-briefing select, #modal-briefing textarea').forEach(el=>{
+      el.disabled = _locked;
+      el.style.opacity = _locked ? '0.5' : '1';
+    });
+  }, 50);
   // Pre-fill nome e endereco se já tiver
   document.getElementById('bf-nome').value = l.nome || '';
   document.getElementById('bf-endereco').value = l.obs || '';
@@ -4430,6 +4451,11 @@ function removerAmbienteBriefing(i) {
 
 
 async function salvarBriefing() {
+  // Lock check
+  const _projLock = DB.projetos.find(p=>p.leadId===_briefingLeadId);
+  if (_projLock?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Projeto travado — proposta já aprovada'); return;
+  }
   const nome = document.getElementById('bf-nome').value.trim();
   const endereco = document.getElementById('bf-endereco').value.trim();
   const tipo = document.getElementById('bf-tipo').value;
@@ -5210,6 +5236,9 @@ async function salvarFinanceiro() {
 async function toggleAprovacaoAmbiente(projetoId, nomeAmb, status) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
+  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Projeto travado — proposta já aprovada'); return;
+  }
   const lead = DB.leads.find(l=>l.id===p.leadId);
   if (!lead?.ambientesBriefing) return;
   const amb = lead.ambientesBriefing.find(a=>(a.nome||a.tipo)===nomeAmb);
@@ -5288,6 +5317,9 @@ async function enviarProducao(projetoId) {
 function abrirCondicoes(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
+  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Condições travadas — proposta já aprovada'); return;
+  }
   const precoBase = p.finPrecoFinal || 0;
   const etapasPadrao = [{label:'Entrada',pct:20},{label:'Medição e conferência',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
   const etapasAtuais = p.condicaoEtapas&&p.condicaoEtapas.length ? p.condicaoEtapas : etapasPadrao;
@@ -5460,6 +5492,9 @@ function abrirCondicoes(projetoId) {
 function editarPagamentoPrazo(projetoId, campo) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
+  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    toast('🔒 Projeto travado — proposta já aprovada'); return;
+  }
   const titulo = campo === 'pagamento' ? '💳 Condição de Pagamento' : '📅 Prazo de Entrega';
   const ph = campo === 'pagamento' ? 'Ex: 50% na assinatura, 50% na entrega' : 'Ex: 45 dias úteis após aprovação';
   const ov = document.createElement('div');
