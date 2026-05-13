@@ -3438,8 +3438,60 @@ function gerarProposalCliente(projetoId) {
   if (!lead) return;
   const ambientes = lead.ambientesBriefing || [];
 
-  // ── CHECK: financeiro preenchido? ──
+  // ── VALIDAÇÃO COMPLETA ──
+  const erros = [];
+
+  // 1. Briefing completo
+  const bOkCheck = (()=>{
+    let n=0;
+    if(lead.nome&&lead.obs) n++;
+    if((lead.ambientesBriefing||[]).length>0) n++;
+    if(lead.valorTotal) n++;
+    if(lead.previsaoInstalacao||lead.especificador) n++;
+    return n;
+  })();
+  if(bOkCheck<4) erros.push({icon:'📋', campo:'Briefing', detalhe:'Briefing incompleto ('+bOkCheck+'/4 etapas)'});
+
+  // 2. XML em todos os ambientes
+  const semXml = ambientes.filter(a=>!a.xmlNome);
+  if(semXml.length>0) erros.push({icon:'📐', campo:'XML Promob', detalhe:semXml.length+' ambiente(s) sem XML: '+semXml.map(a=>a.nome||a.tipo).join(', ')});
+
+  // 3. Valor financeiro em todos os ambientes
   const ambSemValor = ambientes.filter(a => !a.finPrecoFinal || a.finPrecoFinal === 0);
+  if(ambSemValor.length>0) erros.push({icon:'💰', campo:'Financeiro', detalhe:ambSemValor.length+' ambiente(s) sem valor de venda'});
+
+  // 4. Condição de pagamento
+  if(!p.condicaoPrecoFinal && !p.finPrecoFinal) erros.push({icon:'🤝', campo:'Condições', detalhe:'Condição de pagamento não definida'});
+
+  // 5. Prazos
+  const pz = p.prazos||{};
+  const prazosFaltando = ['medicao','producao','entrega','instalacao'].filter(k=>!pz[k]);
+  if(prazosFaltando.length>0) erros.push({icon:'📅', campo:'Prazos', detalhe:'Prazos pendentes: '+prazosFaltando.map(k=>({medicao:'Medição',producao:'Produção',entrega:'Entrega',instalacao:'Instalação'}[k])).join(', ')});
+
+  // Show validation errors if any
+  if(erros.length>0) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    const div = document.createElement('div');
+    div.style.cssText = 'background:#141414;border:1px solid rgba(224,96,96,0.3);border-radius:16px;padding:28px;max-width:440px;width:100%';
+    div.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">'
+      +'<span style="font-size:24px">⛔</span>'
+      +'<div><div style="font-size:16px;font-weight:600;color:var(--text)">Proposta incompleta</div>'
+      +'<div style="font-size:12px;color:var(--text3)">Preencha todos os campos antes de gerar</div></div>'
+      +'</div>'
+      +erros.map(e=>'<div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(224,96,96,0.06);border:1px solid rgba(224,96,96,0.15);border-radius:8px;margin-bottom:8px">'
+        +'<span style="font-size:18px;flex-shrink:0">'+e.icon+'</span>'
+        +'<div><div style="font-size:12px;font-weight:600;color:var(--red)">'+e.campo+'</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+e.detalhe+'</div></div>'
+        +'</div>').join('')
+      +'<button id="prop-val-close" style="width:100%;margin-top:8px;padding:11px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Fechar</button>';
+    div.querySelector('#prop-val-close').onclick = ()=>ov.remove();
+    ov.appendChild(div);
+    ov.addEventListener('click', e=>{ if(e.target===ov) ov.remove(); });
+    document.body.appendChild(ov);
+    return;
+  }
+
   const totalVenda = ambientes.reduce((s,a) => s + (a.finPrecoFinal||0), 0);
 
   // Build validation UI
@@ -3968,6 +4020,25 @@ ${(()=>{
     return '<div class="content" style="padding-top:0"><div class="section-label">'+_payTitle+'</div><div style="font-size:15px;color:#333;padding:16px 0">'+_parc+'x '+_fmtM(_pf/_parc)+' ('+( p?.condicaoJuros||0)+'% juros)</div><div style="font-size:18px;font-weight:700;color:#1a1a1a">Total: '+_fmtM(_pf)+'</div></div>';
   }
   return '';
+})()}
+
+<!-- ══ PRAZOS ══ -->
+${(()=>{
+  const pz = p?.prazos||{};
+  const diasInst = p?.diasInstalacao||7;
+  const hasPrazos = pz.medicao||pz.producao||pz.entrega||pz.instalacao;
+  if (!hasPrazos) return '';
+  const pTitle = lang==='en'?'Project Timeline':lang==='es'?'Cronograma del Proyecto':'Cronograma do Projeto';
+  const fmtD = d=>{ if(!d) return '—'; const dt=new Date(d+'T12:00:00'); return dt.toLocaleDateString(lang==='en'?'en-US':lang==='es'?'es-ES':'pt-BR',{day:'2-digit',month:'long',year:'numeric'}); };
+  const etapas = [
+    {key:'medicao',    label:lang==='en'?'Measurement & Factory Order':lang==='es'?'Medición y pedido a fábrica':'Conferência de medidas e pedido à fábrica'},
+    {key:'producao',   label:lang==='en'?'Production (~15 days)':lang==='es'?'Producción (~15 días)':'Produção (~15 dias)'},
+    {key:'entrega',    label:lang==='en'?'Delivery':lang==='es'?'Entrega':'Entrega'},
+    {key:'instalacao', label:lang==='en'?'Installation (~'+diasInst+' days)':lang==='es'?'Instalación (~'+diasInst+' días)':'Instalação (~'+diasInst+' dias)'},
+  ].filter(e=>pz[e.key]);
+  if (!etapas.length) return '';
+  const rows = etapas.map((e,i)=>'<tr><td style="color:#333;padding:10px 0;border-bottom:1px solid #eee"><span style="display:inline-block;width:22px;height:22px;background:#1a1a1a;color:#fff;border-radius:50%;font-size:11px;text-align:center;line-height:22px;margin-right:8px">'+(i+1)+'</span>'+e.label+'</td><td style="color:#1a1a1a;font-weight:600;padding:10px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap">'+fmtD(pz[e.key])+'</td></tr>').join('');
+  return '<div class="content" style="padding-top:0"><div class="section-label">'+pTitle+'</div><table style="width:100%;border-collapse:collapse">'+rows+'</table></div>';
 })()}
 
 <!-- ══ CONDITIONS ══ -->
