@@ -572,8 +572,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       </div>
 
       <!-- ══ MARKETING ══ -->
-      <div class="page" id="page-marketing">
-        <div id="mkt-shell"></div>
+      <div class="page" id="page-marketing" style="padding:0;overflow:hidden;height:calc(100dvh - 60px)">
+        <!-- Marketing tabs header -->
+        <div style="display:flex;align-items:center;gap:0;border-bottom:0.5px solid var(--border);background:var(--bg2);padding:0 20px">
+          <button id="mkt-tab-gerar" onclick="mktSetTab('gerar')" style="padding:14px 20px;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold2);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.3px">✦ Conteúdo</button>
+          <button id="mkt-tab-agenda" onclick="mktSetTab('agenda')" style="padding:14px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;letter-spacing:0.3px">📅 Programação</button>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:8px;height:8px;border-radius:50%;background:#555"></div>
+            <span style="font-size:11px;color:var(--text3)">Meta não conectado</span>
+            <button onclick="mktConectarMeta()" style="padding:5px 12px;background:transparent;border:1px solid rgba(24,119,242,0.4);border-radius:99px;color:#1877f2;font-size:11px;cursor:pointer;font-weight:600">f Conectar Meta</button>
+          </div>
+        </div>
+        <!-- Tab content -->
+        <div id="mkt-shell" style="height:calc(100% - 50px);overflow:hidden"></div>
       </div>
 
       <!-- ══ FINANCEIRO ══ -->
@@ -2441,9 +2453,190 @@ let _mktFotos = [];
 let _mktPostAtual = null;
 let _mktHistorico = [];
 
+
+// ══════════════════════════════════════════
+// MARKETING — PROGRAMAÇÃO
+// ══════════════════════════════════════════
+
+function renderMktAgenda() {
+  const el = document.getElementById('mkt-shell');
+  if (!el) return;
+
+  // Load posts from localStorage
+  const posts = mktGetPostsSalvos();
+  const pendentes = posts.filter(p=>p.status!=='publicado');
+  const publicados = posts.filter(p=>p.status==='publicado');
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;height:100%;overflow:hidden">
+
+      <!-- PENDENTES / AGENDADOS -->
+      <div style="border-right:0.5px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">A publicar</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">${pendentes.length} post(s) pendente(s)</div>
+          </div>
+          <button onclick="mktSetTab('gerar')" style="padding:6px 12px;background:var(--gold-dim);border:1px solid rgba(201,169,110,0.3);border-radius:8px;color:var(--gold2);font-size:11px;cursor:pointer;font-weight:600">✦ Criar novo</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:16px">
+          ${pendentes.length===0?'<div style="text-align:center;padding:40px 20px;color:var(--text3);font-size:13px">Nenhum post aguardando publicação.<br><span style="font-size:11px">Gere um post e salve para programar.</span></div>':''}
+          ${pendentes.map((p,i)=>mktPostCard(p,i,posts,'pendente')).join('')}
+        </div>
+      </div>
+
+      <!-- PUBLICADOS -->
+      <div style="display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:0.5px solid var(--border)">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">Publicados</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${publicados.length} post(s) no histórico</div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:16px">
+          ${publicados.length===0?'<div style="text-align:center;padding:40px 20px;color:var(--text3);font-size:13px">Nenhum post publicado ainda.</div>':''}
+          ${publicados.map((p,i)=>mktPostCard(p,i,posts,'publicado')).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function mktPostCard(post, localIdx, allPosts, tipo) {
+  const globalIdx = allPosts.indexOf(post);
+  const statusCor = post.status==='agendado'?'var(--blue)':post.status==='publicado'?'var(--green)':'var(--text3)';
+  const statusLabel = post.status==='agendado'?'📅 Agendado':post.status==='publicado'?'✓ Publicado':'● Rascunho';
+  const redesIcon = {instagram:'📷',facebook:'💬',linkedin:'💼'};
+  return `<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">${post.headline||'Post sem título'}</div>
+        <div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:8px">
+          <span>${redesIcon[post.rede]||'📱'} ${post.rede||'instagram'}</span>
+          <span style="color:${statusCor}">${statusLabel}</span>
+          ${post.dataAgendada?`<span>📅 ${new Date(post.dataAgendada).toLocaleDateString('pt-BR')}</span>`:''}
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:10px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${post.copy||''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${tipo==='pendente'?`
+        <button onclick="mktAbrirAgendar(${globalIdx})" style="padding:5px 10px;background:rgba(96,144,208,0.1);border:1px solid rgba(96,144,208,0.3);border-radius:6px;color:var(--blue);font-size:11px;cursor:pointer">📅 Agendar</button>
+        <button onclick="mktMarcarPublicado(${globalIdx})" style="padding:5px 10px;background:rgba(92,184,130,0.1);border:1px solid rgba(92,184,130,0.3);border-radius:6px;color:var(--green);font-size:11px;cursor:pointer">✓ Marcar publicado</button>
+        <button onclick="mktVerPost(${globalIdx})" style="padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:11px;cursor:pointer">Ver</button>
+        <button onclick="mktExcluirPost(${globalIdx})" style="padding:5px 10px;background:transparent;border:1px solid rgba(224,96,96,0.2);border-radius:6px;color:var(--red);font-size:11px;cursor:pointer">✕</button>
+      `:`
+        <button onclick="mktVerPost(${globalIdx})" style="padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:11px;cursor:pointer">Ver post</button>
+        <span style="padding:5px 10px;font-size:11px;color:var(--text3)">${post.dataPublicado?'Publicado em '+new Date(post.dataPublicado).toLocaleDateString('pt-BR'):''}</span>
+      `}
+    </div>
+  </div>`;
+}
+
+function mktGetPostsSalvos() {
+  try { return JSON.parse(localStorage.getItem('mkt_posts_salvos')||'[]'); } catch(e) { return []; }
+}
+
+function mktSetPostsSalvos(posts) {
+  localStorage.setItem('mkt_posts_salvos', JSON.stringify(posts));
+}
+
+function mktAbrirAgendar(idx) {
+  const posts = mktGetPostsSalvos();
+  const post = posts[idx];
+  if (!post) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(96,144,208,0.3);border-radius:14px;padding:24px;max-width:360px;width:100%';
+  const hoje = new Date(); hoje.setDate(hoje.getDate()+1);
+  div.innerHTML = '<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">📅 Agendar publicação</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:16px">'+( post.headline||'Post').slice(0,40)+'...</div>'
+    +'<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Data de publicação</label>'
+    +'<input id="ag-data" type="date" value="'+hoje.toISOString().slice(0,10)+'" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;padding:10px;outline:none;margin-bottom:16px">'
+    +'<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Horário</label>'
+    +'<input id="ag-hora" type="time" value="18:00" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;padding:10px;outline:none;margin-bottom:16px">'
+    +'<div style="display:flex;gap:8px">'
+    +'<button id="ag-cancel" style="flex:1;padding:10px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>'
+    +'<button id="ag-save" style="flex:2;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📅 Agendar</button>'
+    +'</div>';
+  div.querySelector('#ag-cancel').onclick = () => document.body.removeChild(ov);
+  div.querySelector('#ag-save').onclick = () => {
+    const data = div.querySelector('#ag-data').value;
+    const hora = div.querySelector('#ag-hora').value;
+    posts[idx].status = 'agendado';
+    posts[idx].dataAgendada = data+'T'+hora;
+    mktSetPostsSalvos(posts);
+    document.body.removeChild(ov);
+    renderMktAgenda();
+    toast('📅 Post agendado para '+new Date(data+'T'+hora).toLocaleDateString('pt-BR'));
+  };
+  ov.appendChild(div);
+  ov.addEventListener('click', e=>{ if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
+function mktMarcarPublicado(idx) {
+  const posts = mktGetPostsSalvos();
+  posts[idx].status = 'publicado';
+  posts[idx].dataPublicado = new Date().toISOString();
+  mktSetPostsSalvos(posts);
+  renderMktAgenda();
+  toast('✓ Post marcado como publicado!');
+}
+
+function mktVerPost(idx) {
+  const posts = mktGetPostsSalvos();
+  _mktPostAtual = posts[idx];
+  mktSetTab('gerar');
+  setTimeout(()=>mktExibirPost(_mktPostAtual), 100);
+}
+
+function mktExcluirPost(idx) {
+  if (!confirm('Excluir este post?')) return;
+  const posts = mktGetPostsSalvos();
+  posts.splice(idx, 1);
+  mktSetPostsSalvos(posts);
+  renderMktAgenda();
+  toast('Post removido.');
+}
+
+let _mktTab = 'gerar';
+let _mktPosts = []; // saved posts for scheduling
+
+function mktSetTab(tab) {
+  _mktTab = tab;
+  // Update tab styles
+  document.getElementById('mkt-tab-gerar').style.borderBottomColor = tab==='gerar'?'var(--gold)':'transparent';
+  document.getElementById('mkt-tab-gerar').style.color = tab==='gerar'?'var(--gold2)':'var(--text3)';
+  document.getElementById('mkt-tab-agenda').style.borderBottomColor = tab==='agenda'?'var(--gold)':'transparent';
+  document.getElementById('mkt-tab-agenda').style.color = tab==='agenda'?'var(--gold2)':'var(--text3)';
+  renderMarketing();
+}
+
+function mktConectarMeta() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(24,119,242,0.3);border-radius:16px;padding:28px;max-width:400px;width:100%';
+  div.innerHTML = '<div style="font-size:20px;margin-bottom:12px">f Meta Business</div>'
+    +'<div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">Para conectar o Instagram e Facebook, você precisa:<br><br>'
+    +'<span style="color:var(--text3)">① Página do Facebook vinculada ao Instagram Business<br>'
+    +'② Meta Business Manager configurado<br>'
+    +'③ App no Meta Developers com permissões de publicação</span></div>'
+    +'<div style="background:rgba(24,119,242,0.08);border:1px solid rgba(24,119,242,0.2);border-radius:8px;padding:12px;margin-bottom:20px;font-size:12px;color:var(--text3)">Quando estiver pronto, entre em contato para fazer a integração completa.</div>'
+    +'<button id="meta-close" style="width:100%;padding:11px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Fechar</button>';
+  div.querySelector('#meta-close').onclick = () => document.body.removeChild(ov);
+  ov.appendChild(div);
+  ov.addEventListener('click', e=>{ if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
 async function renderMarketing() {
   const el = document.getElementById('mkt-shell');
   if (!el) return;
+
+  if (_mktTab === 'agenda') {
+    renderMktAgenda();
+    return;
+  }
 
   // Load all images from projects
   await mktCarregarFotos();
@@ -2478,9 +2671,9 @@ async function renderMarketing() {
         <div style="padding:14px 16px;border-bottom:0.5px solid var(--border);overflow-y:auto;flex:1">
           <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Tendências do nicho</div>
           ${MKT_TRENDS.map((t,i)=>`
-            <div onclick="mktGerarComTrend(${i})" style="padding:8px 10px;border-radius:8px;margin-bottom:6px;border:1px solid var(--border);cursor:pointer;transition:all 0.15s"
+            <div data-trend="${i}" onclick="mktGerarComTrend(${i})" style="padding:8px 10px;border-radius:8px;margin-bottom:6px;border:1px solid var(--border);cursor:pointer;transition:all 0.15s"
               onmouseover="this.style.background='var(--bg3)';this.style.borderColor='rgba(201,169,110,0.3)'"
-              onmouseout="this.style.background='transparent';this.style.borderColor='var(--border)'">
+              onmouseout="if(this.style.background!=='rgba(201,169,110,0.12)')this.style.background='transparent';this.style.borderColor='var(--border)'">
               <div style="font-size:12px;font-weight:500;color:var(--text)">${t.tema}</div>
               <div style="font-size:10px;color:var(--text3);margin-top:2px;line-height:1.4">${t.desc}</div>
             </div>`).join('')}
@@ -2591,14 +2784,19 @@ function mktGerarComTrend(trendIdx) {
   const t = MKT_TRENDS[trendIdx];
   const briefingEl = document.getElementById('mkt-briefing');
   if (briefingEl) briefingEl.value = t.tema+' — '+t.desc;
-  mktGerarPost(t);
+  // Highlight selected trend
+  document.querySelectorAll('[data-trend]').forEach(el=>{ el.style.background='transparent'; el.style.borderColor='var(--border)'; });
+  const tEl = document.querySelector('[data-trend="'+trendIdx+'"]');
+  if (tEl) { tEl.style.background='var(--gold-dim)'; tEl.style.borderColor='rgba(201,169,110,0.4)'; }
+  toast('✦ Trend selecionado — ajuste o idioma e clique Gerar post');
 }
 
 async function mktGerarPost(trendOverride) {
   const lang = document.getElementById('mkt-lang')?.value||'pt';
   const rede = document.getElementById('mkt-rede')?.value||'instagram';
   const briefingLivre = document.getElementById('mkt-briefing')?.value?.trim()||'';
-  const trend = trendOverride || null;
+  // Find if briefing matches a trend
+  const trend = trendOverride || MKT_TRENDS.find(t=>briefingLivre.startsWith(t.tema)) || null;
 
   const outEl = document.getElementById('mkt-output');
   if (!outEl) return;
@@ -2760,9 +2958,13 @@ function mktCopiarPost() {
 
 function mktSalvarPost() {
   if (!_mktPostAtual) return;
-  _mktHistorico.unshift({ ..._mktPostAtual, id: Date.now() });
+  const posts = mktGetPostsSalvos();
+  const novoPost = { ..._mktPostAtual, id: Date.now(), status: 'rascunho', savedAt: new Date().toISOString() };
+  posts.unshift(novoPost);
+  mktSetPostsSalvos(posts);
+  _mktHistorico.unshift(novoPost);
   mktAtualizarHistorico();
-  toast('✦ Post salvo no histórico');
+  toast('✦ Post salvo! Vá em Programação para agendar.');
 }
 
 function mktAdicionarHistorico(post) {
