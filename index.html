@@ -2561,6 +2561,7 @@ async function pushLead(l) {
     valor: l.valor||'', valor_total: l.valorTotal||'',
     especificador: l.especificador||'', previsao_instalacao: l.previsaoInstalacao||'',
     motivo_desq: l.motivoDesq||'', novo: l.novo||false,
+    responsavel: l.responsavel||'',
     ambientes_briefing: l.ambientesBriefing||[]
   }], 'resolution=merge-duplicates');
 }
@@ -2575,17 +2576,8 @@ async function pushProjeto(p) {
     proposta_travada: p.propostaTravada||false,
     proposta_travada_por: p.propostaTravadaPor||'',
     pagamento: p.pagamento||'', prazo: p.prazo||'',
-    condicaoTipo: p.condicao_tipo||'parcelado', condicaoDesconto: p.condicao_desconto||0,
-    condicaoJuros: p.condicao_juros||0, condicaoParcelas: p.condicao_parcelas||1,
-    condicaoDownPct: p.condicao_down_pct||20,
-    finPagamentos: (()=>{try{return JSON.parse(p.fin_pagamentos||'[]');}catch(e){return [];}})(),
-    condicaoEtapas: (()=>{try{return JSON.parse(p.condicao_etapas||'[]');}catch(e){return [];}})(),
-    condicaoPrecoFinal: p.condicao_preco_final||0,
-    condicao_tipo: p.condicaoTipo||'parcelado', condicao_desconto: p.condicaoDesconto||0,
-    condicao_juros: p.condicaoJuros||0, condicao_parcelas: p.condicaoParcelas||1,
-    condicao_down_pct: p.condicaoDownPct||20,
-    fin_pagamentos: JSON.stringify(p.finPagamentos||[]),
-    condicao_etapas: JSON.stringify(p.condicaoEtapas||[]), condicao_preco_final: p.condicaoPrecoFinal||0,
+    condicao_tipo: p.condicaoTipo||'parcelado',
+    condicao_preco_final: p.condicaoPrecoFinal||0,
     fin_preco_final: p.finPrecoFinal||0, fin_sobra_pct: p.finSobraPct||0,
     fin_multiplicador: p.finMultiplicador||3, fin_montagem: p.finMontagem||0,
     fin_desconto: p.finDesconto||0, fin_taxa: p.finTaxa||0,
@@ -2602,6 +2594,7 @@ async function pushTarefa(t) {
     data: t.data||null, prioridade: t.prioridade||'Média',
     responsavel: t.responsavel||'', cliente: t.cliente||'',
     lead_id: t.leadId||'', concluida: t.concluida||false,
+    automatica: t.automatica||false,
     criado_em: t.criadoEm || new Date().toISOString(),
     comentarios: t.comentarios||[]
   }], 'resolution=merge-duplicates');
@@ -2716,6 +2709,7 @@ function mapTarefa(t) {
   return {
     id: t.id, titulo: t.titulo, descricao: t.descricao||'',
     data: t.data||'', prioridade: t.prioridade||'Média',
+    automatica: t.automatica||false,
     responsavel: t.responsavel||'', cliente: t.cliente||'',
     leadId: t.lead_id||'', concluida: t.concluida||false,
     comentarios: t.comentarios||[]
@@ -3079,7 +3073,7 @@ function renderProjetos(filter='') {
       const btnProposta = p.propostaAceita
         ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${usuarioAtual?.perfil==='administrativo'?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'}" title="${usuarioAtual?.perfil==='administrativo'?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${usuarioAtual?.perfil==='administrativo'?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
         : proposalPronta
-          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Proposta aceita</button>`
+          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
       const btnContrato = p.contratoAprovado
         ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);cursor:default" onclick="event.stopPropagation()">✓ Contrato aprovado</button>`
@@ -3114,10 +3108,10 @@ function renderProjetos(filter='') {
         </div>
 
         <!-- ── 5 PAINÉIS ── -->
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 14px 14px">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 14px 14px;align-items:stretch">
 
           <!-- BRIEFING -->
-          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:12px;padding:14px;cursor:pointer" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">
+          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
               <span style="font-size:18px">📋</span>
               <span style="font-size:13px;font-weight:600;color:var(--text)">Briefing</span>
@@ -3127,94 +3121,104 @@ function renderProjetos(filter='') {
               <div style="height:100%;width:${briefingPct}%;background:${briefingStatusColor};border-radius:99px"></div>
             </div>
             <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Progresso ${briefingOk}/${briefingSteps.length}</div>
-            ${['Dados do cliente','Ambientes','Valor previsto','Detalhes extras'].map((s,i)=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:14px;height:14px;border-radius:50%;background:'+(i<briefingOk?'var(--green)':'transparent')+';border:1.5px solid '+(i<briefingOk?'var(--green)':'rgba(255,255,255,0.15)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:#0d0d0d;font-weight:700">'+(i<briefingOk?'✓':'')+'</span><span style="font-size:11px;color:'+(i<briefingOk?'var(--text)':'var(--text3)')+'">'+s+'</span></div>').join('')}
-            <div style="margin-top:10px">
+            <div style="flex:1">
+              ${['Dados do cliente','Ambientes','Valor previsto','Detalhes extras'].map((s,i)=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:14px;height:14px;border-radius:50%;background:'+(i<briefingOk?'var(--green)':'transparent')+';border:1.5px solid '+(i<briefingOk?'var(--green)':'rgba(255,255,255,0.15)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:#0d0d0d;font-weight:700">'+(i<briefingOk?'✓':'')+'</span><span style="font-size:11px;color:'+(i<briefingOk?'var(--text)':'var(--text3)')+'">'+s+'</span></div>').join('')}
+            </div>
+            <div style="margin-top:12px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">📋 Ver briefing</button>
             </div>
           </div>
 
           <!-- AMBIENTES -->
-          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:12px;padding:14px;cursor:pointer" onclick="verAmbientesCliente('${p.id}')">
+          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
               <span style="font-size:18px">🪵</span>
               <span style="font-size:13px;font-weight:600;color:var(--text)">Ambientes</span>
             </div>
             <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:rgba(92,184,130,0.15);color:var(--green);margin-bottom:10px;border:1px solid rgba(92,184,130,0.3)">${ambientes.length} ambiente${ambientes.length!==1?'s':''}</div>
             <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">XML Promob</div>
-            ${ambientes.slice(0,5).map(a=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:7px;height:7px;border-radius:50%;background:'+(a.xmlNome?'var(--green)':'var(--text3)')+';flex-shrink:0"></span><span style="font-size:11px;color:'+(a.xmlNome?'var(--text2)':'var(--text3)')+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:'+(a.xmlNome?'var(--green)':'var(--text3)')+';">'+(a.xmlNome?'✓':'—')+'</span></div>').join('')}
-            ${ambientes.length>5?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-5} mais</div>`:''}
-            <div style="margin-top:10px">
+            <div style="flex:1">
+              ${ambientes.slice(0,5).map(a=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:7px;height:7px;border-radius:50%;background:'+(a.xmlNome?'var(--green)':'var(--text3)')+';flex-shrink:0"></span><span style="font-size:11px;color:'+(a.xmlNome?'var(--text2)':'var(--text3)')+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:'+(a.xmlNome?'var(--green)':'var(--text3)')+';">'+(a.xmlNome?'✓':'—')+'</span></div>').join('')}
+              ${ambientes.length>5?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-5} mais</div>`:''}
+            </div>
+            <div style="margin-top:12px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
             </div>
           </div>
 
           <!-- PROPOSTA -->
-          <div style="background:#0d1520;border:1px solid rgba(96,144,208,0.25);border-radius:12px;padding:14px">
+          <div style="background:#0d1520;border:1px solid rgba(96,144,208,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
               <span style="font-size:16px">📄</span>
               <span style="font-size:13px;font-weight:600;color:var(--text)">Proposta</span>
             </div>
             <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${p.propostaAceita?'rgba(92,184,130,0.15)':proposalPronta?'rgba(201,169,110,0.15)':'rgba(96,144,208,0.1)'};color:${proposalStatusColor};margin-bottom:10px;border:1px solid ${p.propostaAceita?'rgba(92,184,130,0.3)':proposalPronta?'rgba(201,169,110,0.3)':'rgba(96,144,208,0.2)'}">${proposalStatus}</div>
-            ${proposalPronta||p.propostaAceita ? `
-              <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">Ambientes</div>
-              ${ambientes.slice(0,3).map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">'+(a.nome||a.tipo)+'</span><span style="font-size:11px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finPrecoFinal||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
-              ${ambientes.length>3?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-3} mais</div>`:''}
-            ` : `
-              <div style="text-align:center;padding:12px 0">
-                <div style="font-size:24px;opacity:0.3;margin-bottom:6px">📄</div>
-                <div style="font-size:11px;color:var(--text3)">${ambientes.length===0?'Aguardando briefing':prontos.length+'/'+ambientes.length+' prontos'}</div>
-              </div>
-            `}
-            <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="flex:1">
+              ${proposalPronta||p.propostaAceita ? `
+                <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">Ambientes</div>
+                ${ambientes.slice(0,3).map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">'+(a.nome||a.tipo)+'</span><span style="font-size:11px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finPrecoFinal||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
+                ${ambientes.length>3?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-3} mais</div>`:''}
+              ` : `
+                <div style="text-align:center;padding:12px 0">
+                  <div style="font-size:24px;opacity:0.3;margin-bottom:6px">📄</div>
+                  <div style="font-size:11px;color:var(--text3)">${ambientes.length===0?'Aguardando briefing':prontos.length+'/'+ambientes.length+' prontos'}</div>
+                </div>
+              `}
+              ${p.pdfProposta ? `<div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="margin-top:8px;padding:6px 10px;background:rgba(96,144,208,0.07);border:1px solid rgba(96,144,208,0.18);border-radius:7px;display:flex;align-items:center;gap:7px;cursor:pointer"><span style="font-size:14px">📑</span><div style="flex:1;min-width:0"><div style="font-size:10px;color:var(--blue);font-weight:600">Última proposta</div><div style="font-size:9px;color:var(--text3)">${p.pdfPropostaData||'Salva'} · abrir ↗</div></div></div>` : ''}
+            </div>
+            <div style="margin-top:12px">
               ${proposalPronta
                 ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
                 : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.4;cursor:not-allowed" disabled>📄 Gerar proposta</button>`
               }
-              ${p.pdfProposta ? `<div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="padding:6px 10px;background:rgba(96,144,208,0.07);border:1px solid rgba(96,144,208,0.18);border-radius:7px;display:flex;align-items:center;gap:7px;cursor:pointer"><span style="font-size:14px">📑</span><div style="flex:1;min-width:0"><div style="font-size:10px;color:var(--blue);font-weight:600">Última proposta</div><div style="font-size:9px;color:var(--text3)">${p.pdfPropostaData||'Salva'} · abrir ↗</div></div></div>` : ''}
             </div>
           </div>
 
           <!-- CONDIÇÕES -->
-          <div style="background:#140e1a;border:1px solid rgba(176,144,224,0.25);border-radius:12px;padding:14px">
+          <div style="background:#140e1a;border:1px solid rgba(176,144,224,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
               <span style="font-size:16px">🤝</span>
               <span style="font-size:13px;font-weight:600;color:var(--text)">Condições</span>
             </div>
-            ${(()=>{
-              const tipo = p.condicaoTipo||'parcelado';
-              const precoBase = p.finPrecoFinal||0;
-              const precoFinal = p.condicaoPrecoFinal||precoBase;
-              const tipoCor = tipo==='avista'?'var(--green)':tipo==='financiado'?'var(--blue)':'var(--amber)';
-              const tipoLabel = tipo==='avista'?'À vista':tipo==='financiado'?'Financiado':'Parcelado';
-              const tipoBg = tipo==='avista'?'rgba(92,184,130,0.15)':tipo==='financiado'?'rgba(96,144,208,0.15)':'rgba(212,148,74,0.15)';
-              const tipoBrd = tipo==='avista'?'rgba(92,184,130,0.3)':tipo==='financiado'?'rgba(96,144,208,0.3)':'rgba(212,148,74,0.3)';
-              const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[{label:'Entrada',pct:20},{label:'Medição',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
-              const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-              return '<div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:'+tipoBg+';color:'+tipoCor+';margin-bottom:8px;border:1px solid '+tipoBrd+'">'+tipoLabel+'</div>'
-                +(precoFinal>0?'<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--text3)">Preço negociado</div><div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div>'+(precoBase&&Math.abs(precoFinal-precoBase)>1?'<div style="font-size:10px;color:var(--text3)">Base: '+fmtV(precoBase)+'</div>':'')+'</div>':'')
-                +(tipo==='parcelado'?'<div>'+etapas.map(e=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:10px;color:var(--text3)">'+e.label+' ('+e.pct+'%)</span><span style="font-size:10px;color:var(--text2);font-family:DM Mono,monospace">'+fmtV((precoFinal||precoBase)*(e.pct/100))+'</span></div>').join('')+'</div>':'')
-                +(tipo==='avista'&&p.condicaoDesconto>0?'<div style="font-size:11px;color:var(--green)">✓ Desconto: '+p.condicaoDesconto+'%</div>':'')
-                +(tipo==='financiado'?(()=>{
-                  const parc=p.condicaoParcelas||1,juros=p.condicaoJuros||0,pf2=precoFinal||precoBase;
-                  const downPct=p.condicaoDownPct||20,downVal=pf2*(downPct/100),finVal=pf2-downVal;
-                  return '<div style="margin-bottom:4px"><div style="font-size:10px;color:var(--text3)">Down ('+downPct+'%)</div><div style="font-size:13px;font-weight:700;color:var(--green)">'+fmtV(downVal)+'</div></div>'
-                    +'<div><div style="font-size:10px;color:var(--text3)">'+parc+'x'+(juros>0?' · '+juros+'%':'')+'</div><div style="font-size:13px;font-weight:700;color:var(--blue)">'+fmtV(finVal/parc)+'/mês</div></div>';
-                })():'');
-            })()}
-            <div style="margin-top:10px">
+            <div style="flex:1">
+              ${(()=>{
+                const tipo = p.condicaoTipo||'parcelado';
+                const precoBase = p.finPrecoFinal||0;
+                const precoFinal = p.condicaoPrecoFinal||precoBase;
+                const tipoCor = tipo==='avista'?'var(--green)':tipo==='financiado'?'var(--blue)':'var(--amber)';
+                const tipoLabel = tipo==='avista'?'À vista':tipo==='financiado'?'Financiado':'Parcelado';
+                const tipoBg = tipo==='avista'?'rgba(92,184,130,0.15)':tipo==='financiado'?'rgba(96,144,208,0.15)':'rgba(212,148,74,0.15)';
+                const tipoBrd = tipo==='avista'?'rgba(92,184,130,0.3)':tipo==='financiado'?'rgba(96,144,208,0.3)':'rgba(212,148,74,0.3)';
+                const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[{label:'Entrada',pct:20},{label:'Medição',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
+                const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+                return '<div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:'+tipoBg+';color:'+tipoCor+';margin-bottom:8px;border:1px solid '+tipoBrd+'">'+tipoLabel+'</div>'
+                  +(precoFinal>0?'<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--text3)">Preço negociado</div><div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div>'+(precoBase&&Math.abs(precoFinal-precoBase)>1?'<div style="font-size:10px;color:var(--text3)">Base: '+fmtV(precoBase)+'</div>':'')+'</div>':'')
+                  +(tipo==='parcelado'?'<div>'+etapas.map(e=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:10px;color:var(--text3)">'+e.label+' ('+e.pct+'%)</span><span style="font-size:10px;color:var(--text2);font-family:DM Mono,monospace">'+fmtV((precoFinal||precoBase)*(e.pct/100))+'</span></div>').join('')+'</div>':'')
+                  +(tipo==='avista'&&p.condicaoDesconto>0?'<div style="font-size:11px;color:var(--green)">✓ Desconto: '+p.condicaoDesconto+'%</div>':'')
+                  +(tipo==='financiado'?(()=>{
+                    const parc=p.condicaoParcelas||1,juros=p.condicaoJuros||0,pf2=precoFinal||precoBase;
+                    const downPct=p.condicaoDownPct||20,downVal=pf2*(downPct/100),finVal=pf2-downVal;
+                    return '<div style="margin-bottom:4px"><div style="font-size:10px;color:var(--text3)">Down ('+downPct+'%)</div><div style="font-size:13px;font-weight:700;color:var(--green)">'+fmtV(downVal)+'</div></div>'
+                      +'<div><div style="font-size:10px;color:var(--text3)">'+parc+'x'+(juros>0?' · '+juros+'%':'')+'</div><div style="font-size:13px;font-weight:700;color:var(--blue)">'+fmtV(finVal/parc)+'/mês</div></div>';
+                  })():'');
+              })()}
+            </div>
+            <div style="margin-top:12px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirCondicoes('${p.id}')">🤝 Negociar</button>
             </div>
           </div>
 
           <!-- PRAZO -->
-          <div style="background:#0d1520;border:1px solid rgba(96,144,208,0.2);border-radius:12px;padding:14px">
+          <div style="background:#0d1520;border:1px solid rgba(96,144,208,0.2);border-radius:12px;padding:14px;display:flex;flex-direction:column">
             <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
               <span style="font-size:16px">📅</span>
               <span style="font-size:13px;font-weight:600;color:var(--text)">Prazo</span>
             </div>
             <div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:${p.prazo?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${p.prazo?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${p.prazo?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${p.prazo?'Definido':'Pendente'}</div>
-            ${p.prazo?`<div style="font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap">${p.prazo}</div>`:'<div style="color:var(--text3);font-size:12px;line-height:1.5">Prazo de entrega e instalação não definido.</div>'}
-            <div style="margin-top:10px">
+            <div style="flex:1">
+              ${p.prazo?`<div style="font-size:12px;color:var(--text2);line-height:1.6;white-space:pre-wrap">${p.prazo}</div>`:'<div style="color:var(--text3);font-size:12px;line-height:1.5">Prazo de entrega e instalação não definido.</div>'}
+            </div>
+            <div style="margin-top:12px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.25);color:var(--blue)" onclick="event.stopPropagation();editarPagamentoPrazo('${p.id}','prazo')">✏ Editar prazo</button>
             </div>
           </div>
@@ -4248,6 +4252,57 @@ async function deletarInstalacao(id) {
 // ══════════════════════════════════════════
 // ACTIONS — LEADS
 // ══════════════════════════════════════════
+
+// ══════════════════════════════════════════
+// TAREFAS AUTOMÁTICAS DO FLUXO
+// ══════════════════════════════════════════
+async function criarTarefaAutomatica(leadId, leadNome, tipo) {
+  // tipo: 'briefing' | 'proposta'
+  const tagId = 'AUTO_'+tipo.toUpperCase()+'_'+leadId;
+  // Ignore if already exists
+  const jaExiste = (DB.tarefas||[]).find(t=>t.id===tagId);
+  if (jaExiste) return;
+
+  const lead = DB.leads.find(l=>l.id===leadId);
+  const responsavel = lead?.responsavel || '';
+
+  const hoje = new Date();
+  const diasPrazo = tipo==='briefing' ? 1 : 3;
+  hoje.setDate(hoje.getDate() + diasPrazo);
+  const prazoData = hoje.toISOString().slice(0,10);
+
+  const titulo = tipo==='briefing'
+    ? 'Fazer briefing — ' + leadNome
+    : 'Montar proposta — ' + leadNome;
+  const descricao = tipo==='briefing'
+    ? 'Novo cliente cadastrado. Realizar briefing completo com o cliente.'
+    : 'Briefing concluído. Montar e enviar proposta comercial.';
+
+  const tarefa = {
+    id: tagId,
+    titulo,
+    descricao,
+    data: prazoData,
+    prioridade: 'Alta',
+    responsavel,
+    cliente: leadNome,
+    leadId,
+    concluida: false,
+    automatica: true,
+    criadoEm: new Date().toISOString(),
+    comentarios: []
+  };
+
+  DB.tarefas = DB.tarefas || [];
+  DB.tarefas.unshift(tarefa);
+  try {
+    await pushTarefa(tarefa);
+    renderAgenda();
+  } catch(e) {
+    console.warn('Erro ao criar tarefa automática:', e.message);
+  }
+}
+
 async function criarLead() {
   const nome = document.getElementById('nl-nome').value.trim();
   if (!nome) { toast('Preencha o nome do cliente'); return; }
@@ -4270,6 +4325,7 @@ async function criarLead() {
     renderAll();
     toast('Lead criado! ✓');
     registrarLog(lead.id, lead.nome, 'Lead criado manualmente');
+    criarTarefaAutomatica(lead.id, lead.nome, 'briefing');
   } catch(e) {
     toast('Erro ao salvar lead: ' + e.message);
   }
@@ -4509,6 +4565,7 @@ async function salvarBriefing() {
     renderAll();
     registrarLog(l.id, l.nome, `Briefing preenchido — ${ambValidos.length} ambiente(s) — ${l.valorTotal||'valor não informado'}`);
     toast('Briefing salvo! ✓');
+    criarTarefaAutomatica(l.id, l.nome, 'proposta');
   } catch(e) {
     toast('Erro ao salvar briefing: ' + e.message);
   }
@@ -5891,6 +5948,7 @@ function renderCalendarioSemanal(el, hoje) {
     ${dias.map((d,i) => {
       const dStr = d.toISOString().slice(0,10);
       const count = (DB.tarefas||[]).filter(t=>t.data===dStr&&!t.concluida).length;
+      const hasAuto = (DB.tarefas||[]).some(t=>t.data===dStr&&!t.concluida&&t.automatica);
       const isHoje = dStr===todayStr;
       return `<div onclick="filtrarAgendaDia('${dStr}')" style="text-align:center;padding:8px 4px;border-radius:8px;cursor:pointer;background:${isHoje?'var(--gold-dim)':'var(--bg3)'};border:0.5px solid ${isHoje?'var(--gold)':'var(--border)'};transition:all 0.15s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='${isHoje?'var(--gold)':'var(--border)'}'">
         <div style="font-size:10px;color:var(--text3);margin-bottom:2px">${diasNomes[i]}</div>
@@ -5963,19 +6021,23 @@ function renderListaTarefas(el, tarefas) {
     const cor = prioColor[t.prioridade]||'var(--text3)';
     const comentarios = t.comentarios || [];
     const ultimoComentario = comentarios.length ? comentarios[comentarios.length-1] : null;
-    return `<div class="card" style="margin-bottom:8px;${t.concluida?'opacity:0.55':''}">
+    const isAuto = !!t.automatica;
+    const cardBg = isAuto && !t.concluida ? 'background:rgba(212,148,74,0.06);border-color:rgba(212,148,74,0.3);' : '';
+    return `<div class="card" style="margin-bottom:8px;${t.concluida?'opacity:0.55':''}${cardBg}">
+      ${isAuto&&!t.concluida?`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px"><span style="font-size:10px;background:rgba(212,148,74,0.15);color:var(--gold);border:1px solid rgba(212,148,74,0.3);padding:2px 8px;border-radius:99px;font-weight:600">⚡ Tarefa automática</span></div>`:''}
       <div style="display:flex;align-items:flex-start;gap:12px">
-        <div onclick="${t.concluida ? `reabrirTarefa('${t.id}')` : `abrirConcluirTarefa('${t.id}')`}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${t.concluida?'var(--green)':'var(--border3)'};background:${t.concluida?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px;color:#0d0d0d;font-size:11px">
+        <div onclick="${t.concluida ? `reabrirTarefa('${t.id}')` : `abrirConcluirTarefa('${t.id}')`}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${t.concluida?'var(--green)':isAuto?'var(--gold)':'var(--border3)'};background:${t.concluida?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px;color:#0d0d0d;font-size:11px">
           ${t.concluida?'✓':''}
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:500;${t.concluida?'text-decoration:line-through;color:var(--text3)':''}">${t.titulo}</div>
+          <div style="font-size:14px;font-weight:500;${t.concluida?'text-decoration:line-through;color:var(--text3)':isAuto?'color:var(--gold2)':''}">${t.titulo}</div>
           ${t.descricao?`<div style="font-size:12px;color:var(--text2);margin-top:2px">${t.descricao}</div>`:''}
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center">
             <span style="font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid ${cor};color:${cor}">${t.prioridade||'Média'}</span>
             ${t.responsavel?`<span style="font-size:11px;color:var(--text3)">👤 ${t.responsavel}</span>`:''}
             ${t.data?`<span style="font-size:11px;color:var(--text3)">📅 ${formatDate(t.data)}</span>`:''}
             ${t.cliente?`<span style="font-size:11px;color:var(--gold);background:var(--gold-dim);padding:2px 8px;border-radius:99px">◈ ${t.cliente}</span>`:''}
+            ${isAuto&&!t.concluida?`<button onclick="event.stopPropagation();alterarDataTarefaAuto('${t.id}')" style="font-size:10px;padding:2px 8px;border-radius:99px;border:1px solid rgba(212,148,74,0.4);color:var(--amber);background:transparent;cursor:pointer">📅 Alterar prazo</button>`:''}
           </div>
           ${ultimoComentario ? `<div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:6px;border-left:2px solid ${t.concluida?'var(--green)':'var(--gold)'}">
             <div style="font-size:11px;color:var(--text3);margin-bottom:2px">${t.concluida?'✓ Concluído':'💬 Comentário'} · ${ultimoComentario.usuario} · ${ultimoComentario.data}</div>
@@ -5986,6 +6048,39 @@ function renderListaTarefas(el, tarefas) {
       </div>
     </div>`;
   }).join('');
+}
+
+
+function alterarDataTarefaAuto(tarefaId) {
+  const t = (DB.tarefas||[]).find(x=>x.id===tarefaId);
+  if (!t) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(212,148,74,0.3);border-radius:14px;padding:24px;max-width:360px;width:100%';
+  div.innerHTML = '<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">📅 Alterar prazo</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:16px">'+t.titulo+'</div>'
+    +'<input id="nova-data-tarefa" type="date" value="'+t.data+'" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;padding:10px;outline:none;margin-bottom:16px">'
+    +'<div style="display:flex;gap:8px">'
+    +'<button id="atd-cancel" style="flex:1;padding:10px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>'
+    +'<button id="atd-save" style="flex:1;padding:10px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">✓ Salvar</button>'
+    +'</div>';
+  div.querySelector('#atd-cancel').onclick = () => document.body.removeChild(ov);
+  div.querySelector('#atd-save').onclick = async () => {
+    const novaData = div.querySelector('#nova-data-tarefa').value;
+    if (!novaData) { toast('Selecione uma data'); return; }
+    t.data = novaData;
+    try {
+      await pushTarefa(t);
+      renderTarefas();
+      renderAgenda();
+      toast('✓ Prazo atualizado!');
+    } catch(e) { toast('Erro: '+e.message); }
+    document.body.removeChild(ov);
+  };
+  ov.appendChild(div);
+  ov.addEventListener('click', e => { if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
 }
 
 let _concluindoTarefaId = null;
@@ -6014,8 +6109,108 @@ async function confirmarConclusao() {
     renderAgenda();
     updateBadges();
     toast('✓ Tarefa concluída!');
+    // If automatic task, show next step prompt
+    if (t.automatica) {
+      setTimeout(() => mostrarProximoPasso(t), 400);
+    }
   } catch(e) { t.concluida = false; t.comentarios.pop(); toast('Erro: ' + e.message); }
   _concluindoTarefaId = null;
+}
+
+// Fluxo automático — próximo passo após concluir tarefa amarela
+function mostrarProximoPasso(t) {
+  // Determine next step based on task id pattern
+  const isBriefing = t.id.startsWith('AUTO_BRIEFING_');
+  const isProposta = t.id.startsWith('AUTO_PROPOSTA_');
+  const leadId = t.leadId;
+  const lead = DB.leads.find(l=>l.id===leadId);
+  const leadNome = lead?.nome || t.cliente || '';
+
+  let proximoTipo = null;
+  let proximoLabel = '';
+  let proximoDescricao = '';
+  let proximoDias = 0;
+
+  if (isBriefing) {
+    // Next: check if proposta task already exists
+    const jaTemProposta = (DB.tarefas||[]).find(x=>x.id==='AUTO_PROPOSTA_'+leadId);
+    if (!jaTemProposta) {
+      proximoTipo = 'proposta';
+      proximoLabel = 'Montar proposta';
+      proximoDescricao = 'Briefing concluído. Montar e enviar proposta comercial ao cliente.';
+      proximoDias = 3;
+    }
+  } else if (isProposta) {
+    // Future steps can be added here
+    // For now just show a message that the flow continues
+    mostrarFluxoContinua(t);
+    return;
+  }
+
+  if (!proximoTipo) return; // No next step or already exists
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  const prazoDate = new Date();
+  prazoDate.setDate(prazoDate.getDate() + proximoDias);
+  const prazoStr = prazoDate.toISOString().slice(0,10);
+  const prazoFmt = prazoDate.toLocaleDateString('pt-BR');
+
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(212,148,74,0.35);border-radius:16px;padding:28px;max-width:420px;width:100%';
+  div.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'
+    +'<span style="font-size:22px">⚡</span>'
+    +'<div><div style="font-size:16px;font-weight:600;color:var(--text)">Próximo passo do fluxo</div>'
+    +'<div style="font-size:12px;color:var(--text3)">O fluxo não pode parar</div></div>'
+    +'</div>'
+    +'<div style="background:rgba(212,148,74,0.08);border:1px solid rgba(212,148,74,0.2);border-radius:10px;padding:14px;margin-bottom:16px">'
+    +'<div style="font-size:11px;color:var(--amber);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Nova tarefa automática</div>'
+    +'<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">'+proximoLabel+' — '+leadNome+'</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:10px">'+proximoDescricao+'</div>'
+    +'<div style="display:flex;align-items:center;gap:12px">'
+    +'<div><div style="font-size:10px;color:var(--text3)">Prazo sugerido</div>'
+    +'<div style="font-size:13px;color:var(--gold);font-weight:600">'+prazoFmt+' ('+proximoDias+'d)</div></div>'
+    +'<div style="flex:1"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Alterar prazo</div>'
+    +'<input id="prox-data" type="date" value="'+prazoStr+'" style="width:100%;background:#222;border:1px solid #444;border-radius:6px;color:var(--text);font-size:12px;padding:5px 8px;outline:none"></div>'
+    +'</div></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button id="prox-cancel" style="flex:1;padding:10px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Ignorar</button>'
+    +'<button id="prox-criar" style="flex:2;padding:10px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">⚡ Criar próxima tarefa</button>'
+    +'</div>';
+
+  div.querySelector('#prox-cancel').onclick = () => {
+    document.body.removeChild(ov);
+    toast('⚠️ Lembre de criar a tarefa manualmente para não parar o fluxo.');
+  };
+  div.querySelector('#prox-criar').onclick = async () => {
+    const novaData = div.querySelector('#prox-data').value || prazoStr;
+    const tagId = 'AUTO_'+proximoTipo.toUpperCase()+'_'+leadId;
+    const novaTarefa = {
+      id: tagId, titulo: proximoLabel+' — '+leadNome,
+      descricao: proximoDescricao, data: novaData,
+      prioridade: 'Alta', responsavel: t.responsavel||'',
+      cliente: leadNome, leadId, concluida: false,
+      automatica: true, criadoEm: new Date().toISOString(), comentarios: []
+    };
+    DB.tarefas = DB.tarefas||[];
+    DB.tarefas.unshift(novaTarefa);
+    try {
+      await pushTarefa(novaTarefa);
+      renderAgenda();
+      updateBadges();
+      toast('⚡ Próxima tarefa criada: '+prazoFmt);
+    } catch(e) { toast('Erro ao criar tarefa: '+e.message); }
+    document.body.removeChild(ov);
+  };
+
+  ov.appendChild(div);
+  ov.addEventListener('click', e => { if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
+function mostrarFluxoContinua(t) {
+  toast('✅ Fluxo avançando — próximas etapas serão ativadas conforme o processo.');
 }
 
 async function reabrirTarefa(id) {
