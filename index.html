@@ -47,6 +47,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 }
 .nav-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active{color:var(--gold2);background:var(--gold-dim);border-left-color:var(--gold)}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
 .nav-badge{margin-left:auto;background:var(--gold);color:#0d0d0d;font-size:10px;font-weight:600;padding:2px 6px;border-radius:99px;min-width:18px;text-align:center}
 .sidebar-bottom{padding:16px 20px;border-top:0.5px solid var(--border)}
@@ -344,6 +345,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       <div class="nav-item" onclick="goPage('perdidos')" data-page="perdidos">
         <span class="nav-icon">○</span> Perdidos
       </div>
+      <div class="nav-section">Marketing</div>
+      <div class="nav-item nav-admin" onclick="goPage('marketing')" data-page="marketing">
+        <span class="nav-icon">✦</span> Marketing
+      </div>
       <div class="nav-section">Financeiro</div>
       <div class="nav-item nav-admin" onclick="goPage('financeiro')" data-page="financeiro">
         <span class="nav-icon">💰</span> Financeiro
@@ -564,6 +569,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <div id="list-imagens">
           <div class="empty"><span class="empty-icon">🖼</span><p>Nenhuma imagem enviada ainda.</p></div>
         </div>
+      </div>
+
+      <!-- ══ MARKETING ══ -->
+      <div class="page" id="page-marketing">
+        <div id="mkt-shell"></div>
       </div>
 
       <!-- ══ FINANCEIRO ══ -->
@@ -2400,6 +2410,369 @@ async function togglePagamento(projetoId, entradaId, entradaJson) {
   } catch(e) { toast('Erro: '+e.message); }
 }
 
+
+// ══════════════════════════════════════════
+// MARKETING AGENT
+// ══════════════════════════════════════════
+
+const MKT_BRAND = {
+  nome: 'Studio Legno',
+  tagline: 'Custom Cabinets · High-End Cabinetry',
+  tom: 'luxury, minimal, editorial — Balenciaga meets bespoke woodwork. No emojis. Short sentences. High contrast. Aspirational yet precise.',
+  handle: '@studiolegnohome',
+  hashtags: {
+    pt: ['#StudioLegno','#MóvelSobMedida','#DesignDeInteriores','#LuxuryLiving','#CabinetryDesign','#CustomFurniture','#InterioresLuxuosos','#MarcenariaFina','#HomeLuxury','#AmbientesExclusivos'],
+    en: ['#StudioLegno','#CustomCabinetry','#LuxuryInteriors','#BespokeDesign','#HighEndCabinetry','#InteriorDesign','#CustomFurniture','#LuxuryHome','#CabinetDesign','#ModernLuxury']
+  }
+};
+
+const MKT_TRENDS = [
+  { tema:'Antes e Depois',     desc:'Transformação de espaço — impacto visual máximo. Silêncio e resultado.',    tipo:'projeto' },
+  { tema:'Detalhe de Acabamento', desc:'Close em textura, junção, puxador. O luxo está nos detalhes.',           tipo:'detalhe' },
+  { tema:'Processo de Criação', desc:'Do projeto ao acabamento. Mostrar o trabalho por trás do produto final.',  tipo:'processo' },
+  { tema:'Ambiente Completo',   desc:'Vista ampla do espaço finalizado. Composição editorial, luz natural.',     tipo:'projeto' },
+  { tema:'Material Nobre',      desc:'Foco na matéria-prima — madeira, metal, vidro. Sensorialidade visual.',    tipo:'detalhe' },
+  { tema:'Lifestyle',           desc:'O móvel no contexto de vida. Não é produto, é experiência.',               tipo:'lifestyle' },
+  { tema:'Técnica Artesanal',   desc:'Mãos trabalhando, processo. Craft como valor de marca.',                   tipo:'processo' },
+  { tema:'Minimalismo Funcional', desc:'Menos é mais. Espaços limpos, linhas puras, funcionalidade oculta.',    tipo:'projeto' },
+];
+
+let _mktFotos = [];
+let _mktPostAtual = null;
+let _mktHistorico = [];
+
+async function renderMarketing() {
+  const el = document.getElementById('mkt-shell');
+  if (!el) return;
+
+  // Load all images from projects
+  await mktCarregarFotos();
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:300px 1fr;gap:0;height:calc(100dvh - 60px);overflow:hidden">
+
+      <!-- SIDEBAR ESQUERDA -->
+      <div style="background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
+
+        <!-- Header -->
+        <div style="padding:20px 16px 14px;border-bottom:0.5px solid var(--border)">
+          <div style="font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Agente</div>
+          <div style="font-size:18px;font-weight:600;color:var(--gold2);font-family:'Playfair Display',serif">Marketing</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${MKT_BRAND.tagline}</div>
+        </div>
+
+        <!-- Fotos disponíveis -->
+        <div style="padding:14px 16px 8px;border-bottom:0.5px solid var(--border)">
+          <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Acervo (${_mktFotos.length} fotos)</div>
+          <div id="mkt-fotos-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-height:180px;overflow-y:auto">
+            ${_mktFotos.slice(0,18).map((f,i)=>`
+              <div onclick="mktSelecionarFoto(${i})" id="mkt-thumb-${i}"
+                style="aspect-ratio:1;border-radius:4px;overflow:hidden;cursor:pointer;border:1.5px solid transparent;transition:border-color 0.15s">
+                <img src="${f.url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'">
+              </div>`).join('')}
+            ${_mktFotos.length===0?'<div style="grid-column:span 3;font-size:11px;color:var(--text3);padding:8px 0">Nenhuma foto no acervo ainda.</div>':''}
+          </div>
+        </div>
+
+        <!-- Trends -->
+        <div style="padding:14px 16px;border-bottom:0.5px solid var(--border);overflow-y:auto;flex:1">
+          <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Tendências do nicho</div>
+          ${MKT_TRENDS.map((t,i)=>`
+            <div onclick="mktGerarComTrend(${i})" style="padding:8px 10px;border-radius:8px;margin-bottom:6px;border:1px solid var(--border);cursor:pointer;transition:all 0.15s"
+              onmouseover="this.style.background='var(--bg3)';this.style.borderColor='rgba(201,169,110,0.3)'"
+              onmouseout="this.style.background='transparent';this.style.borderColor='var(--border)'">
+              <div style="font-size:12px;font-weight:500;color:var(--text)">${t.tema}</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px;line-height:1.4">${t.desc}</div>
+            </div>`).join('')}
+        </div>
+
+      </div>
+
+      <!-- ÁREA PRINCIPAL -->
+      <div style="display:flex;flex-direction:column;overflow:hidden">
+
+        <!-- Toolbar -->
+        <div style="padding:14px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="mkt-lang" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:6px 10px;outline:none">
+            <option value="pt">🇧🇷 Português</option>
+            <option value="en">🇺🇸 English</option>
+          </select>
+          <select id="mkt-rede" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:6px 10px;outline:none">
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="linkedin">LinkedIn</option>
+          </select>
+          <div style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;display:flex;align-items:center;gap:8px;padding:6px 12px">
+            <span style="font-size:12px;color:var(--text3);flex-shrink:0">Briefing livre:</span>
+            <input id="mkt-briefing" type="text" placeholder="ex: cozinha minimalista branca instalada em Miami..." style="flex:1;background:none;border:none;color:var(--text);font-size:12px;outline:none">
+          </div>
+          <button onclick="mktGerarPost()" style="padding:8px 18px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;letter-spacing:0.5px">✦ Gerar post</button>
+        </div>
+
+        <!-- Fotos selecionadas -->
+        <div id="mkt-selected-bar" style="padding:8px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px;min-height:52px;overflow-x:auto">
+          <span style="font-size:11px;color:var(--text3);flex-shrink:0">Fotos selecionadas:</span>
+          <div id="mkt-selected-thumbs" style="display:flex;gap:6px">
+            <span style="font-size:11px;color:var(--text3);font-style:italic">nenhuma — o agente escolhe automaticamente</span>
+          </div>
+        </div>
+
+        <!-- Post output -->
+        <div style="flex:1;overflow-y:auto;padding:24px">
+          <div id="mkt-output">
+            <div style="text-align:center;padding:60px 20px">
+              <div style="font-size:48px;margin-bottom:16px;opacity:0.15">✦</div>
+              <div style="font-size:14px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Selecione um trend ou escreva um briefing</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:8px">O agente vai buscar fotos do acervo e criar o post</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Histórico -->
+        <div style="border-top:0.5px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:8px;overflow-x:auto">
+          <span style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;flex-shrink:0">Histórico:</span>
+          <div id="mkt-historico" style="display:flex;gap:6px;overflow-x:auto">
+            <span style="font-size:11px;color:var(--text3);font-style:italic">—</span>
+          </div>
+        </div>
+
+      </div>
+    </div>`;
+}
+
+async function mktCarregarFotos() {
+  _mktFotos = [];
+  // Collect all images from all leads/projects
+  (DB.leads||[]).forEach(lead => {
+    (lead.ambientesBriefing||[]).forEach(amb => {
+      (amb.imagens||[]).forEach(img => {
+        if (img.url||img.data) {
+          _mktFotos.push({
+            url: img.url || img.data,
+            cliente: lead.nome,
+            ambiente: amb.nome||amb.tipo,
+            path: img.path||''
+          });
+        }
+      });
+    });
+  });
+  // Also from uploads table
+  (DB.uploads||[]).forEach(u => {
+    if (u.url) _mktFotos.push({ url: u.url, cliente: u.cliente||'', ambiente: u.ambiente||'', path: u.path||'' });
+  });
+}
+
+let _mktSelecionadas = [];
+function mktSelecionarFoto(idx) {
+  const already = _mktSelecionadas.findIndex(x=>x===idx);
+  if (already>=0) {
+    _mktSelecionadas.splice(already,1);
+    document.getElementById('mkt-thumb-'+idx)?.style.setProperty('border-color','transparent');
+  } else {
+    if (_mktSelecionadas.length>=4) { toast('Máximo 4 fotos por post'); return; }
+    _mktSelecionadas.push(idx);
+    document.getElementById('mkt-thumb-'+idx)?.style.setProperty('border-color','var(--gold)');
+  }
+  // Update selected bar
+  const bar = document.getElementById('mkt-selected-thumbs');
+  if (!bar) return;
+  if (!_mktSelecionadas.length) {
+    bar.innerHTML = '<span style="font-size:11px;color:var(--text3);font-style:italic">nenhuma — o agente escolhe automaticamente</span>';
+  } else {
+    bar.innerHTML = _mktSelecionadas.map(i=>`
+      <div style="position:relative;width:36px;height:36px;border-radius:4px;overflow:hidden;border:1.5px solid var(--gold)">
+        <img src="${_mktFotos[i]?.url}" style="width:100%;height:100%;object-fit:cover">
+      </div>`).join('');
+  }
+}
+
+function mktGerarComTrend(trendIdx) {
+  const t = MKT_TRENDS[trendIdx];
+  const briefingEl = document.getElementById('mkt-briefing');
+  if (briefingEl) briefingEl.value = t.tema+' — '+t.desc;
+  mktGerarPost(t);
+}
+
+async function mktGerarPost(trendOverride) {
+  const lang = document.getElementById('mkt-lang')?.value||'pt';
+  const rede = document.getElementById('mkt-rede')?.value||'instagram';
+  const briefingLivre = document.getElementById('mkt-briefing')?.value?.trim()||'';
+  const trend = trendOverride || null;
+
+  const outEl = document.getElementById('mkt-output');
+  if (!outEl) return;
+
+  outEl.innerHTML = `<div style="text-align:center;padding:60px 20px">
+    <div style="font-size:32px;margin-bottom:16px;animation:spin 1.5s linear infinite;display:inline-block">✦</div>
+    <div style="font-size:13px;color:var(--text3);letter-spacing:1px">Criando post...</div>
+  </div>`;
+
+  // Pick photos — use selected or pick best from acervo
+  let fotosParaPost = _mktSelecionadas.map(i=>_mktFotos[i]).filter(Boolean);
+  if (!fotosParaPost.length && _mktFotos.length) {
+    // Auto-pick up to 2 random photos
+    const shuffled = [..._mktFotos].sort(()=>Math.random()-0.5);
+    fotosParaPost = shuffled.slice(0,2);
+  }
+
+  const fotoContext = fotosParaPost.length
+    ? 'Fotos disponíveis do acervo: '+fotosParaPost.map(f=>`${f.ambiente} (${f.cliente})`).join(', ')+'.'
+    : 'Sem fotos específicas — crie um post conceitual da marca.';
+
+  const hashtagsStr = MKT_BRAND.hashtags[lang]?.slice(0,10).join(' ')||'';
+  const redesMap = {instagram:'Instagram Feed',facebook:'Facebook',linkedin:'LinkedIn'};
+
+  const systemPrompt = `Você é o agente de marketing da ${MKT_BRAND.nome} — marca de marcenaria sob medida de alto luxo.
+
+Tom de voz: ${MKT_BRAND.tom}
+
+Regras absolutas:
+- SEM emojis no copy principal. Zero.
+- Frases curtas. Máximo 12 palavras por frase.
+- Tom editorial, frio, aspiracional. Como Balenciaga faz comunicação.
+- Nunca use: "perfeito", "incrível", "lindo", "maravilhoso", "qualidade", "excelente".
+- Use: "precisão", "silêncio", "controle", "permanência", "rigor", "autoria".
+- ${lang==='pt'?'Escreva em português brasileiro':'Write in English'}.
+
+Responda APENAS com JSON válido, sem markdown, sem explicações:
+{
+  "headline": "frase de impacto (máx 7 palavras)",
+  "copy": "texto principal do post (2-4 frases curtas)",
+  "cta": "call to action sutil (1 frase)",
+  "hashtags": "lista de hashtags",
+  "sugestao_visual": "descrição técnica do que a foto deve mostrar",
+  "melhor_horario": "ex: Ter/Qui 18h-20h",
+  "notas": "dica estratégica curta"
+}`;
+
+  const userPrompt = `Plataforma: ${redesMap[rede]}
+${trend?'Tema/Trend: '+trend.tema+' — '+trend.desc:''}
+${briefingLivre?'Briefing: '+briefingLivre:''}
+${fotoContext}
+Hashtags base: ${hashtagsStr}
+
+Crie um post poderoso para a marca.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: systemPrompt,
+        messages:[{role:'user',content:userPrompt}]
+      })
+    });
+    const data = await resp.json();
+    const raw = data.content?.[0]?.text||'{}';
+    let post;
+    try { post = JSON.parse(raw); } catch(e) { post = {headline:'Erro',copy:raw,cta:'',hashtags:'',sugestao_visual:'',melhor_horario:'',notas:''}; }
+
+    _mktPostAtual = { ...post, fotos: fotosParaPost, lang, rede, ts: new Date() };
+    mktExibirPost(_mktPostAtual);
+    mktAdicionarHistorico(_mktPostAtual);
+
+  } catch(e) {
+    outEl.innerHTML = `<div style="padding:40px;text-align:center;color:var(--red)">Erro ao gerar post: ${e.message}</div>`;
+  }
+}
+
+function mktExibirPost(post) {
+  const outEl = document.getElementById('mkt-output');
+  if (!outEl) return;
+
+  const fotosHtml = post.fotos?.length ? `
+    <div style="display:grid;grid-template-columns:${post.fotos.length===1?'1fr':post.fotos.length===2?'1fr 1fr':'1fr 1fr'};gap:6px;margin-bottom:20px;border-radius:10px;overflow:hidden;max-height:280px">
+      ${post.fotos.map(f=>`<img src="${f.url}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none'">`).join('')}
+    </div>` : `
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:30px;margin-bottom:20px;text-align:center">
+      <div style="font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Sugestão visual</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:8px;font-style:italic;line-height:1.6">${post.sugestao_visual||'—'}</div>
+    </div>`;
+
+  outEl.innerHTML = `
+    <div style="max-width:560px;margin:0 auto">
+
+      <!-- Preview do post -->
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px">
+
+        <!-- Header simulado do Instagram/social -->
+        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid var(--border)">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--gold-dim);border:1.5px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gold2);font-family:'Playfair Display',serif;font-weight:600">L</div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text)">studiolegnohome</div>
+            <div style="font-size:10px;color:var(--text3)">${post.rede||'Instagram'}</div>
+          </div>
+        </div>
+
+        <!-- Fotos -->
+        <div style="padding:14px 14px 0">${fotosHtml}</div>
+
+        <!-- Copy -->
+        <div style="padding:14px">
+          <div style="font-size:22px;font-weight:700;color:var(--text);font-family:'Playfair Display',serif;letter-spacing:-0.3px;line-height:1.2;margin-bottom:12px">${post.headline||''}</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:10px">${post.copy||''}</div>
+          <div style="font-size:13px;color:var(--text3);font-style:italic;margin-bottom:10px">${post.cta||''}</div>
+          <div style="font-size:11px;color:var(--blue);line-height:1.7;opacity:0.8">${post.hashtags||''}</div>
+        </div>
+      </div>
+
+      <!-- Metadados -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:var(--text3);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">Melhor horário</div>
+          <div style="font-size:13px;color:var(--gold2)">${post.melhor_horario||'—'}</div>
+        </div>
+        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:var(--text3);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">Nota estratégica</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.4">${post.notas||'—'}</div>
+        </div>
+      </div>
+
+      <!-- Sugestão visual se tiver fotos -->
+      ${post.fotos?.length && post.sugestao_visual ? `
+        <div style="background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.15);border-radius:10px;padding:12px;margin-bottom:16px">
+          <div style="font-size:10px;color:var(--amber);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">Direção de arte</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.5;font-style:italic">${post.sugestao_visual}</div>
+        </div>` : ''}
+
+      <!-- Ações -->
+      <div style="display:flex;gap:8px">
+        <button onclick="mktCopiarPost()" style="flex:1;padding:11px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.5px">Copiar post</button>
+        <button onclick="mktGerarPost()" style="padding:11px 16px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer">↻ Regerar</button>
+        <button onclick="mktSalvarPost()" style="padding:11px 16px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer">✦ Salvar</button>
+      </div>
+    </div>`;
+}
+
+function mktCopiarPost() {
+  if (!_mktPostAtual) return;
+  const texto = [_mktPostAtual.headline, '', _mktPostAtual.copy, '', _mktPostAtual.cta, '', _mktPostAtual.hashtags].filter(x=>x!==undefined).join('\n');
+  navigator.clipboard.writeText(texto).then(()=>toast('✦ Post copiado!')).catch(()=>toast('Erro ao copiar'));
+}
+
+function mktSalvarPost() {
+  if (!_mktPostAtual) return;
+  _mktHistorico.unshift({ ..._mktPostAtual, id: Date.now() });
+  mktAtualizarHistorico();
+  toast('✦ Post salvo no histórico');
+}
+
+function mktAdicionarHistorico(post) {
+  // Auto-add to history
+}
+
+function mktAtualizarHistorico() {
+  const el = document.getElementById('mkt-historico');
+  if (!el || !_mktHistorico.length) return;
+  el.innerHTML = _mktHistorico.slice(0,8).map((h,i)=>`
+    <div onclick="mktExibirPost(_mktHistorico[${i}])" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:99px;cursor:pointer;white-space:nowrap;font-size:11px;color:var(--text2)" title="${h.headline||''}">
+      ${h.headline?.slice(0,20)||'Post '+i}…
+    </div>`).join('');
+}
+
 function fazerLogout() {
   usuarioAtual = null;
   localStorage.removeItem('studioUser');
@@ -2795,7 +3168,7 @@ function parseCSV(text) {
 // ══════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════
-const pageTitles = {leads:'Clients',projetos:'Projetos',financeiro:'Financeiro',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',imagens:'Imagens',config:'Configurações'};
+const pageTitles = {leads:'Clients',projetos:'Projetos',marketing:'Marketing',financeiro:'Financeiro',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',imagens:'Imagens',config:'Configurações'};
 const addBtnPages = {leads:true, projetos:false, agenda:false, producao:false, entrega:false, instalacao:false, perdidos:false, imagens:false, config:false};
 
 function goPage(page) {
@@ -2816,6 +3189,7 @@ function goPage(page) {
   if (page === 'instalacao') renderInstalacao();
   if (page === 'config') carregarUsuarios();
   if (page === 'financeiro') renderFinanceiro();
+  if (page === 'marketing') renderMarketing();
 }
 
 function toggleSidebar() {
