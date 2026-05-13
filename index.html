@@ -2655,9 +2655,10 @@ Hashtags base: ${hashtagsStr}
 Crie um post poderoso para a marca.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call via Supabase Edge Function (avoids CORS)
+    const resp = await fetch(SB_URL+'/functions/v1/bright-handler', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:1000,
@@ -2665,6 +2666,10 @@ Crie um post poderoso para a marca.`;
         messages:[{role:'user',content:userPrompt}]
       })
     });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error('Proxy error '+resp.status+': '+errText.slice(0,200));
+    }
     const data = await resp.json();
     const raw = data.content?.[0]?.text||'{}';
     let post;
