@@ -1093,30 +1093,45 @@ async function adicionarImagensAmbiente(event) {
   const clienteNome = lead?.nome || p?.nome || 'cliente';
   const ambienteNome = _ambNome || 'ambiente';
   
+  // Disable save button during upload
+  const _saveBtn = document.querySelector('#modal-ambiente .btn-primary');
+  if (_saveBtn) { _saveBtn.disabled = true; _saveBtn.textContent = '⏳ Aguarde...'; }
   toast('Enviando imagens...');
   
   for (const f of files) {
     try {
       if (f.type === 'application/pdf') {
         // Extract pages as images
-        if (!window.pdfjsLib) { toast('PDF.js não carregado'); continue; }
+        if (!window.pdfjsLib) { toast('PDF.js não carregado — recarregue a página'); continue; }
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        const ab = await f.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({data:ab}).promise;
-        toast('📄 Extraindo '+pdf.numPages+' página(s) do PDF...');
-        for (let pg=1; pg<=pdf.numPages; pg++) {
-          const page = await pdf.getPage(pg);
-          const vp = page.getViewport({scale:2.0});
-          const cv = document.createElement('canvas');
-          cv.width=vp.width; cv.height=vp.height;
-          await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
-          const blob = await new Promise(res=>cv.toBlob(res,'image/jpeg',0.92));
-          const imgFile = new File([blob], f.name.replace('.pdf','')+'_p'+pg+'.jpg', {type:'image/jpeg'});
-          const {url,path} = await uploadImagemSupabase(imgFile, clienteNome, ambienteNome);
-          _ambObj.imagens.push({nome:imgFile.name,url,path,data:url});
-          renderImagensAmbiente();
+        try {
+          const ab = await f.arrayBuffer();
+          const pdfDoc = await pdfjsLib.getDocument({data: new Uint8Array(ab)}).promise;
+          const numPgs = pdfDoc.numPages;
+          toast('📄 PDF com '+numPgs+' página(s) — processando...');
+          for (let pg=1; pg<=numPgs; pg++) {
+            const page = await pdfDoc.getPage(pg);
+            const vp = page.getViewport({scale:2.0});
+            const cv = document.createElement('canvas');
+            const ctx2d = cv.getContext('2d');
+            cv.width = vp.width;
+            cv.height = vp.height;
+            await page.render({canvasContext: ctx2d, viewport: vp}).promise;
+            // Convert canvas to blob then to File
+            const blob = await new Promise(resolve => cv.toBlob(resolve, 'image/jpeg', 0.92));
+            if (!blob) { toast('Erro ao converter página '+pg); continue; }
+            const baseName = f.name.replace(/\.pdf$/i,'');
+            const imgFile = new File([blob], baseName+'_p'+pg+'.jpg', {type:'image/jpeg'});
+            toast('📤 Enviando página '+pg+'/'+numPgs+'...');
+            const {url, path} = await uploadImagemSupabase(imgFile, clienteNome, ambienteNome);
+            _ambObj.imagens.push({nome: imgFile.name, url, path, data: url});
+            renderImagensAmbiente();
+          }
+          toast('✓ '+numPgs+' imagem(ns) do PDF salvas!');
+        } catch(pdfErr) {
+          console.error('PDF processing error:', pdfErr);
+          toast('Erro no PDF: '+pdfErr.message);
         }
-        toast('✓ PDF convertido e salvo!');
       } else {
         const { url, path } = await uploadImagemSupabase(f, clienteNome, ambienteNome);
         _ambObj.imagens.push({ nome: f.name, url, path, data: url });
@@ -1139,6 +1154,9 @@ async function adicionarImagensAmbiente(event) {
   
   toast('✓ Imagens salvas no banco!');
   event.target.value = '';
+  // Re-enable save button
+  const _saveBtn2 = document.querySelector('#modal-ambiente .btn-primary');
+  if (_saveBtn2) { _saveBtn2.disabled = false; _saveBtn2.innerHTML = '<span style="font-size:14px">💾</span> Salvar'; }
 }
 
 async function removerImagemAmbiente(i) {
@@ -3595,6 +3613,26 @@ function salvarAssinatura(projId){
 }
 
 
+
+function aplicarDescontoProjeto(projetoId, valor, maximo) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  let desc = parseFloat(valor)||0;
+  if (desc > maximo) {
+    desc = maximo;
+    const inp = document.getElementById('desc-proj-'+projetoId);
+    if (inp) inp.value = maximo;
+    toast('⚠️ Desconto máximo: '+maximo+'% (margem mínima 30%)');
+  }
+  p.descontoProjeto = desc;
+  // Update finPrecoFinal with discount applied
+  const base = p.condicaoPrecoFinal||p.finPrecoFinal||0;
+  p.finPrecoFinalComDesconto = base*(1-desc/100);
+  pushProjeto(p).then(()=>{
+    renderProjetos();
+  }).catch(e=>toast('Erro: '+e.message));
+}
+
 function fazerLogout() {
   usuarioAtual = null;
   localStorage.removeItem('studioUser');
@@ -3801,6 +3839,7 @@ async function pushProjeto(p) {
     proposta_data: p.pdfPropostaData||'',
     contrato_data: p.contratoData||'',
     contrato_assinado_em: p.contratoAssinadoEm||null,
+    desconto_projeto: p.descontoProjeto||0,
   };
   try {
     await sbFetch('projetos?on_conflict=id', 'POST', [{..._base,..._extras}], 'resolution=merge-duplicates');
@@ -3914,6 +3953,7 @@ function mapProjeto(p) {
     ambientes: p.ambientes||[], leadId: p.lead_id||'',
     contratoAprovado: p.contrato_aprovado||false,
     contratoGerado: !!(p.contrato_html||p.contrato_data),
+    descontoProjeto: p.desconto_projeto||0,
     contratoData: p.contrato_data||'',
     contratoAssinadoEm: p.contrato_assinado_em||'',
     propostaAceita: p.proposta_aceita||false,
@@ -4280,20 +4320,50 @@ function renderProjetos(filter='') {
       const briefingStatusColor = briefingOk >= briefingSteps.length ? 'var(--green)' : briefingOk > 0 ? 'var(--gold)' : 'var(--text3)';
       const briefingStatusBg = briefingOk >= briefingSteps.length ? 'var(--green-dim)' : briefingOk > 0 ? 'var(--gold-dim)' : 'var(--bg4)';
 
-      // ── Dados Proposta ──
+      // ── Critérios de progresso do fluxo ──
       const prontos = ambientes.filter(a=>(a.imagens||[]).length>0 && a.xmlNome);
       const proposalPronta = ambientes.length > 0 && prontos.length === ambientes.length;
-      const proposalStatus = p.propostaAceita ? 'Aceita' : proposalPronta ? 'Pronta p/ envio' : ambientes.length === 0 ? 'Aguardando briefing' : 'Aguardando envio';
-      const proposalStatusColor = p.propostaAceita ? 'var(--green)' : proposalPronta ? 'var(--gold)' : 'var(--text3)';
-      const proposalStatusBg = p.propostaAceita ? 'var(--green-dim)' : proposalPronta ? 'var(--gold-dim)' : 'var(--bg4)';
+
+      // Etapa 1: Briefing
+      const etapa1Ok = briefingOk >= briefingSteps.length;
+      // Etapa 2: Ambientes (todos com XML + min 1 foto)
+      const etapa2Ok = ambientes.length > 0 && ambientes.every(a=>a.xmlNome && (a.imagens||[]).length>0);
+      // Etapa 3: Condições (tipo e preço negociado definido)
+      const etapa3Ok = !!(p.condicaoTipo && (p.condicaoPrecoFinal||p.finPrecoFinal));
+      // Etapa 4: Prazos (4 datas preenchidas)
+      const pz = p.prazos||{};
+      const etapa4Ok = !!(pz.medicao && pz.producao && pz.entrega && pz.instalacao);
+      // Etapa 5: Proposta gerada
+      const etapa5Ok = !!(p.pdfProposta || p.propostaAceita);
+
+      // Progresso geral
+      const etapas = [etapa1Ok,etapa2Ok,etapa3Ok,etapa4Ok,etapa5Ok];
+      const etapasConcluidas = etapas.filter(Boolean).length;
+      const progressoPct = Math.round(etapasConcluidas/5*100);
+
+      // Bloqueios sequenciais
+      const bloqueioAmb = !etapa1Ok;
+      const bloqueioCond = !etapa2Ok;
+      const bloqueioPrazos = !etapa3Ok;
+      const bloqueioProposta = !etapa4Ok;
+
+      const proposalStatus = p.propostaAceita ? 'Aceita' : etapa5Ok ? 'Gerada' : proposalPronta ? 'Pronta p/ envio' : 'Bloqueada';
+      const proposalStatusColor = p.propostaAceita ? 'var(--green)' : etapa5Ok ? 'var(--blue)' : proposalPronta&&!bloqueioProposta ? 'var(--gold)' : 'var(--text3)';
 
       // ── Dados Financeiro ──
       const finOk = !!p.finPrecoFinal;
       const pct = p.finSobraPct || 0;
       const finCor = pct >= 40 ? '#b090e0' : pct >= 30 ? 'var(--green)' : pct >= 15 ? 'var(--amber)' : 'var(--red)';
-      const finStatus = finOk ? 'Atualizado' : 'Pendente';
-      const finStatusColor = finOk ? 'var(--green)' : 'var(--text3)';
-      const finStatusBg = finOk ? 'var(--green-dim)' : 'var(--bg4)';
+
+      // ── Desconto do projeto ──
+      const descProjPct = p.descontoProjeto||0;
+      const precoBase = p.condicaoPrecoFinal||p.finPrecoFinal||0;
+      const precoComDesc = precoBase*(1-descProjPct/100);
+      
+      // Calcular margem com desconto para validar limite 30%
+      const custoPromobTotal = ambientes.reduce((s,a)=>s+(a.xmlDados?.valorTotalNum||0),0)||p.estimate||0;
+      const margemComDesc = precoComDesc>0?((precoComDesc-custoPromobTotal)/precoComDesc*100):0;
+      const descontoMaximo = precoBase>0?Math.max(0,Math.floor((1-(custoPromobTotal*100/70)/precoBase)*100)):0;
 
       // ── Botões da barra inferior ──
       const todos2 = ambientes;
@@ -4320,14 +4390,35 @@ function renderProjetos(filter='') {
         return `<span style="font-size:11px;padding:3px 10px;border-radius:99px;color:${finCor};background:rgba(0,0,0,0.3);border:1px solid ${finCor};white-space:nowrap">${flag} Venda: ${formatCurrency(p.finPrecoFinal)} · ${pct.toFixed(1)}%</span>`;
       })() : '';
 
+      const etapaLabels = ['Briefing','Ambientes','Condições','Prazos','Proposta'];
+      const etapaCores = [etapa1Ok,etapa2Ok,etapa3Ok,etapa4Ok,etapa5Ok];
+
       return `
       <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden">
 
+        <!-- ── PROGRESS BAR ── -->
+        <div style="padding:10px 18px 0">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:6px">
+              ${etapaLabels.map((label,i)=>`
+                <div style="display:flex;align-items:center;gap:4px">
+                  <div style="width:18px;height:18px;border-radius:50%;background:${etapaCores[i]?'var(--green)':'rgba(255,255,255,0.08)'};border:1.5px solid ${etapaCores[i]?'var(--green)':'rgba(255,255,255,0.15)'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#0d0d0d;font-weight:700;flex-shrink:0">${etapaCores[i]?'✓':String(i+1)}</div>
+                  <span style="font-size:10px;color:${etapaCores[i]?'var(--green)':'var(--text3)'};white-space:nowrap">${label}</span>
+                  ${i<4?'<div style="width:16px;height:1px;background:rgba(255,255,255,0.1);margin:0 2px"></div>':''}
+                </div>`).join('')}
+            </div>
+            <span style="font-size:11px;font-weight:600;color:${progressoPct===100?'var(--green)':progressoPct>=60?'var(--gold)':'var(--text3)'}">${progressoPct}%</span>
+          </div>
+          <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;margin-bottom:10px">
+            <div style="height:100%;width:${progressoPct}%;background:${progressoPct===100?'var(--green)':progressoPct>=60?'var(--gold)':'var(--blue)'};border-radius:99px;transition:width 0.4s"></div>
+          </div>
+        </div>
+
         <!-- ── HEADER ── -->
-        <div style="padding:14px 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="padding:0 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
           <div>
             <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="verAmbientesCliente('${p.id}')">${p.nome}</div>
-            <div style="display:flex;align-items:center;gap:12px;margin-top:6px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap">
               <span style="font-size:12px;color:var(--text3)">📅 Início: <span style="color:var(--text2)">${formatDate(p.data)}</span></span>
               ${lead?.updatedAt ? `<span style="font-size:12px;color:var(--text3)">🕐 Atualizado: <span style="color:var(--text2)">${formatDate(lead.updatedAt.slice(0,10))}</span></span>` : ''}
               ${lead?.responsavel ? `<span style="font-size:12px;color:var(--text3)">👤 <span style="color:var(--gold2);font-weight:500">${lead.responsavel}</span></span>` : ''}
@@ -4335,87 +4426,61 @@ function renderProjetos(filter='') {
           </div>
         </div>
 
-        <!-- ── 5 PAINÉIS ── -->
+        <!-- ── 5 PAINÉIS: Briefing → Ambientes → Condições → Prazos → Proposta ── -->
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 14px 14px;align-items:stretch">
 
-          <!-- BRIEFING -->
-          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-              <span style="font-size:18px">📋</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text)">Briefing</span>
+          <!-- 1. BRIEFING -->
+          <div style="background:#1a1506;border:1px solid rgba(212,148,74,${etapa1Ok?'0.5':'0.25'});border-radius:12px;padding:14px;display:flex;flex-direction:column;position:relative">
+            ${etapa1Ok?'<div style="position:absolute;top:10px;right:10px;font-size:14px">✅</div>':''}
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+              <span style="font-size:16px">📋</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">1. Briefing</span>
             </div>
-            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${briefingOk>=briefingSteps.length?'rgba(92,184,130,0.15)':briefingOk>0?'rgba(212,148,74,0.15)':'rgba(255,255,255,0.05)'};color:${briefingStatusColor};margin-bottom:10px;border:1px solid ${briefingOk>=briefingSteps.length?'rgba(92,184,130,0.3)':briefingOk>0?'rgba(212,148,74,0.3)':'rgba(255,255,255,0.1)'}">${briefingStatus}</div>
-            <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:4px;margin-bottom:10px;overflow:hidden">
+            <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${briefingOk>=briefingSteps.length?'rgba(92,184,130,0.15)':briefingOk>0?'rgba(212,148,74,0.15)':'rgba(255,255,255,0.05)'};color:${briefingStatusColor};margin-bottom:8px;border:1px solid ${briefingOk>=briefingSteps.length?'rgba(92,184,130,0.3)':briefingOk>0?'rgba(212,148,74,0.3)':'rgba(255,255,255,0.1)'}">${briefingStatus}</div>
+            <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:3px;margin-bottom:8px;overflow:hidden">
               <div style="height:100%;width:${briefingPct}%;background:${briefingStatusColor};border-radius:99px"></div>
             </div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Progresso ${briefingOk}/${briefingSteps.length}</div>
             <div style="flex:1">
-              ${['Dados do cliente','Ambientes','Valor previsto','Detalhes extras'].map((s,i)=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:14px;height:14px;border-radius:50%;background:'+(i<briefingOk?'var(--green)':'transparent')+';border:1.5px solid '+(i<briefingOk?'var(--green)':'rgba(255,255,255,0.15)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:#0d0d0d;font-weight:700">'+(i<briefingOk?'✓':'')+'</span><span style="font-size:11px;color:'+(i<briefingOk?'var(--text)':'var(--text3)')+'">'+s+'</span></div>').join('')}
+              ${['Dados do cliente','Ambientes','Valor previsto','Detalhes extras'].map((s,i)=>'<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="width:12px;height:12px;border-radius:50%;background:'+(i<briefingOk?'var(--green)':'transparent')+';border:1.5px solid '+(i<briefingOk?'var(--green)':'rgba(255,255,255,0.15)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:7px;color:#0d0d0d;font-weight:700">'+(i<briefingOk?'✓':'')+'</span><span style="font-size:10px;color:'+(i<briefingOk?'var(--text)':'var(--text3)')+'">'+s+'</span></div>').join('')}
             </div>
-            <div style="margin-top:12px">
+            <div style="margin-top:10px">
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">📋 Ver briefing</button>
             </div>
           </div>
 
-          <!-- AMBIENTES -->
-          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-              <span style="font-size:18px">🪵</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text)">Ambientes</span>
+          <!-- 2. AMBIENTES -->
+          <div style="background:${bloqueioAmb?'rgba(15,31,23,0.4)':'#0f1f17'};border:1px solid rgba(92,184,130,${etapa2Ok?'0.5':bloqueioAmb?'0.1':'0.25'});border-radius:12px;padding:14px;display:flex;flex-direction:column;position:relative;${bloqueioAmb?'opacity:0.6':''}">
+            ${etapa2Ok?'<div style="position:absolute;top:10px;right:10px;font-size:14px">✅</div>':bloqueioAmb?'<div style="position:absolute;top:10px;right:10px;font-size:14px">🔒</div>':''}
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+              <span style="font-size:16px">🪵</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">2. Ambientes</span>
             </div>
-            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:rgba(92,184,130,0.15);color:var(--green);margin-bottom:10px;border:1px solid rgba(92,184,130,0.3)">${ambientes.length} ambiente${ambientes.length!==1?'s':''}</div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">XML Promob</div>
+            ${bloqueioAmb?'<div style="font-size:10px;color:var(--text3);margin-bottom:6px">Complete o briefing primeiro</div>':''}
+            <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${etapa2Ok?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${etapa2Ok?'var(--green)':'var(--text3)'};margin-bottom:8px;border:1px solid ${etapa2Ok?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${prontos.length}/${ambientes.length} prontos</div>
             <div style="flex:1">
-              ${ambientes.slice(0,5).map(a=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:7px;height:7px;border-radius:50%;background:'+(a.xmlNome?'var(--green)':'var(--text3)')+';flex-shrink:0"></span><span style="font-size:11px;color:'+(a.xmlNome?'var(--text2)':'var(--text3)')+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:'+(a.xmlNome?'var(--green)':'var(--text3)')+';">'+(a.xmlNome?'✓':'—')+'</span></div>').join('')}
-              ${ambientes.length>5?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-5} mais</div>`:''}
+              ${ambientes.slice(0,5).map(a=>{
+                const xmlOk=!!a.xmlNome, fotoOk=(a.imagens||[]).length>0, ambOk=xmlOk&&fotoOk;
+                return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">'
+                  +'<span style="font-size:9px;width:14px;text-align:center">'+(ambOk?'✅':xmlOk?'📐':fotoOk?'🖼':'⬜')+'</span>'
+                  +'<span style="font-size:10px;color:'+(ambOk?'var(--text2)':'var(--text3)')+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+(a.nome||a.tipo)+'</span>'
+                  +'</div>';
+              }).join('')}
+              ${ambientes.length>5?`<div style="font-size:10px;color:var(--text3)">+${ambientes.length-5} mais</div>`:''}
+              <div style="font-size:9px;color:var(--text3);margin-top:4px">✅ XML+foto &nbsp; 📐 só XML &nbsp; 🖼 só foto</div>
             </div>
-            <div style="margin-top:12px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
+            <div style="margin-top:10px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green);${bloqueioAmb?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioAmb?'disabled':''} onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
             </div>
           </div>
 
-          <!-- PROPOSTA -->
-          <div style="background:#0d1520;border:1px solid rgba(96,144,208,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-              <span style="font-size:16px">📄</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text)">Proposta</span>
-            </div>
-            <div style="font-size:11px;padding:2px 10px;border-radius:99px;display:inline-block;background:${p.propostaAceita?'rgba(92,184,130,0.15)':proposalPronta?'rgba(201,169,110,0.15)':'rgba(96,144,208,0.1)'};color:${proposalStatusColor};margin-bottom:10px;border:1px solid ${p.propostaAceita?'rgba(92,184,130,0.3)':proposalPronta?'rgba(201,169,110,0.3)':'rgba(96,144,208,0.2)'}">${proposalStatus}</div>
-            <div style="flex:1">
-              ${proposalPronta||p.propostaAceita ? `
-                <div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">Ambientes</div>
-                ${ambientes.slice(0,3).map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">'+(a.nome||a.tipo)+'</span><span style="font-size:11px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finPrecoFinal||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
-                ${ambientes.length>3?`<div style="font-size:11px;color:var(--text3)">+${ambientes.length-3} mais</div>`:''}
-              ` : `
-                <div style="text-align:center;padding:12px 0">
-                  <div style="font-size:24px;opacity:0.3;margin-bottom:6px">📄</div>
-                  <div style="font-size:11px;color:var(--text3)">${ambientes.length===0?'Aguardando briefing':prontos.length+'/'+ambientes.length+' prontos'}</div>
-                </div>
-              `}
-              ${p.pdfProposta ? `<div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="margin-top:8px;padding:8px 10px;background:rgba(96,144,208,0.07);border:1px solid rgba(96,144,208,0.2);border-radius:8px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(96,144,208,0.14)'" onmouseout="this.style.background='rgba(96,144,208,0.07)'">
-                <div style="width:32px;height:32px;background:rgba(96,144,208,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">📄</div>
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:0.3px">ÚLTIMA PROPOSTA</div>
-                  <div style="font-size:11px;color:var(--text2);margin-top:1px">${p.pdfPropostaData||'Gerada'}</div>
-                  <div style="font-size:9px;color:var(--text3);margin-top:1px">${p.temPropostaNoBank?'💾 Salva no banco':'📱 Cache local'} · clique para abrir</div>
-                </div>
-                <div style="font-size:16px;color:var(--blue);opacity:0.7">↗</div>
-              </div>` : ''}
-            </div>
-            <div style="margin-top:12px">
-              ${proposalPronta
-                ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
-                : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.4;cursor:not-allowed" disabled>📄 Gerar proposta</button>`
-              }
-            </div>
-          </div>
-
-          <!-- CONDIÇÕES -->
-          <div style="background:#140e1a;border:1px solid rgba(176,144,224,0.25);border-radius:12px;padding:14px;display:flex;flex-direction:column">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+          <!-- 3. CONDIÇÕES -->
+          <div style="background:${bloqueioCond?'rgba(20,14,26,0.4)':'#140e1a'};border:1px solid rgba(176,144,224,${etapa3Ok?'0.5':bloqueioCond?'0.1':'0.25'});border-radius:12px;padding:14px;display:flex;flex-direction:column;position:relative;${bloqueioCond?'opacity:0.6':''}">
+            ${etapa3Ok?'<div style="position:absolute;top:10px;right:10px;font-size:14px">✅</div>':bloqueioCond?'<div style="position:absolute;top:10px;right:10px;font-size:14px">🔒</div>':''}
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
               <span style="font-size:16px">🤝</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text)">Condições</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">3. Condições</span>
             </div>
+            ${bloqueioCond?'<div style="font-size:10px;color:var(--text3);margin-bottom:6px">Complete os ambientes primeiro</div>':''}
             <div style="flex:1">
               ${(()=>{
                 const tipo = p.condicaoTipo||'parcelado';
@@ -4425,62 +4490,105 @@ function renderProjetos(filter='') {
                 const tipoLabel = tipo==='avista'?'À vista':tipo==='financiado'?'Financiado':'Parcelado';
                 const tipoBg = tipo==='avista'?'rgba(92,184,130,0.15)':tipo==='financiado'?'rgba(96,144,208,0.15)':'rgba(212,148,74,0.15)';
                 const tipoBrd = tipo==='avista'?'rgba(92,184,130,0.3)':tipo==='financiado'?'rgba(96,144,208,0.3)':'rgba(212,148,74,0.3)';
-                const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[{label:'Entrada',pct:20},{label:'Medição',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
+                const etapasC = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[{label:'Entrada',pct:20},{label:'Medição',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
                 const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-                return '<div style="font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;background:'+tipoBg+';color:'+tipoCor+';margin-bottom:8px;border:1px solid '+tipoBrd+'">'+tipoLabel+'</div>'
-                  +(precoFinal>0?'<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--text3)">Preço negociado</div><div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div>'+(precoBase&&Math.abs(precoFinal-precoBase)>1?'<div style="font-size:10px;color:var(--text3)">Base: '+fmtV(precoBase)+'</div>':'')+'</div>':'')
-                  +(tipo==='parcelado'?'<div>'+etapas.map(e=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:10px;color:var(--text3)">'+e.label+' ('+e.pct+'%)</span><span style="font-size:10px;color:var(--text2);font-family:DM Mono,monospace">'+fmtV((precoFinal||precoBase)*(e.pct/100))+'</span></div>').join('')+'</div>':'')
-                  +(tipo==='avista'&&p.condicaoDesconto>0?'<div style="font-size:11px;color:var(--green)">✓ Desconto: '+p.condicaoDesconto+'%</div>':'')
+                return '<div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:'+tipoBg+';color:'+tipoCor+';margin-bottom:6px;border:1px solid '+tipoBrd+'">'+tipoLabel+'</div>'
+                  +(precoFinal>0?'<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text3)">Preço negociado</div><div style="font-size:14px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div></div>':'')
+                  +(tipo==='parcelado'?'<div>'+etapasC.map(e=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:9px;color:var(--text3)">'+e.label+' ('+e.pct+'%)</span><span style="font-size:9px;color:var(--text2);font-family:DM Mono,monospace">'+fmtV((precoFinal||precoBase)*(e.pct/100))+'</span></div>').join('')+'</div>':'')
                   +(tipo==='financiado'?(()=>{
-                    const parc=p.condicaoParcelas||1,juros=p.condicaoJuros||0,pf2=precoFinal||precoBase;
+                    const parc=p.condicaoParcelas||1,pf2=precoFinal||precoBase;
                     const downPct=p.condicaoDownPct||20,downVal=pf2*(downPct/100),finVal=pf2-downVal;
-                    return '<div style="margin-bottom:4px"><div style="font-size:10px;color:var(--text3)">Down ('+downPct+'%)</div><div style="font-size:13px;font-weight:700;color:var(--green)">'+fmtV(downVal)+'</div></div>'
-                      +'<div><div style="font-size:10px;color:var(--text3)">'+parc+'x'+(juros>0?' · '+juros+'%':'')+'</div><div style="font-size:13px;font-weight:700;color:var(--blue)">'+fmtV(finVal/parc)+'/mês</div></div>';
+                    return '<div style="font-size:9px;color:var(--text3)">Down '+downPct+'%: <strong style="color:var(--green)">'+fmtV(downVal)+'</strong></div>'
+                      +'<div style="font-size:9px;color:var(--text3)">'+parc+'x: <strong style="color:var(--blue)">'+fmtV(finVal/parc)+'/mês</strong></div>';
                   })():'');
               })()}
             </div>
-            <div style="margin-top:12px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirCondicoes('${p.id}')">🤝 Negociar</button>
+            <div style="margin-top:10px">
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0;${bloqueioCond?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioCond?'disabled':''} onclick="event.stopPropagation();abrirCondicoes('${p.id}')">🤝 Negociar</button>
             </div>
           </div>
 
-          <!-- PRAZO -->
-          <div style="background:#0d1520;border:1px solid rgba(96,144,208,0.2);border-radius:12px;padding:14px;display:flex;flex-direction:column">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+          <!-- 4. PRAZOS -->
+          <div style="background:${bloqueioPrazos?'rgba(13,21,32,0.4)':'#0d1520'};border:1px solid rgba(96,144,208,${etapa4Ok?'0.5':bloqueioPrazos?'0.1':'0.2'});border-radius:12px;padding:14px;display:flex;flex-direction:column;position:relative;${bloqueioPrazos?'opacity:0.6':''}">
+            ${etapa4Ok?'<div style="position:absolute;top:10px;right:10px;font-size:14px">✅</div>':bloqueioPrazos?'<div style="position:absolute;top:10px;right:10px;font-size:14px">🔒</div>':''}
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
               <span style="font-size:16px">📅</span>
-              <span style="font-size:13px;font-weight:600;color:var(--text)">Prazos</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">4. Prazos</span>
             </div>
+            ${bloqueioPrazos?'<div style="font-size:10px;color:var(--text3);margin-bottom:6px">Defina as condições primeiro</div>':''}
             ${(()=>{
-              const pz = p.prazos||{};
+              const pz2 = p.prazos||{};
               const diasInst = p.diasInstalacao||7;
               const fmtD = d=>d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):'—';
-              const etapas = [
-                {key:'entrada', icon:'💰', label:'Entrada paga', cor:'var(--green)'},
-                {key:'medicao', icon:'📐', label:'Conf. medidas + fábrica', cor:'var(--amber)'},
-                {key:'producao', icon:'🏭', label:'Produção (15d)', cor:'var(--blue)'},
-                {key:'entrega', icon:'🚚', label:'Entrega', cor:'#b090e0'},
-                {key:'instalacao', icon:'🔧', label:'Instalação ('+diasInst+'d)', cor:'var(--gold)'},
+              const etapasP = [
+                {key:'medicao',icon:'📐',label:'Conf. + fábrica'},
+                {key:'producao',icon:'🏭',label:'Produção'},
+                {key:'entrega',icon:'🚚',label:'Entrega'},
+                {key:'instalacao',icon:'🔧',label:'Instalação ('+diasInst+'d)'},
               ];
-              return '<div style="flex:1">'
-                +etapas.map(e=>{
-                  const data = pz[e.key];
-                  const ok = !!data;
-                  return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">'
-                    +'<span style="font-size:12px;width:18px;text-align:center">'+e.icon+'</span>'
-                    +'<div style="flex:1;min-width:0"><div style="font-size:10px;color:var(--text3)">'+e.label+'</div></div>'
-                    +'<span style="font-size:11px;font-weight:600;color:'+(ok?e.cor:'var(--text3)')+'">'+fmtD(data)+'</span>'
-                    +'</div>';
-                }).join('')
-                +'</div>';
+              return '<div style="flex:1">'+etapasP.map(e=>{
+                const data=pz2[e.key],ok=!!data;
+                return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">'
+                  +'<span style="font-size:11px;width:16px;text-align:center">'+e.icon+'</span>'
+                  +'<div style="flex:1;min-width:0"><div style="font-size:9px;color:var(--text3)">'+e.label+'</div></div>'
+                  +'<span style="font-size:10px;font-weight:600;color:'+(ok?'var(--blue)':'var(--text3)')+'">'+fmtD(data)+'</span>'
+                  +'</div>';
+              }).join('')+'</div>';
             })()}
             <div style="margin-top:10px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.25);color:var(--blue)" onclick="event.stopPropagation();abrirPrazos('${p.id}')">📅 Gerenciar prazos</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.25);color:var(--blue);${bloqueioPrazos?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioPrazos?'disabled':''} onclick="event.stopPropagation();abrirPrazos('${p.id}')">📅 Gerenciar prazos</button>
+            </div>
+          </div>
+
+          <!-- 5. PROPOSTA -->
+          <div style="background:${bloqueioProposta?'rgba(13,21,32,0.4)':'#0a1420'};border:1px solid rgba(201,169,110,${etapa5Ok?'0.5':bloqueioProposta?'0.1':'0.25'});border-radius:12px;padding:14px;display:flex;flex-direction:column;position:relative;${bloqueioProposta?'opacity:0.6':''}">
+            ${etapa5Ok?'<div style="position:absolute;top:10px;right:10px;font-size:14px">✅</div>':bloqueioProposta?'<div style="position:absolute;top:10px;right:10px;font-size:14px">🔒</div>':''}
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+              <span style="font-size:16px">📄</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">5. Proposta</span>
+            </div>
+            ${bloqueioProposta?'<div style="font-size:10px;color:var(--text3);margin-bottom:6px">Defina os prazos primeiro</div>':''}
+            <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${p.propostaAceita?'rgba(92,184,130,0.15)':etapa5Ok?'rgba(96,144,208,0.15)':bloqueioProposta?'rgba(255,255,255,0.03)':'rgba(201,169,110,0.1)'};color:${proposalStatusColor};margin-bottom:8px;border:1px solid ${p.propostaAceita?'rgba(92,184,130,0.3)':etapa5Ok?'rgba(96,144,208,0.3)':bloqueioProposta?'rgba(255,255,255,0.08)':'rgba(201,169,110,0.2)'}">${proposalStatus}</div>
+            <div style="flex:1">
+              ${!bloqueioProposta&&ambientes.length>0?`
+                <div style="font-size:9px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px">Ambientes</div>
+                ${ambientes.slice(0,4).map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
+                ${ambientes.length>4?`<div style="font-size:9px;color:var(--text3)">+${ambientes.length-4} mais</div>`:''}
+                <div style="border-top:0.5px solid rgba(255,255,255,0.06);margin-top:6px;padding-top:6px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <span style="font-size:9px;color:var(--text3)">Total sem desconto</span>
+                    <span style="font-size:11px;color:var(--text2);font-family:DM Mono,monospace">$ ${precoBase.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                    <span style="font-size:9px;color:var(--text3);flex-shrink:0">Desconto %</span>
+                    <input type="number" min="0" max="${descontoMaximo}" step="0.5" value="${descProjPct}" id="desc-proj-${p.id}"
+                      style="width:50px;background:#1a1a1a;border:1px solid rgba(201,169,110,0.3);border-radius:4px;color:var(--gold2);font-size:11px;padding:3px 6px;outline:none;text-align:center"
+                      onclick="event.stopPropagation()"
+                      onchange="event.stopPropagation();aplicarDescontoProjeto('${p.id}',this.value,${descontoMaximo})">
+                    <span style="font-size:9px;color:var(--text3)">máx ${descontoMaximo}%</span>
+                  </div>
+                  ${descProjPct>0?`<div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:10px;color:var(--text)">Com desconto</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--gold2);font-family:DM Mono,monospace">$ ${precoComDesc.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                  </div><div style="font-size:9px;color:${margemComDesc>=30?'var(--green)':'var(--red)'};margin-top:2px">Margem: ${margemComDesc.toFixed(1)}%</div>`:''}
+                </div>
+              `:''}
+              ${p.pdfProposta?`<div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="margin-top:6px;padding:6px 8px;background:rgba(201,169,110,0.07);border:1px solid rgba(201,169,110,0.2);border-radius:7px;display:flex;align-items:center;gap:6px;cursor:pointer">
+                <span style="font-size:14px">📑</span>
+                <div style="flex:1;min-width:0"><div style="font-size:9px;color:var(--gold);font-weight:600">Última proposta</div><div style="font-size:9px;color:var(--text3)">${p.pdfPropostaData||'Salva'} · abrir ↗</div></div>
+              </div>`:''}
+            </div>
+            <div style="margin-top:10px">
+              ${!bloqueioProposta
+                ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
+                : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.4;cursor:not-allowed" disabled>📄 Bloqueado</button>`
+              }
             </div>
           </div>
 
         </div>
 
-                <!-- ── BARRA DE AÇÕES ── -->
+        <!-- ── BARRA DE AÇÕES ── -->
         <div style="padding:12px 14px 14px;display:flex;gap:8px;flex-wrap:wrap;border-top:0.5px solid var(--border)">
           ${btnProposta}
           ${btnContrato}
