@@ -288,6 +288,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .filtro-rapido.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold2)}
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -558,7 +559,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
             <div class="upload-text">Clique ou arraste imagens aqui</div>
             <div class="upload-hint">PNG, JPG, WEBP — múltiplas imagens</div>
           </div>
-          <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
+          <input type="file" id="fileInput" accept="image/*,application/pdf" multiple style="display:none" onchange="handleFiles(this.files)">
           <div class="upload-preview" id="uploadPreview"></div>
           <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end" id="uploadActions" style="display:none">
             <button class="btn" onclick="clearUpload()">Limpar</button>
@@ -1087,9 +1088,31 @@ async function adicionarImagensAmbiente(event) {
   
   for (const f of files) {
     try {
-      const { url, path } = await uploadImagemSupabase(f, clienteNome, ambienteNome);
-      _ambObj.imagens.push({ nome: f.name, url, path, data: url });
-      renderImagensAmbiente();
+      if (f.type === 'application/pdf') {
+        // Extract pages as images
+        if (!window.pdfjsLib) { toast('PDF.js não carregado'); continue; }
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const ab = await f.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data:ab}).promise;
+        toast('📄 Extraindo '+pdf.numPages+' página(s) do PDF...');
+        for (let pg=1; pg<=pdf.numPages; pg++) {
+          const page = await pdf.getPage(pg);
+          const vp = page.getViewport({scale:2.0});
+          const cv = document.createElement('canvas');
+          cv.width=vp.width; cv.height=vp.height;
+          await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+          const blob = await new Promise(res=>cv.toBlob(res,'image/jpeg',0.92));
+          const imgFile = new File([blob], f.name.replace('.pdf','')+'_p'+pg+'.jpg', {type:'image/jpeg'});
+          const {url,path} = await uploadImagemSupabase(imgFile, clienteNome, ambienteNome);
+          _ambObj.imagens.push({nome:imgFile.name,url,path,data:url});
+          renderImagensAmbiente();
+        }
+        toast('✓ PDF convertido e salvo!');
+      } else {
+        const { url, path } = await uploadImagemSupabase(f, clienteNome, ambienteNome);
+        _ambObj.imagens.push({ nome: f.name, url, path, data: url });
+        renderImagensAmbiente();
+      }
     } catch(e) {
       toast('Erro no upload: ' + e.message);
     }
@@ -6168,15 +6191,69 @@ function updateAmbientesSelect() {
 }
 
 function handleFiles(files) {
+  // Check if this upload is for a locked project
+  const _clienteSel = document.getElementById('imgCliente')?.value;
+  if (_clienteSel) {
+    const _pImg = DB.projetos.find(x=>x.leadId===_clienteSel||x.id===_clienteSel);
+    if (_pImg?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+      toast('🔒 Projeto travado — não é possível enviar imagens'); return;
+    }
+  }
+
   Array.from(files).forEach(f => {
-    if (!f.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      uploadFiles.push({name:f.name,type:f.type,data:e.target.result,file:f});
-      renderPreviews();
-    };
-    reader.readAsDataURL(f);
+    if (f.type === 'application/pdf') {
+      handlePDF(f);
+    } else if (f.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        uploadFiles.push({name:f.name,type:f.type,data:e.target.result,file:f});
+        renderPreviews();
+      };
+      reader.readAsDataURL(f);
+    }
   });
+}
+
+async function handlePDF(file) {
+  toast('⏳ Convertendo PDF em imagens...');
+  try {
+    // Configure PDF.js worker
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    } else {
+      toast('PDF.js não carregado — tente recarregar a página'); return;
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    const numPages = pdf.numPages;
+
+    toast(`📄 PDF com ${numPages} página(s) — convertendo...`);
+
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const scale = 2.0; // High resolution
+      const viewport = page.getViewport({scale});
+
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+
+      await page.render({canvasContext: ctx, viewport}).promise;
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      const pageName = file.name.replace('.pdf','') + '_p' + pageNum + '.jpg';
+
+      uploadFiles.push({name: pageName, type: 'image/jpeg', data: dataUrl, file: null});
+      renderPreviews();
+    }
+
+    toast(`✓ ${numPages} imagem(ns) extraída(s) do PDF!`);
+  } catch(e) {
+    console.error('PDF error:', e);
+    toast('Erro ao processar PDF: ' + e.message);
+  }
 }
 
 function renderPreviews() {
@@ -8191,7 +8268,7 @@ checkSession();
       <div id="amb-imagens-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:10px"></div>
       <label class="btn btn-sm" style="cursor:pointer;margin-bottom:20px">
         🖼 Adicionar imagens
-        <input type="file" accept="image/*" multiple style="display:none" onchange="adicionarImagensAmbiente(event)">
+        <input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="adicionarImagensAmbiente(event)">
       </label>
 
       <!-- DESCRIÇÃO -->
