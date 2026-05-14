@@ -1250,6 +1250,27 @@ function carregarXML(event) {
         body: JSON.stringify(payload)
       }).catch(()=>{});
     }
+    // ── Auto-save XML to Supabase ──
+    setTimeout(async () => {
+      const _pSave = DB.projetos.find(x=>x.id===_ambProjetoId);
+      const _lSave = DB.leads.find(l=>l.id===_pSave?.leadId);
+      if (_lSave?.ambientesBriefing) {
+        let idx = (_ambIdx >= 0) ? _ambIdx : _lSave.ambientesBriefing.findIndex(a=>
+          (a.nome||a.tipo)===_ambNome || a.nome===_ambNome || a.tipo===_ambNome ||
+          (a.nome||a.tipo||'').trim().toLowerCase()===(_ambNome||'').trim().toLowerCase()
+        );
+        if (idx>=0) {
+          _lSave.ambientesBriefing[idx] = {..._lSave.ambientesBriefing[idx], ..._ambObj};
+          try {
+            await pushLead(_lSave);
+            renderProjetos();
+            toast('✓ XML salvo automaticamente!');
+          } catch(e) {
+            console.warn('Auto-save XML error:', e.message);
+          }
+        }
+      }
+    }, 800); // slight delay to let gerarDescricaoDoXML populate _ambObj first
   };
   r.readAsText(file);
   // Also send XML to Drive via Make
@@ -4660,10 +4681,7 @@ function renderProjetos(filter='') {
             <div style="font-size:12px;color:var(--text3);margin-top:2px">${p.nome}${a.prioridade?' · '+a.prioridade:''}</div>
           </div>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-sm" onclick="event.stopPropagation();toggleAprovacaoAmbiente('${p.id}','${a.nome||a.tipo}','aprovado')"
-              style="border-color:${a.aprovado==='aprovado'?'var(--green)':'var(--border2)'};color:${a.aprovado==='aprovado'?'var(--green)':'var(--text2)'}">✓ Aprovado</button>
-            <button class="btn btn-sm" onclick="event.stopPropagation();toggleAprovacaoAmbiente('${p.id}','${a.nome||a.tipo}','reprovado')"
-              style="border-color:${a.aprovado==='reprovado'?'var(--red)':'var(--border2)'};color:${a.aprovado==='reprovado'?'var(--red)':'var(--text2)'}">✕ Reprovado</button>
+
             <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">Abrir →</button>
           </div>
         </div>
@@ -4693,10 +4711,10 @@ function renderProjetos(filter='') {
             </div>
             <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${temXml?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${temXml?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${temXml?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${temXml?'Importado':'Pendente'}</div>
             ${temXml?`
-              <div style="font-size:11px;color:var(--text3);margin-bottom:3px">Arquivo</div>
-              <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px">${a.xmlNome}</div>
-              ${valorPromobAmb>0?`<div style="font-size:11px;color:var(--text3);margin-bottom:2px">Valor tabela</div>
-              <div style="font-size:14px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace">$ ${fmtA(valorPromobAmb)}</div>`:''}
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Arquivo</div>
+              <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:8px">${a.xmlNome}</div>
+              ${valorPromobAmb>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Valor tabela</div>
+              <div style="font-size:15px;font-weight:700;color:var(--gold);font-family:DM Mono,monospace">$ ${fmtA(valorPromobAmb)}</div>`:''}
             `:`
               <div style="text-align:center;padding:10px 0">
                 <div style="font-size:24px;opacity:0.3;margin-bottom:6px">📐</div>
@@ -4707,56 +4725,58 @@ function renderProjetos(filter='') {
           </div>
 
           <!-- FOTOS -->
-          <div style="background:#0a1320;border:1px solid rgba(96,144,208,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-              <span style="font-size:15px">🖼</span>
-              <span style="font-size:12px;font-weight:600;color:var(--text)">Fotos</span>
-            </div>
-            <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${temFotos?'rgba(92,184,130,0.15)':'rgba(96,144,208,0.08)'};color:${temFotos?'var(--green)':'var(--blue)'};margin-bottom:10px;border:1px solid ${temFotos?'rgba(92,184,130,0.3)':'rgba(96,144,208,0.2)'}">${temFotos?fotos.length+' foto(s)':'Sem fotos'}</div>
-            ${temFotos?`
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:6px;border-radius:6px;overflow:hidden">
-                ${fotos.slice(0,3).map(f=>`<img src="${f.url||f}" style="width:100%;aspect-ratio:1;object-fit:cover" onerror="this.style.display='none'">`).join('')}
+          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:15px">🖼</span>
+                <span style="font-size:12px;font-weight:600;color:var(--text)">Fotos</span>
               </div>
-              ${fotos.length>3?`<div style="font-size:10px;color:var(--text3)">+${fotos.length-3} mais</div>`:''}
+              ${temFotos?`<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:rgba(92,184,130,0.15);color:var(--green);border:1px solid rgba(92,184,130,0.3)">${fotos.length}</span>`:''}
+            </div>
+            ${temFotos?`
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:3px;border-radius:6px;overflow:hidden;margin-bottom:6px">
+                ${fotos.slice(0,4).map(f=>`<img src="${f.url||f}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" onerror="this.style.display='none'">`).join('')}
+              </div>
+              ${fotos.length>4?`<div style="font-size:10px;color:var(--text3);margin-bottom:4px">+${fotos.length-4} mais</div>`:''}
             `:`
-              <div style="text-align:center;padding:10px 0">
-                <div style="font-size:24px;opacity:0.3;margin-bottom:6px">🖼</div>
-                <div style="font-size:11px;color:var(--text3)">Nenhuma foto enviada</div>
+              <div style="text-align:center;padding:14px 0">
+                <div style="font-size:28px;opacity:0.2;margin-bottom:6px">🖼</div>
+                <div style="font-size:11px;color:var(--text3)">Nenhuma foto</div>
+                <div style="font-size:10px;color:var(--text3);margin-top:3px">Adicione renders ou fotos do projeto</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(96,144,208,0.3);color:var(--blue)" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">🖼 Ver</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:6px;border-color:rgba(96,144,208,0.3);color:var(--blue)" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">🖼 Ver fotos</button>
           </div>
 
           <!-- FINANCEIRO -->
-          <div style="background:#180d20;border:1px solid rgba(176,144,224,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">
+          <div style="background:#180d20;border:1px solid rgba(176,144,224,0.25);border-radius:10px;padding:12px">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📊</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">Financeiro</span>
             </div>
-            <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${aFinOk?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${aFinOk?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${aFinOk?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${aFinOk?'Atualizado':'Pendente'}</div>
-            ${aFinOk?`
-              <div style="margin-bottom:6px">
-                <div style="font-size:10px;color:var(--text3)">Valor de venda</div>
-                <div style="font-size:16px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace">$ ${fmtA(aVenda)}</div>
-              </div>
-              ${aCusto>0?`<div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                <span style="font-size:10px;color:var(--text3)">Custo Promob</span>
-                <span style="font-size:10px;color:var(--text2);font-family:'DM Mono',monospace">$ ${fmtA(aCusto)}</span>
-              </div>`:''}
-              <div style="display:flex;justify-content:space-between;align-items:center;padding-top:5px;border-top:0.5px solid rgba(255,255,255,0.06);margin-top:5px">
-                <span style="font-size:11px;color:var(--text);font-weight:600">Margem</span>
-                <div style="display:flex;align-items:center;gap:4px">
-                  <span style="font-size:12px;font-weight:700;color:${aFinCor};font-family:'DM Mono',monospace">$ ${fmtA(aMargem)}</span>
-                  <span style="font-size:9px;padding:1px 5px;border-radius:99px;background:${aMargPct>=30?'rgba(92,184,130,0.12)':aMargPct>=15?'var(--amber-dim)':'var(--red-dim)'};color:${aFinCor};font-weight:700">${aMargPct.toFixed(1)}%</span>
+            ${usuarioAtual?.perfil==='administrativo'?`
+              <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${aFinOk?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${aFinOk?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${aFinOk?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${aFinOk?'Atualizado':'Pendente'}</div>
+              ${aFinOk?`
+                <div style="margin-bottom:6px">
+                  <div style="font-size:10px;color:var(--text3)">Valor de venda</div>
+                  <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
                 </div>
-              </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding-top:5px;border-top:0.5px solid rgba(255,255,255,0.06)">
+                  <span style="font-size:11px;color:var(--text);font-weight:600">Margem</span>
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span style="font-size:12px;font-weight:700;color:${aFinCor};font-family:DM Mono,monospace">$ ${fmtA(aMargem)}</span>
+                    <span style="font-size:9px;padding:1px 5px;border-radius:99px;background:${aMargPct>=30?'rgba(92,184,130,0.12)':aMargPct>=15?'var(--amber-dim)':'var(--red-dim)'};color:${aFinCor};font-weight:700">${aMargPct.toFixed(1)}%</span>
+                  </div>
+                </div>
+              `:'<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Sem dados</div>'}
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver</button>
             `:`
-              <div style="text-align:center;padding:10px 0">
-                <div style="font-size:24px;opacity:0.3;margin-bottom:6px">📊</div>
-                <div style="font-size:11px;color:var(--text3)">Sem dados financeiros</div>
+              <div style="text-align:center;padding:16px 0">
+                <div style="font-size:28px;margin-bottom:8px">🔒</div>
+                <div style="font-size:11px;color:var(--text3)">Acesso restrito</div>
+                <div style="font-size:10px;color:var(--text3);margin-top:4px">Apenas administradores</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver</button>
           </div>
 
         </div>
