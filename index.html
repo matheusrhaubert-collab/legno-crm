@@ -274,11 +274,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .user-logout{margin-left:auto;font-size:11px;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px}
 .user-logout:hover{color:var(--red)}
 
-/* ── PROJECT 4-PANEL CARD ── */
+/* ── MOBILE FIXES ── */
 @media(max-width:768px){
+  [style*="grid-template-columns:repeat(5,1fr)"],[style*="grid-template-columns:repeat(4,1fr)"],[style*="grid-template-columns:repeat(3,1fr)"],[style*="grid-template-columns:repeat(6,1fr)"]{grid-template-columns:1fr 1fr!important}
+  [style*="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom"]{grid-template-columns:repeat(2,1fr)!important}
+  [style*="grid-template-columns:1fr 1fr;gap:0"]{grid-template-columns:1fr!important}
+  [style*="grid-template-columns:300px 1fr"]{grid-template-columns:1fr!important;height:auto!important}
+  .btn,button{min-height:40px}
+  .content{padding:10px!important}
+  .modal{max-width:100%!important;width:100%!important}
   .proj-panels{grid-template-columns:repeat(2,1fr)!important}
 }
 @media(max-width:480px){
+  [style*="grid-template-columns:repeat(5,1fr)"],[style*="grid-template-columns:repeat(4,1fr)"],[style*="grid-template-columns:repeat(3,1fr)"],[style*="grid-template-columns:repeat(2,1fr)"]{grid-template-columns:1fr!important}
+  [style*="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom"]{grid-template-columns:1fr 1fr!important}
   .proj-panels{grid-template-columns:1fr!important}
 }
 
