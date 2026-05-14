@@ -1007,6 +1007,7 @@ const SHEET_CORES_ID = '102jpKW5cOXgKnJTbNRfR7PL_nG_I6kOZBxWoa_hjFOM';
 let _ambProjetoId = null;
 let _ambNome = null;
 let _ambObj = null;
+let _ambIdx = -1;
 let _coresSelecionadas = [];
 let _todasCores = [];
 
@@ -1096,7 +1097,10 @@ async function adicionarImagensAmbiente(event) {
   
   // Save updated imagens to lead
   if (lead?.ambientesBriefing) {
-    const idx = lead.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
+    let idx = (_ambIdx >= 0) ? _ambIdx : lead.ambientesBriefing.findIndex(a=>
+      (a.nome||a.tipo)===_ambNome || a.nome===_ambNome || a.tipo===_ambNome ||
+      (a.nome||a.tipo||'').trim().toLowerCase()===(_ambNome||'').trim().toLowerCase()
+    );
     if (idx>=0) lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
     try { await pushLead(lead); } catch(e) {}
   }
@@ -1687,8 +1691,20 @@ async function salvarAmbienteDetalhe() {
   const p = DB.projetos.find(x=>x.id===_ambProjetoId);
   const lead = DB.leads.find(l=>l.id===p?.leadId);
   if (lead?.ambientesBriefing) {
-    const idx = lead.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
-    if (idx>=0) lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
+    // Try stored index first, then fallback to name search
+    let idx = (_ambIdx >= 0) ? _ambIdx : lead.ambientesBriefing.findIndex(a=>
+      (a.nome||a.tipo)===_ambNome || a.nome===_ambNome || a.tipo===_ambNome
+    );
+    if (idx>=0) {
+      lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
+    } else {
+      // Last resort: try trimmed case-insensitive
+      idx = lead.ambientesBriefing.findIndex(a=>
+        (a.nome||a.tipo||'').trim().toLowerCase()===(_ambNome||'').trim().toLowerCase()
+      );
+      if (idx>=0) lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
+      else { toast('Erro: ambiente não encontrado — tente fechar e abrir novamente'); return; }
+    }
   }
   // Push lead with updated ambiente to Supabase
   const proj = DB.projetos.find(x=>x.id===_ambProjetoId);
@@ -1697,7 +1713,11 @@ async function salvarAmbienteDetalhe() {
     const leadToSave = lead2 || lead;
     if (leadToSave) await pushLead(leadToSave);
     renderProjetos();
-  } catch(e) { toast('Erro ao salvar ambiente: ' + e.message); }
+    toast('✓ Ambiente salvo!');
+  } catch(e) {
+    console.error('Erro salvar ambiente:', e);
+    toast('Erro ao salvar: ' + e.message);
+  }
   // Legacy Sheets (disabled)
   if (lead2 && _ambObj) {
     const payload = {
@@ -1995,6 +2015,7 @@ async function imprimirBriefing(leadId) {
 // ══════════════════════════════════════════
 // ── SUPABASE CONFIG ──
 const SB_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
+const SB_KEY_SERVICE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I';
 async function diagnosticoImagens() {
   const SB_INST = SB_URL + '/storage/v1/object/public/institutional/';
@@ -2980,6 +3001,568 @@ function mktAtualizarHistorico() {
     </div>`).join('');
 }
 
+
+// ══════════════════════════════════════════
+// CONTRATO
+// ══════════════════════════════════════════
+
+function abrirContrato(projetoId) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const lead = DB.leads.find(l=>l.id===p.leadId);
+  if (!lead) return;
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:0.5px solid #2a2a2a;border-radius:16px;padding:28px;max-width:460px;width:100%';
+
+  const precoFinal = p.condicaoPrecoFinal||p.finPrecoFinal||0;
+  const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  div.innerHTML = '<div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">📋 Gerar Contrato</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:20px">'+p.nome+'</div>'
+
+    +'<div style="background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.15);border-radius:10px;padding:14px;margin-bottom:16px">'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--text3)">Valor do contrato</span><span style="font-size:14px;font-weight:700;color:var(--gold2)">'+fmtV(precoFinal)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--text3)">Condição</span><span style="font-size:12px;color:var(--text2)">'+(p.condicaoTipo==='avista'?'À vista':p.condicaoTipo==='financiado'?'Financiado':'Parcelado')+'</span></div>'
+    +'</div>'
+
+    +'<div style="margin-bottom:16px"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px">Idioma do contrato</label>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="ct-lang-btns">'
+    +'<button data-lang="en" style="padding:10px;border-radius:8px;border:1.5px solid var(--gold);background:rgba(201,169,110,0.1);color:var(--gold2);font-size:12px;font-weight:600;cursor:pointer">🇺🇸 English</button>'
+    +'<button data-lang="pt" style="padding:10px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;font-size:12px;cursor:pointer">🇧🇷 Português</button>'
+    +'<button data-lang="es" style="padding:10px;border-radius:8px;border:1px solid #333;background:transparent;color:#888;font-size:12px;cursor:pointer">🇪🇸 Español</button>'
+    +'</div></div>'
+
+    +'<div style="margin-bottom:20px"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px">Data do contrato</label>'
+    +'<input id="ct-data-contrato" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:13px;padding:9px;outline:none"></div>'
+
+    +'<div style="display:flex;gap:8px">'
+    +'<button id="ct-cancel" style="flex:1;padding:11px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>'
+    +'<button id="ct-gerar" style="flex:2;padding:11px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📋 Gerar contrato</button>'
+    +'</div>';
+
+  let langSel = 'en';
+  div.querySelectorAll('[data-lang]').forEach(btn => {
+    btn.onclick = () => {
+      langSel = btn.dataset.lang;
+      div.querySelectorAll('[data-lang]').forEach(b => {
+        b.style.border = b.dataset.lang===langSel?'1.5px solid var(--gold)':'1px solid #333';
+        b.style.background = b.dataset.lang===langSel?'rgba(201,169,110,0.1)':'transparent';
+        b.style.color = b.dataset.lang===langSel?'var(--gold2)':'#888';
+        b.style.fontWeight = b.dataset.lang===langSel?'600':'400';
+      });
+    };
+  });
+
+  div.querySelector('#ct-cancel').onclick = () => document.body.removeChild(ov);
+  div.querySelector('#ct-gerar').onclick = () => {
+    const dataContrato = div.querySelector('#ct-data-contrato').value;
+    document.body.removeChild(ov);
+    gerarContratoHTML(projetoId, langSel, dataContrato);
+  };
+
+  ov.appendChild(div);
+  ov.addEventListener('click', e => { if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
+async function gerarContratoHTML(projetoId, lang, dataContrato) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const lead = DB.leads.find(l=>l.id===p.leadId);
+  if (!lead) return;
+  const ambientes = lead.ambientesBriefing||[];
+  const prazos = p.prazos||{};
+  const precoFinal = p.condicaoPrecoFinal||p.finPrecoFinal||0;
+  const tipo = p.condicaoTipo||'parcelado';
+  const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[
+    {label:'Deposit',pct:20},{label:'Measurement & Approval',pct:30},{label:'Delivery',pct:30},{label:'Final / Installation',pct:20}
+  ];
+  const downPct = p.condicaoDownPct||20;
+  const parcelas = p.condicaoParcelas||1;
+  const juros = p.condicaoJuros||0;
+  const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const hoje = new Date(dataContrato+'T12:00:00');
+  const fmtDate = d => {
+    if(!d) return '—';
+    const dt = new Date(d+'T12:00:00');
+    return dt.toLocaleDateString(lang==='en'?'en-US':lang==='es'?'es-ES':'pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  };
+
+  // ── TRANSLATIONS ──
+  const T = {
+    en: {
+      title: 'Service Provider Agreement',
+      subtitle: 'LEGNO HOME LLC',
+      made: 'This Service Provider Agreement (this "Agreement") is made and entered into as of',
+      between: 'by and between',
+      company: 'LEGNO HOME LLC, a Florida limited liability company with its principal place of business located at 12302 Roper Blvd Ste 103, Clermont, FL 34711, EIN 39-3331452 (the "Contractor"), and:',
+      client: 'Client Information',
+      firstName: 'First Name', lastName: 'Last Name', email: 'Email', address: 'Address',
+      licenseNote: 'Note on licensing: Florida law states that cabinet work and similar finishes do not require a state contractor license. Nevertheless, the contractor must include its license number on proposals, bids, contracts and advertisements where a license is required.',
+      s1: '1. Scope of Work',
+      s1p: 'The Contractor shall furnish all labor, materials, tools and equipment necessary to design, build, deliver and install the custom cabinetry and woodwork described in Exhibit A at the Client\'s property. The Work expressly includes only those services and materials listed in Exhibit A; any tasks or materials not so described are excluded.',
+      s1mat: 'Materials remain the property of the Contractor until the Contract Price is paid in full. Title transfers to the Client upon full payment.',
+      s1excl: 'Exclusions: The Contractor is not responsible for (a) moving or protecting personal property; (b) unforeseen structural or concealed conditions; (c) mold, moisture, or code deficiencies; or (d) work by others. Additional work requires a written change order.',
+      s2: '2. Contract Price and Payment Terms',
+      s2price: 'The Client agrees to pay a total contract price of',
+      s2method: 'Payment shall be made as follows:',
+      s2note: 'All payments shall be made electronically through a secure payment link provided by the Contractor.',
+      s3: '3. Schedule',
+      s3p: 'The Contractor will commence Work within 10 days after receipt of the deposit. Estimated completion dates are subject to delays beyond the Contractor\'s control.',
+      s4: '4. Client Responsibilities',
+      s4p: 'The Client shall provide unobstructed access during normal working hours, ensure the work area is free of hazards, and provide water and electricity at no cost to the Contractor.',
+      s5: '5. Changes or Extras',
+      s5p: 'No change to the Work, Contract Price, or schedule shall be binding unless set forth in a written change order signed by both parties.',
+      s6: '6. Limited Warranty',
+      s6p: 'The Contractor warrants that the Work will be performed in a good and workmanlike manner. This warranty covers defects in materials and workmanship that appear within two (2) years after substantial completion.',
+      s6disc: 'This warranty does not cover damage caused by abuse, misuse, neglect, improper maintenance, acts of God, or modifications by others. Natural wood characteristics (grain variation, color change, expansion) are not covered.',
+      s7: '7. Limitation of Liability',
+      s7p: 'The Contractor\'s liability for any claim is limited to the amount of the Contract Price actually paid. Under no circumstances shall the Contractor be liable for consequential, incidental, special or punitive damages.',
+      s8: '8. Indemnification',
+      s8p: 'The Client agrees to indemnify and hold harmless the Contractor from any third-party claims arising from the Client\'s breach of this Agreement, negligence, or conditions at the Property outside the Contractor\'s control.',
+      s9: '9. Termination',
+      s9p: 'Either party may terminate upon written notice if the other materially breaches and fails to cure within ten (10) days. The Client may cancel without penalty within three (3) business days of signing (Florida Cooling-Off Rule).',
+      s10: '10. Virtual Design Variations',
+      s10p: 'The Client acknowledges that slight variations in dimensions, color tones, or finishes may occur in the final product due to manufacturing tolerances and material characteristics. Such minor variations are acceptable and shall not constitute a defect.',
+      s11: '11. Florida Construction Lien Law Notice',
+      s11p: 'FLORIDA\'S CONSTRUCTION LIEN LAW REQUIRES THIS NOTICE: ANY PERSON OR COMPANY SUPPLYING LABOR, SERVICES OR MATERIALS FOR THE IMPROVEMENT OF YOUR REAL PROPERTY WHO IS NOT PAID HAS A RIGHT TO CLAIM A LIEN ON THE PROPERTY EVEN IF YOU HAVE PAID THE CONTRACTOR IN FULL.',
+      s12: '12. Governing Law',
+      s12p: 'This Agreement shall be governed by the laws of the State of Florida. Any litigation shall be filed in the state courts of Lake County, Florida.',
+      s13: '13. Electronic Signatures',
+      s13p: 'This Agreement may be executed in counterparts. Signatures transmitted electronically shall be binding and treated as original signatures.',
+      s14: '14. Photography and Marketing',
+      s14p: 'Client grants Contractor permission to photograph and record the Property and Work for documentation, portfolio, and marketing purposes. Contractor will not disclose Client\'s personal information without written consent.',
+      exhibitA: 'Exhibit A – Scope of Work',
+      project: 'Project',
+      materials: 'Materials',
+      exclusions: 'Exclusions',
+      excl1: 'This proposal does not include decoration items, mirrors, glass, loose furniture, stone materials, countertops, or related installations.',
+      thankYou: 'Thank You!',
+      thankMsg: 'On behalf of everyone at LEGNO HOME, we are truly grateful for the trust you have placed in us. We look forward to bringing your vision to life.',
+      contractor: 'Contractor: LEGNO HOME LLC',
+      clientSig: 'Client',
+      namePrinted: 'Name (printed)', title: 'Title', ceo: 'CEO', date: 'Date',
+      sig: 'Signature', sigLine: '___________________________',
+      timeline: 'Project Timeline',
+      measurement: 'Measurement & Factory Order', production: 'Production (~15 days)',
+      delivery: 'Delivery', installation: 'Installation',
+      paySchedule: 'Payment Schedule',
+      amount: 'Amount', milestone: 'Milestone',
+      downPayment: 'Down Payment', monthly: 'Monthly installments', total: 'Total',
+      interest: 'interest',
+    },
+    pt: {
+      title: 'Contrato de Prestação de Serviços',
+      subtitle: 'LEGNO HOME LLC',
+      made: 'Este Contrato de Prestação de Serviços (este "Contrato") é celebrado em',
+      between: 'entre',
+      company: 'LEGNO HOME LLC, empresa de responsabilidade limitada do Estado da Flórida, com sede em 12302 Roper Blvd Ste 103, Clermont, FL 34711, EIN 39-3331452 (o "Contratado"), e:',
+      client: 'Dados do Cliente',
+      firstName: 'Nome', lastName: 'Sobrenome', email: 'E-mail', address: 'Endereço',
+      licenseNote: 'Nota sobre licenciamento: A lei da Flórida determina que trabalhos de marcenaria e acabamentos similares não exigem licença estadual de contratante.',
+      s1: '1. Escopo do Trabalho',
+      s1p: 'O Contratado fornecerá toda a mão de obra, materiais, ferramentas e equipamentos necessários para projetar, construir, entregar e instalar a marcenaria personalizada descrita no Anexo A na propriedade do Cliente.',
+      s1mat: 'Os materiais permanecem de propriedade do Contratado até o pagamento integral do Preço do Contrato.',
+      s1excl: 'Exclusões: O Contratado não se responsabiliza por (a) movimentação de bens pessoais; (b) condições estruturais imprevistas; (c) mofo ou deficiências de código; ou (d) trabalhos de terceiros.',
+      s2: '2. Preço do Contrato e Condições de Pagamento',
+      s2price: 'O Cliente concorda em pagar o preço total do contrato de',
+      s2method: 'O pagamento será efetuado da seguinte forma:',
+      s2note: 'Todos os pagamentos serão realizados eletronicamente por meio de link seguro fornecido pelo Contratado.',
+      s3: '3. Cronograma',
+      s3p: 'O Contratado iniciará os trabalhos em até 10 dias após o recebimento do sinal. As datas estimadas estão sujeitas a atrasos fora do controle do Contratado.',
+      s4: '4. Responsabilidades do Cliente',
+      s4p: 'O Cliente deverá fornecer acesso desobstruído durante o horário normal de trabalho e garantir que a área de trabalho esteja livre de obstruções.',
+      s5: '5. Alterações ou Extras',
+      s5p: 'Nenhuma alteração será vinculante sem uma ordem de mudança escrita assinada por ambas as partes.',
+      s6: '6. Garantia Limitada',
+      s6p: 'O Contratado garante que os trabalhos serão realizados de maneira profissional. Esta garantia cobre defeitos de materiais e mão de obra por dois (2) anos após a conclusão.',
+      s6disc: 'A garantia não cobre danos por mau uso, negligência ou características naturais da madeira.',
+      s7: '7. Limitação de Responsabilidade',
+      s7p: 'A responsabilidade do Contratado está limitada ao valor efetivamente pago. Em nenhuma circunstância o Contratado será responsável por danos consequentes.',
+      s8: '8. Indenização',
+      s8p: 'O Cliente concorda em indenizar e isentar o Contratado de reclamações de terceiros decorrentes de violação deste Contrato pelo Cliente.',
+      s9: '9. Rescisão',
+      s9p: 'Qualquer parte pode rescindir mediante aviso por escrito se a outra parte descumprir materialmente e não corrigir em dez (10) dias. O Cliente pode cancelar sem penalidade em até três (3) dias úteis após a assinatura.',
+      s10: '10. Variações de Design Virtual',
+      s10p: 'O Cliente reconhece que pequenas variações em dimensões, tons de cor ou acabamentos podem ocorrer no produto final. Tais variações são aceitáveis e não constituem defeito.',
+      s11: '11. Lei de Privilégio de Construção da Flórida',
+      s11p: 'A LEI DE PRIVILÉGIO DE CONSTRUÇÃO DA FLÓRIDA EXIGE: QUALQUER PESSOA QUE FORNEÇA MÃO DE OBRA, SERVIÇOS OU MATERIAIS PARA MELHORIA DO SEU IMÓVEL E NÃO SEJA PAGA TEM DIREITO A REIVINDICAR UM PRIVILÉGIO SOBRE O IMÓVEL.',
+      s12: '12. Lei Aplicável',
+      s12p: 'Este Contrato será regido pelas leis do Estado da Flórida. Qualquer litígio será proposto nos tribunais estaduais do Condado de Lake, Flórida.',
+      s13: '13. Assinaturas Eletrônicas',
+      s13p: 'Este Contrato pode ser assinado em contrapartes. Assinaturas transmitidas eletronicamente serão vinculantes e tratadas como assinaturas originais.',
+      s14: '14. Fotografia e Marketing',
+      s14p: 'O Cliente concede ao Contratado permissão para fotografar e registrar o imóvel e os trabalhos realizados para fins de documentação, portfólio e marketing.',
+      exhibitA: 'Anexo A – Escopo do Trabalho',
+      project: 'Projeto',
+      materials: 'Materiais',
+      exclusions: 'Exclusões',
+      excl1: 'Esta proposta não inclui itens de decoração, espelhos, vidros, móveis soltos, pedras, bancadas ou instalações relacionadas.',
+      thankYou: 'Obrigado!',
+      thankMsg: 'Em nome de toda a equipe LEGNO HOME, somos gratos pela confiança depositada em nós. Aguardamos ansiosamente transformar sua visão em realidade.',
+      contractor: 'Contratado: LEGNO HOME LLC',
+      clientSig: 'Cliente',
+      namePrinted: 'Nome (impresso)', title: 'Cargo', ceo: 'CEO', date: 'Data',
+      sig: 'Assinatura', sigLine: '___________________________',
+      timeline: 'Cronograma do Projeto',
+      measurement: 'Conferência de Medidas e Pedido à Fábrica', production: 'Produção (~15 dias)',
+      delivery: 'Entrega', installation: 'Instalação',
+      paySchedule: 'Condições de Pagamento',
+      amount: 'Valor', milestone: 'Marco',
+      downPayment: 'Entrada', monthly: 'Parcelas mensais', total: 'Total',
+      interest: 'juros',
+    },
+    es: {
+      title: 'Contrato de Prestación de Servicios',
+      subtitle: 'LEGNO HOME LLC',
+      made: 'Este Contrato de Prestación de Servicios (este "Contrato") se celebra el',
+      between: 'entre',
+      company: 'LEGNO HOME LLC, una sociedad de responsabilidad limitada de Florida, con domicilio principal en 12302 Roper Blvd Ste 103, Clermont, FL 34711, EIN 39-3331452 (el "Contratista"), y:',
+      client: 'Información del Cliente',
+      firstName: 'Nombre', lastName: 'Apellido', email: 'Correo electrónico', address: 'Dirección',
+      licenseNote: 'Nota sobre licencias: La ley de Florida establece que los trabajos de carpintería y acabados similares no requieren licencia estatal de contratista.',
+      s1: '1. Alcance del Trabajo',
+      s1p: 'El Contratista proporcionará toda la mano de obra, materiales, herramientas y equipos necesarios para diseñar, construir, entregar e instalar la carpintería personalizada descrita en el Anexo A en la propiedad del Cliente.',
+      s1mat: 'Los materiales permanecen propiedad del Contratista hasta el pago completo del Precio del Contrato.',
+      s1excl: 'Exclusiones: El Contratista no es responsable de (a) movimiento de bienes personales; (b) condiciones estructurales imprevistas; (c) moho o deficiencias de código; o (d) trabajos de terceros.',
+      s2: '2. Precio del Contrato y Condiciones de Pago',
+      s2price: 'El Cliente acepta pagar un precio total del contrato de',
+      s2method: 'El pago se realizará de la siguiente manera:',
+      s2note: 'Todos los pagos se realizarán electrónicamente a través de un enlace seguro proporcionado por el Contratista.',
+      s3: '3. Cronograma',
+      s3p: 'El Contratista iniciará el Trabajo dentro de los 10 días posteriores a la recepción del depósito. Las fechas estimadas están sujetas a demoras fuera del control del Contratista.',
+      s4: '4. Responsabilidades del Cliente',
+      s4p: 'El Cliente deberá proporcionar acceso sin obstáculos durante el horario normal de trabajo y garantizar que el área de trabajo esté libre de peligros.',
+      s5: '5. Cambios o Extras',
+      s5p: 'Ningún cambio será vinculante sin una orden de cambio escrita firmada por ambas partes.',
+      s6: '6. Garantía Limitada',
+      s6p: 'El Contratista garantiza que el Trabajo se realizará de manera profesional. Esta garantía cubre defectos de materiales y mano de obra durante dos (2) años después de la finalización.',
+      s6disc: 'La garantía no cubre daños por mal uso, negligencia o características naturales de la madera.',
+      s7: '7. Limitación de Responsabilidad',
+      s7p: 'La responsabilidad del Contratista está limitada al monto efectivamente pagado. En ningún caso el Contratista será responsable de daños consecuentes.',
+      s8: '8. Indemnización',
+      s8p: 'El Cliente acepta indemnizar y eximir al Contratista de reclamaciones de terceros derivadas del incumplimiento de este Contrato por parte del Cliente.',
+      s9: '9. Rescisión',
+      s9p: 'Cualquiera de las partes puede rescindir mediante aviso escrito si la otra parte incumple materialmente y no lo corrige en diez (10) días. El Cliente puede cancelar sin penalización dentro de los tres (3) días hábiles posteriores a la firma.',
+      s10: '10. Variaciones de Diseño Virtual',
+      s10p: 'El Cliente reconoce que pueden ocurrir pequeñas variaciones en dimensiones, tonos de color o acabados en el producto final. Tales variaciones son aceptables y no constituyen un defecto.',
+      s11: '11. Aviso de la Ley de Gravamen de Construcción de Florida',
+      s11p: 'LA LEY DE GRAVAMEN DE CONSTRUCCIÓN DE FLORIDA REQUIERE: CUALQUIER PERSONA QUE SUMINISTRE MANO DE OBRA, SERVICIOS O MATERIALES PARA LA MEJORA DE SU PROPIEDAD Y NO RECIBA PAGO TIENE DERECHO A RECLAMAR UN GRAVAMEN SOBRE LA PROPIEDAD.',
+      s12: '12. Ley Aplicable',
+      s12p: 'Este Contrato se regirá por las leyes del Estado de Florida. Cualquier litigio se presentará en los tribunales estatales del Condado de Lake, Florida.',
+      s13: '13. Firmas Electrónicas',
+      s13p: 'Este Contrato puede ejecutarse en contrapartes. Las firmas transmitidas electrónicamente serán vinculantes y tratadas como firmas originales.',
+      s14: '14. Fotografía y Marketing',
+      s14p: 'El Cliente otorga al Contratista permiso para fotografiar y grabar la propiedad y el Trabajo para documentación, portafolio y fines de marketing.',
+      exhibitA: 'Anexo A – Alcance del Trabajo',
+      project: 'Proyecto',
+      materials: 'Materiales',
+      exclusions: 'Exclusiones',
+      excl1: 'Esta propuesta no incluye artículos decorativos, espejos, vidrio, muebles sueltos, materiales de piedra, encimeras o instalaciones relacionadas.',
+      thankYou: '¡Gracias!',
+      thankMsg: 'En nombre de todo el equipo de LEGNO HOME, estamos profundamente agradecidos por la confianza que han depositado en nosotros.',
+      contractor: 'Contratista: LEGNO HOME LLC',
+      clientSig: 'Cliente',
+      namePrinted: 'Nombre (impreso)', title: 'Cargo', ceo: 'CEO', date: 'Fecha',
+      sig: 'Firma', sigLine: '___________________________',
+      timeline: 'Cronograma del Proyecto',
+      measurement: 'Verificación de medidas y pedido a fábrica', production: 'Producción (~15 días)',
+      delivery: 'Entrega', installation: 'Instalación',
+      paySchedule: 'Condiciones de Pago',
+      amount: 'Monto', milestone: 'Hito',
+      downPayment: 'Pago inicial', monthly: 'Cuotas mensuales', total: 'Total',
+      interest: 'interés',
+    }
+  };
+  const t = T[lang]||T.en;
+
+  // Build XML materials description from ambientes
+  const materiaisHTML = ambientes.map(a => {
+    const cores = [...new Set([...(a.coresPaineis||[]),(a.coresFrontais||[]),(a.coresBox||[])])].filter(Boolean);
+    const xmlVal = a.xmlDados?.valorTotal ? fmtV(a.xmlDados.valorTotalNum||0) : '';
+    return `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:600;color:#1a1a1a">${a.nome||a.tipo}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;color:#333">${cores.length?cores.join(', '):'—'}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;color:#1a1a1a">${xmlVal}</td>
+    </tr>`;
+  }).join('');
+
+  // Build payment schedule
+  let payRows = '';
+  if (tipo==='parcelado') {
+    payRows = etapas.map(e=>{
+      const label = lang==='en'?e.label:lang==='pt'?
+        (e.label==='Entrada'?'Entrada':e.label==='Medição'?'Medição e Conferência':e.label==='Entrega'?'Entrega':e.label==='Finalização'?'Finalização':e.label):
+        (e.label==='Entrada'?'Pago inicial':e.label);
+      return `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #eee;color:#333">${label} (${e.pct}%)</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;color:#1a1a1a">${fmtV(precoFinal*(e.pct/100))}</td>
+      </tr>`;
+    }).join('');
+  } else if (tipo==='avista') {
+    payRows = `<tr><td style="padding:8px 12px;color:#333">${t.paySchedule} (100%)</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:#1a1a1a">${fmtV(precoFinal)}</td></tr>`;
+  } else {
+    const downVal = precoFinal*(downPct/100);
+    const finVal = precoFinal - downVal;
+    payRows = `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;color:#333">${t.downPayment} (${downPct}%)</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;color:#1a1a1a">${fmtV(downVal)}</td></tr>
+    <tr><td style="padding:8px 12px;border-bottom:1px solid #eee;color:#333">${parcelas}x ${t.monthly}${juros>0?' ('+juros+'% '+t.interest+')':''}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;color:#1a1a1a">${fmtV(finVal/parcelas)}/${lang==='en'?'mo':lang==='pt'?'mês':'mes'}</td></tr>`;
+  }
+
+  // Build timeline
+  const timelineEtapas = [
+    {key:'medicao', label:t.measurement},
+    {key:'producao', label:t.production},
+    {key:'entrega', label:t.delivery},
+    {key:'instalacao', label:t.installation},
+  ].filter(e=>prazos[e.key]);
+
+  const timelineHTML = timelineEtapas.length ? `
+    <div style="margin:32px 0;padding:24px;background:#f8f6f0;border-left:4px solid #c9a96e">
+      <h3 style="font-family:Georgia,serif;font-size:14px;color:#1a1a1a;margin:0 0 16px;text-transform:uppercase;letter-spacing:1px">${t.timeline}</h3>
+      <table style="width:100%;border-collapse:collapse">
+        ${timelineEtapas.map((e,i)=>`<tr>
+          <td style="padding:6px 12px 6px 0;color:#666;font-size:13px;width:50%">${e.label}</td>
+          <td style="padding:6px 0;font-weight:600;color:#1a1a1a;font-size:13px">${fmtDate(prazos[e.key])}</td>
+        </tr>`).join('')}
+      </table>
+    </div>` : '';
+
+  // Name parts
+  const nomeCompleto = lead.nome||'';
+  const partes = nomeCompleto.trim().split(' ');
+  const firstName = partes[0]||'';
+  const lastName = partes.slice(1).join(' ')||'';
+
+  const html = `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${t.title} – ${lead.nome}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;line-height:1.6}
+  .page{max-width:800px;margin:0 auto;padding:48px 56px}
+  .header{text-align:center;margin-bottom:36px;padding-bottom:24px;border-bottom:3px solid #c9a96e}
+  .logo{font-family:Georgia,serif;font-size:32px;font-weight:400;color:#1a1a1a;letter-spacing:6px;text-transform:uppercase}
+  .logo-sub{font-size:10px;letter-spacing:4px;color:#8a7450;text-transform:uppercase;margin-top:4px}
+  .contract-title{font-size:18px;font-weight:700;color:#1a1a1a;margin-top:20px;text-transform:uppercase;letter-spacing:1px}
+  .preamble{font-size:13px;color:#333;margin:24px 0;line-height:1.7}
+  .client-box{background:#f8f6f0;border:1px solid #e0d5c0;border-radius:4px;padding:20px;margin:20px 0}
+  .client-box h3{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#8a7450;margin-bottom:12px}
+  .client-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+  .client-label{font-size:11px;color:#666}
+  .client-val{font-size:13px;font-weight:600;color:#1a1a1a}
+  .section{margin:28px 0}
+  .section h2{font-size:14px;font-weight:700;color:#1a1a1a;border-bottom:1.5px solid #c9a96e;padding-bottom:6px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px}
+  .section p{color:#333;font-size:13px;margin-bottom:8px;line-height:1.7}
+  .notice{background:#fff9f0;border:1px solid #f0d090;border-radius:4px;padding:14px;margin:12px 0;font-size:12px;color:#7a5c00;line-height:1.6}
+  .lien-notice{background:#fff3cd;border:1px solid #f0c040;border-radius:4px;padding:16px;margin:12px 0;font-size:11px;font-weight:600;color:#5c3d00;line-height:1.6;text-transform:uppercase}
+  table.scope{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  table.scope th{background:#1a1a1a;color:#fff;padding:8px 12px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+  table.scope td{vertical-align:top}
+  .pay-total{background:#1a1a1a;color:#c9a96e;padding:10px 12px;font-weight:700;font-size:14px}
+  .sig-section{margin-top:48px;padding-top:32px;border-top:2px solid #1a1a1a}
+  .sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+  .sig-block h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:16px}
+  .sig-line{border-bottom:1.5px solid #1a1a1a;margin:32px 0 8px;height:40px;position:relative}
+  .sig-label{font-size:11px;color:#666}
+  .sig-name{font-size:13px;font-weight:600;color:#1a1a1a;margin-top:6px}
+  .exhibit{margin-top:48px;padding-top:32px;border-top:3px solid #c9a96e}
+  .exhibit h2{font-family:Georgia,serif;font-size:18px;color:#1a1a1a;margin-bottom:4px}
+  .exhibit-sub{font-size:12px;color:#8a7450;margin-bottom:20px;text-transform:uppercase;letter-spacing:1px}
+  .thank-you{margin:40px 0;padding:24px;text-align:center;border-top:1px solid #e0d5c0;border-bottom:1px solid #e0d5c0}
+  .thank-you h3{font-family:Georgia,serif;font-size:18px;color:#c9a96e;margin-bottom:10px}
+  .thank-you p{color:#555;font-style:italic;line-height:1.7}
+  .footer{margin-top:32px;padding-top:20px;border-top:1px solid #e0d5c0;text-align:center;font-size:11px;color:#888;line-height:1.8}
+  .print-btn{position:fixed;bottom:24px;right:24px;padding:12px 24px;background:#c9a96e;color:#1a1a1a;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;z-index:100;letter-spacing:0.5px}
+  @media print{.print-btn{display:none}.page{padding:20px 28px}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">Legno</div>
+    <div class="logo-sub">Home Cabinets</div>
+    <div class="contract-title">${t.title}</div>
+    <div style="font-size:12px;color:#666;margin-top:8px">${fmtDate(dataContrato)}</div>
+  </div>
+
+  <!-- PREAMBLE -->
+  <div class="preamble">
+    <strong>${t.made} ${fmtDate(dataContrato)}, ${t.between} ${t.company}</strong>
+  </div>
+
+  <!-- CLIENT INFO -->
+  <div class="client-box">
+    <h3>${t.client}</h3>
+    <div class="client-row">
+      <div><div class="client-label">${t.firstName}</div><div class="client-val">${firstName}</div></div>
+      <div><div class="client-label">${t.lastName}</div><div class="client-val">${lastName}</div></div>
+    </div>
+    <div class="client-row">
+      <div><div class="client-label">${t.email}</div><div class="client-val">${lead.email||'—'}</div></div>
+      <div><div class="client-label">${t.address}</div><div class="client-val">${lead.endereco||lead.obs||'—'}</div></div>
+    </div>
+  </div>
+
+  <div class="notice">${t.licenseNote}</div>
+
+  <!-- SECTIONS -->
+  <div class="section"><h2>${t.s1}</h2><p>${t.s1p}</p><p>${t.s1mat}</p><p>${t.s1excl}</p></div>
+
+  <div class="section">
+    <h2>${t.s2}</h2>
+    <p>${t.s2price} <strong>${fmtV(precoFinal)}</strong> ("${lang==='en'?'Contract Price':lang==='pt'?'Preço do Contrato':'Precio del Contrato'}").</p>
+    <p>${t.s2method}</p>
+    <table class="scope" style="margin:12px 0">
+      <thead><tr><th>${t.milestone}</th><th style="text-align:right">${t.amount}</th></tr></thead>
+      <tbody>
+        ${payRows}
+        <tr><td class="pay-total">${t.total}</td><td class="pay-total" style="text-align:right">${fmtV(precoFinal)}</td></tr>
+      </tbody>
+    </table>
+    <p>${t.s2note}</p>
+  </div>
+
+  ${timelineHTML}
+
+  <div class="section"><h2>${t.s3}</h2><p>${t.s3p}</p></div>
+  <div class="section"><h2>${t.s4}</h2><p>${t.s4p}</p></div>
+  <div class="section"><h2>${t.s5}</h2><p>${t.s5p}</p></div>
+  <div class="section"><h2>${t.s6}</h2><p>${t.s6p}</p><p>${t.s6disc}</p></div>
+  <div class="section"><h2>${t.s7}</h2><p>${t.s7p}</p></div>
+  <div class="section"><h2>${t.s8}</h2><p>${t.s8p}</p></div>
+  <div class="section"><h2>${t.s9}</h2><p>${t.s9p}</p></div>
+  <div class="section"><h2>${t.s10}</h2><p>${t.s10p}</p></div>
+  <div class="section"><h2>${t.s11}</h2><div class="lien-notice">${t.s11p}</div></div>
+  <div class="section"><h2>${t.s12}</h2><p>${t.s12p}</p></div>
+  <div class="section"><h2>${t.s13}</h2><p>${t.s13p}</p></div>
+  <div class="section"><h2>${t.s14}</h2><p>${t.s14p}</p></div>
+
+  <!-- SIGNATURES -->
+  <div class="sig-section">
+    <div class="sig-grid">
+      <div class="sig-block">
+        <h3>${t.contractor}</h3>
+        <div class="sig-line"></div>
+        <div class="sig-label">${t.sig}</div>
+        <div class="sig-name">Matheus Haubert</div>
+        <div class="sig-label">${t.title}: ${t.ceo}</div>
+        <div class="sig-label" style="margin-top:12px">${t.date}: ${fmtDate(dataContrato)}</div>
+      </div>
+      <div class="sig-block">
+        <h3>${t.clientSig}: ${lead.nome}</h3>
+        <div class="sig-line" id="sig-canvas-wrap">
+          <canvas id="sig-canvas" width="320" height="80" style="border:none;cursor:crosshair;touch-action:none;width:100%;height:100%"></canvas>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <div class="sig-label" style="flex:1">${t.sig}</div>
+          <button onclick="clearSig()" style="font-size:10px;padding:2px 8px;border:1px solid #ccc;border-radius:4px;background:transparent;cursor:pointer;color:#666">Limpar</button>
+          <button onclick="salvarAssinatura('${projetoId}')" style="font-size:10px;padding:2px 10px;border:none;border-radius:4px;background:#c9a96e;color:#1a1a1a;cursor:pointer;font-weight:700">✓ OK</button>
+        </div>
+        <div class="sig-name" style="margin-top:8px">${lead.nome}</div>
+        <div class="sig-label">${t.date}: ${fmtDate(dataContrato)}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXHIBIT A -->
+  <div class="exhibit">
+    <h2>${t.exhibitA}</h2>
+    <div class="exhibit-sub">${t.project}: ${p.nome}</div>
+    ${ambientes.length ? `
+      <table class="scope">
+        <thead><tr><th>${lang==='en'?'Room/Space':lang==='pt'?'Ambiente':'Ambiente'}</th><th>${lang==='en'?'Finish/Color':lang==='pt'?'Acabamento':'Acabado'}</th><th style="text-align:right">${lang==='en'?'Value':lang==='pt'?'Valor':'Valor'}</th></tr></thead>
+        <tbody>${materiaisHTML}</tbody>
+        <tr><td class="pay-total" colspan="2">${t.total}</td><td class="pay-total" style="text-align:right">${fmtV(precoFinal)}</td></tr>
+      </table>` : ''}
+    <p style="margin-top:16px;font-size:12px;color:#555"><strong>${t.exclusions}:</strong> ${t.excl1}</p>
+  </div>
+
+  <!-- THANK YOU -->
+  <div class="thank-you">
+    <h3>${t.thankYou}</h3>
+    <p>${t.thankMsg}</p>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <strong>LEGNO HOME LLC</strong><br>
+    12302 Roper Blvd Ste 103, Clermont, FL 34711<br>
+    (352) 349-4859 · clermont@legnocabinets.com · www.legnohomecabinets.com
+  </div>
+
+</div>
+
+<button class="print-btn" onclick="window.print()">${lang==='en'?'Print / Save PDF':lang==='pt'?'Imprimir / Salvar PDF':'Imprimir / Guardar PDF'}</button>
+
+<script>
+// ── Signature pad ──
+const canvas = document.getElementById('sig-canvas');
+const ctx = canvas.getContext('2d');
+let drawing = false, signed = false;
+ctx.strokeStyle = '#1a1a1a';
+ctx.lineWidth = 2;
+ctx.lineCap = 'round';
+function getPos(e){
+  const r=canvas.getBoundingClientRect();
+  const src=e.touches?e.touches[0]:e;
+  return{x:(src.clientX-r.left)*(canvas.width/r.width),y:(src.clientY-r.top)*(canvas.height/r.height)};
+}
+canvas.addEventListener('mousedown',e=>{drawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();signed=true;});
+canvas.addEventListener('mouseup',()=>{drawing=false;});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();signed=true;});
+canvas.addEventListener('touchend',()=>{drawing=false;});
+function clearSig(){ctx.clearRect(0,0,canvas.width,canvas.height);signed=false;}
+function salvarAssinatura(projId){
+  if(!signed){alert('${lang==='en'?'Please sign before confirming':lang==='pt'?'Por favor assine antes de confirmar':'Por favor firme antes de confirmar'}');return;}
+  const sigData=canvas.toDataURL('image/png');
+  localStorage.setItem('sig_'+projId,sigData);
+  const btn=document.querySelector('.print-btn');
+  btn.style.background='#22c55e';btn.textContent='${lang==='en'?'Signed! Print / Save PDF':lang==='pt'?'Assinado! Imprimir / Salvar PDF':'Firmado! Imprimir / Guardar PDF'}';
+  fetch('https://bibtcgcabjngisqwywrs.supabase.co/rest/v1/projetos?id=eq.'+projId,{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos'},
+    body:JSON.stringify({contrato_aprovado:true,contrato_assinado_em:new Date().toISOString(),contrato_assinatura:sigData.slice(0,200)})
+  }).then(()=>{alert('${lang==='en'?'Contract signed and saved!':lang==='pt'?'Contrato assinado e salvo!':'Contrato firmado y guardado!'}');}).catch(()=>{});
+}
+<\/script>
+</body>
+</html>`;
+
+  // Save HTML to localStorage and Supabase
+  try { localStorage.setItem('contrato_html_'+projetoId, html); } catch(e){}
+  try {
+    await fetch(SB_URL+'/rest/v1/projetos?id=eq.'+projetoId, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE},
+      body: JSON.stringify({contrato_html: html, contrato_data: new Date().toLocaleDateString('pt-BR')})
+    });
+  } catch(e) {}
+
+  // Update local state
+  const p2 = DB.projetos.find(x=>x.id===projetoId);
+  if (p2) { p2.contratoGerado = true; p2.contratoData = new Date().toLocaleDateString('pt-BR'); }
+  renderProjetos();
+
+  // Open in new window
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) toast('Permita pop-ups para visualizar o contrato');
+  setTimeout(()=>URL.revokeObjectURL(url), 120000);
+  toast('📋 Contrato gerado!');
+}
+
+
 function fazerLogout() {
   usuarioAtual = null;
   localStorage.removeItem('studioUser');
@@ -3137,16 +3720,23 @@ async function pushToSupabase() {
 
 async function pushLead(l) {
   l.updatedAt = new Date().toISOString();
-  await sbFetch('leads?on_conflict=id', 'POST', [{
+  const _baseL = {
     id: l.id, nome: l.nome, tel: l.tel||'', email: l.email||'',
     origem: l.origem||'', tipo: l.tipo||'', obs: l.obs||'',
     status: l.status||'aguardando', data: l.data||new Date().toISOString().slice(0,10),
     valor: l.valor||'', valor_total: l.valorTotal||'',
     especificador: l.especificador||'', previsao_instalacao: l.previsaoInstalacao||'',
     motivo_desq: l.motivoDesq||'', novo: l.novo||false,
-    responsavel: l.responsavel||'',
     ambientes_briefing: l.ambientesBriefing||[]
-  }], 'resolution=merge-duplicates');
+  };
+  const _extrasL = { responsavel: l.responsavel||'' };
+  try {
+    await sbFetch('leads?on_conflict=id', 'POST', [{..._baseL,..._extrasL}], 'resolution=merge-duplicates');
+  } catch(e) {
+    if (e.message?.includes('column')||e.message?.includes('schema cache')) {
+      await sbFetch('leads?on_conflict=id', 'POST', [_baseL], 'resolution=merge-duplicates');
+    } else throw e;
+  }
 }
 
 async function pushProjeto(p) {
@@ -3176,6 +3766,9 @@ async function pushProjeto(p) {
     dias_instalacao: p.diasInstalacao||7,
     checklist_entrega: JSON.stringify(p.checklistEntrega||[]),
     fin_pagamentos: JSON.stringify(p.finPagamentos||[]),
+    proposta_data: p.pdfPropostaData||'',
+    contrato_data: p.contratoData||'',
+    contrato_assinado_em: p.contratoAssinadoEm||null,
   };
   try {
     await sbFetch('projetos?on_conflict=id', 'POST', [{..._base,..._extras}], 'resolution=merge-duplicates');
@@ -3288,6 +3881,9 @@ function mapProjeto(p) {
     data: p.data||'', estimate: p.estimate||'',
     ambientes: p.ambientes||[], leadId: p.lead_id||'',
     contratoAprovado: p.contrato_aprovado||false,
+    contratoGerado: !!(p.contrato_html||p.contrato_data),
+    contratoData: p.contrato_data||'',
+    contratoAssinadoEm: p.contrato_assinado_em||'',
     propostaAceita: p.proposta_aceita||false,
     propostaTravada: p.proposta_travada||false,
     propostaTravadaPor: p.proposta_travada_por||'',
@@ -3300,7 +3896,8 @@ function mapProjeto(p) {
     finFrete: p.fin_frete||0, finCustoExtra: p.fin_custo_extra||0,
     finDescontoCliente: p.fin_desconto_cliente||0,
     pdfProposta: (p.proposta_html||p.proposta_data) ? 'local:'+p.id : '',
-    pdfPropostaData: p.proposta_data||''
+    pdfPropostaData: p.proposta_data||'',
+    temPropostaNobanco: !!(p.proposta_html||p.proposta_data)
   };
 }
 function mapTarefa(t) {
@@ -3675,10 +4272,10 @@ function renderProjetos(filter='') {
           ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
       const btnContrato = p.contratoAprovado
-        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);cursor:default" onclick="event.stopPropagation()">✓ Contrato aprovado</button>`
+        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green)" onclick="event.stopPropagation();abrirContrato('${p.id}')">✓ Ver contrato</button>`
         : p.propostaAceita
-          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aprovarContratoProjeto('${p.id}')">📄 Aprovar contrato</button>`
-          : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📄 Aprovar contrato</button>`;
+          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();abrirContrato('${p.id}')">📋 Gerar contrato</button>`
+          : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📋 Gerar contrato</button>`;
       const podeEnviar = p.contratoAprovado && aprovados2.length > 0;
       const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : !p.contratoAprovado ? 'Aprove o contrato primeiro' : 'Aprove ao menos um ambiente';
       const btnProd = podeEnviar
@@ -3763,7 +4360,15 @@ function renderProjetos(filter='') {
                   <div style="font-size:11px;color:var(--text3)">${ambientes.length===0?'Aguardando briefing':prontos.length+'/'+ambientes.length+' prontos'}</div>
                 </div>
               `}
-              ${p.pdfProposta ? `<div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="margin-top:8px;padding:6px 10px;background:rgba(96,144,208,0.07);border:1px solid rgba(96,144,208,0.18);border-radius:7px;display:flex;align-items:center;gap:7px;cursor:pointer"><span style="font-size:14px">📑</span><div style="flex:1;min-width:0"><div style="font-size:10px;color:var(--blue);font-weight:600">Última proposta</div><div style="font-size:9px;color:var(--text3)">${p.pdfPropostaData||'Salva'} · abrir ↗</div></div></div>` : ''}
+              ${p.pdfProposta ? `<div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="margin-top:8px;padding:8px 10px;background:rgba(96,144,208,0.07);border:1px solid rgba(96,144,208,0.2);border-radius:8px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(96,144,208,0.14)'" onmouseout="this.style.background='rgba(96,144,208,0.07)'">
+                <div style="width:32px;height:32px;background:rgba(96,144,208,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">📄</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:0.3px">ÚLTIMA PROPOSTA</div>
+                  <div style="font-size:11px;color:var(--text2);margin-top:1px">${p.pdfPropostaData||'Gerada'}</div>
+                  <div style="font-size:9px;color:var(--text3);margin-top:1px">${p.temPropostaNoBank?'💾 Salva no banco':'📱 Cache local'} · clique para abrir</div>
+                </div>
+                <div style="font-size:16px;color:var(--blue);opacity:0.7">↗</div>
+              </div>` : ''}
             </div>
             <div style="margin-top:12px">
               ${proposalPronta
