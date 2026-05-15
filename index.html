@@ -1199,7 +1199,12 @@ async function adicionarImagensAmbiente(event) {
       (a.nome||a.tipo||'').trim().toLowerCase()===(_ambNome||'').trim().toLowerCase()
     );
     if (idx>=0) lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
-    try { await pushLead(lead); } catch(e) {}
+    try {
+      await pushLead(lead);
+      renderProjetos();
+    } catch(e) {
+      toast('⚠ Erro ao salvar imagens: ' + e.message);
+    }
   }
   
   toast('✓ Imagens salvas no banco!');
@@ -1240,11 +1245,15 @@ function carregarXML(event) {
     _ambObj.xmlRaw = e.target.result;
     _ambObj.xmlNome = file.name;
     _ambObj.xmlDados = parsearXMLPromob(e.target.result);
-    document.getElementById('amb-xml-status').innerHTML = `<span style="color:var(--green);font-size:13px">✓ ${file.name}</span>`;
-    document.getElementById('amb-xml-view-btn').style.display = 'inline-flex';
+    const _xmlStatusEl = document.getElementById('amb-xml-status');
+    const _xmlViewBtn = document.getElementById('amb-xml-view-btn');
+    const _xmlValorEl = document.getElementById('amb-xml-valor');
+    const _xmlValorNumEl = document.getElementById('amb-xml-valor-num');
+    if (_xmlStatusEl) _xmlStatusEl.innerHTML = `<span style="color:var(--green);font-size:13px">✓ ${file.name}</span>`;
+    if (_xmlViewBtn) _xmlViewBtn.style.display = 'inline-flex';
     if (_ambObj.xmlDados?.valorTotal) {
-      document.getElementById('amb-xml-valor').style.display = 'block';
-      document.getElementById('amb-xml-valor-num').textContent = '$ ' + _ambObj.xmlDados.valorTotal;
+      if (_xmlValorEl) _xmlValorEl.style.display = 'block';
+      if (_xmlValorNumEl) _xmlValorNumEl.textContent = '$ ' + _ambObj.xmlDados.valorTotal;
     }
     // Auto-populate cores from XML
     if (_ambObj.xmlDados.cores?.length) {
@@ -3863,6 +3872,12 @@ async function pushToSupabase() {
 
 async function pushLead(l) {
   l.updatedAt = new Date().toISOString();
+  // Strip xmlRaw (raw XML string) before saving — it's large and causes Supabase timeouts
+  const ambientesSemRaw = (l.ambientesBriefing||[]).map(a => {
+    if (!a.xmlRaw) return a;
+    const {xmlRaw, ...rest} = a;
+    return rest;
+  });
   const _baseL = {
     id: l.id, nome: l.nome, tel: l.tel||'', email: l.email||'',
     origem: l.origem||'', tipo: l.tipo||'', obs: l.obs||'',
@@ -3870,7 +3885,7 @@ async function pushLead(l) {
     valor: l.valor||'', valor_total: l.valorTotal||'',
     especificador: l.especificador||'', previsao_instalacao: l.previsaoInstalacao||'',
     motivo_desq: l.motivoDesq||'', novo: l.novo||false,
-    ambientes_briefing: l.ambientesBriefing||[]
+    ambientes_briefing: ambientesSemRaw
   };
   const _extrasL = { responsavel: l.responsavel||'' };
   try {
