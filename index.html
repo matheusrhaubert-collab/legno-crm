@@ -1049,6 +1049,8 @@ function _prepararAmbContext(projetoId, nomeAmb) {
 
 function abrirXMLDireto(projetoId, nomeAmb) {
   event.stopPropagation();
+  const _pLock = DB.projetos.find(x=>x.id===projetoId);
+  if (_pLock?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   _prepararAmbContext(projetoId, nomeAmb);
   // Recria o input para garantir que onchange dispara mesmo com o mesmo arquivo
   const old = document.getElementById('xml-direto-input');
@@ -1061,6 +1063,8 @@ function abrirXMLDireto(projetoId, nomeAmb) {
 
 function abrirFotosDireto(projetoId, nomeAmb) {
   event.stopPropagation();
+  const _pLock = DB.projetos.find(x=>x.id===projetoId);
+  if (_pLock?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   _prepararAmbContext(projetoId, nomeAmb);
   const old = document.getElementById('fotos-direto-input');
   const novo = old.cloneNode(true);
@@ -4750,6 +4754,7 @@ function renderProjetos(filter='') {
       const aMargem= aVenda - aCusto;
       const aMargPct= aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
+      const travado = !!(p.propostaTravada && usuarioAtual?.perfil !== 'administrativo');
       return `
       <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden">
 
@@ -4783,7 +4788,7 @@ function renderProjetos(filter='') {
           </div>
 
           <!-- XML -->
-          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">
+          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirXMLDireto('${p.id}','${a.nome||a.tipo}')`}">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📐</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">XML Promob</span>
@@ -4808,11 +4813,11 @@ function renderProjetos(filter='') {
                 <div style="font-size:11px;color:var(--text3)">Nenhum XML importado</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">📐 ${temXml?'Atualizar XML':'Importar XML'}</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(92,184,130,0.3);color:${travado?'var(--text3)':'var(--green)'}" ${travado?'disabled':''} onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'📐'} ${temXml?'Atualizar XML':'Importar XML'}</button>
           </div>
 
           <!-- FOTOS -->
-          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirFotosDireto('${p.id}','${a.nome||a.tipo}')">
+          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirFotosDireto('${p.id}','${a.nome||a.tipo}')`}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:15px">🖼</span>
@@ -4832,7 +4837,7 @@ function renderProjetos(filter='') {
                 <div style="font-size:10px;color:var(--text3);margin-top:3px">Adicione renders ou fotos do projeto</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:6px;border-color:rgba(96,144,208,0.3);color:var(--blue)" onclick="abrirFotosDireto('${p.id}','${a.nome||a.tipo}')">🖼 ${temFotos?'Adicionar fotos':'Enviar fotos'}</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:6px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="abrirFotosDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'🖼'} ${temFotos?'Adicionar fotos':'Enviar fotos'}</button>
           </div>
 
           <!-- FINANCEIRO -->
@@ -7071,6 +7076,7 @@ function abrirChecklistEntrega(projetoId) {
 function abrirPrazos(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
+  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   const pz = p.prazos||{};
   const diasInst = p.diasInstalacao||7;
 
