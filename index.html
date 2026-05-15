@@ -1209,49 +1209,49 @@ function carregarXML(event) {
     } else {
       toast('XML carregado! Gerando descrição...');
     }
-    // Auto-generate description from XML data
-    gerarDescricaoDoXML();
-    // Auto-save XML data to Sheets via Make
-    const p = DB.projetos.find(x=>x.id===_ambProjetoId);
-    const lead = DB.leads.find(l=>l.id===p?.leadId);
-    if (lead) {
-      const d = _ambObj.xmlDados;
-      const payload = {
-        leadId: lead.id,
-        leadNome: lead.nome,
-        tipo: _ambObj.tipo || _ambNome,
-        nome: _ambNome,
-        obs: _ambObj.obs || '',
-        prioridade: _ambObj.prioridade || '',
-        valor: d.valorTotal ? '$ '+d.valorTotal : (_ambObj.valor||''),
-        statusProjeto: p?.status || 'inicial',
-        descricao: _ambObj.descricao || '',
-        cores: (_ambObj.xmlDados.cores||[]).join(', '),
-        xmlNome: file.name,
-        xmlValorTotal: d.valorTotal||'',
-        xmlValorTotalNum: d.valorTotalNum||0,
-        xmlCabinets: d.contagem?.cabinets||0,
-        xmlGavetas: d.contagem?.gavetas||0,
-        xmlPortas: d.contagem?.portas||0,
-        xmlPaineis: d.contagem?.paineis||0,
-        xmlRipado: d.contagem?.ripado||0,
-        xmlFillers: d.contagem?.fillers||0,
-        xmlVidro: d.contagem?.vidro||0,
-        xmlLED: d.contagem?.metrosLED||0,
-        xmlCores: [
-          'PAINEIS:' + (d.coresPaineis||[]).join(','),
-          'BOX:' + (d.coresBox||[]).join(','),
-          'FRONTAIS:' + (d.coresFrontais||[]).join(',')
-        ].join('|')
-      };
-      fetch(AMBIENTES_WEBHOOK, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      }).catch(()=>{});
-    }
-    // ── Auto-save XML to Supabase ──
-    setTimeout(async () => {
+    // Auto-generate description from XML data and then save
+    (async () => {
+      await gerarDescricaoDoXML();
+      // Auto-save XML data to Sheets via Make
+      const p = DB.projetos.find(x=>x.id===_ambProjetoId);
+      const lead = DB.leads.find(l=>l.id===p?.leadId);
+      if (lead) {
+        const d = _ambObj.xmlDados;
+        const payload = {
+          leadId: lead.id,
+          leadNome: lead.nome,
+          tipo: _ambObj.tipo || _ambNome,
+          nome: _ambNome,
+          obs: _ambObj.obs || '',
+          prioridade: _ambObj.prioridade || '',
+          valor: d.valorTotal ? '$ '+d.valorTotal : (_ambObj.valor||''),
+          statusProjeto: p?.status || 'inicial',
+          descricao: _ambObj.descricao || '',
+          cores: (_ambObj.xmlDados.cores||[]).join(', '),
+          xmlNome: file.name,
+          xmlValorTotal: d.valorTotal||'',
+          xmlValorTotalNum: d.valorTotalNum||0,
+          xmlCabinets: d.contagem?.cabinets||0,
+          xmlGavetas: d.contagem?.gavetas||0,
+          xmlPortas: d.contagem?.portas||0,
+          xmlPaineis: d.contagem?.paineis||0,
+          xmlRipado: d.contagem?.ripado||0,
+          xmlFillers: d.contagem?.fillers||0,
+          xmlVidro: d.contagem?.vidro||0,
+          xmlLED: d.contagem?.metrosLED||0,
+          xmlCores: [
+            'PAINEIS:' + (d.coresPaineis||[]).join(','),
+            'BOX:' + (d.coresBox||[]).join(','),
+            'FRONTAIS:' + (d.coresFrontais||[]).join(',')
+          ].join('|')
+        };
+        fetch(AMBIENTES_WEBHOOK, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        }).catch(()=>{});
+      }
+      // ── Auto-save XML to Supabase ──
       const _pSave = DB.projetos.find(x=>x.id===_ambProjetoId);
       const _lSave = DB.leads.find(l=>l.id===_pSave?.leadId);
       if (_lSave?.ambientesBriefing) {
@@ -1264,13 +1264,16 @@ function carregarXML(event) {
           try {
             await pushLead(_lSave);
             renderProjetos();
-            toast('✓ XML salvo automaticamente!');
+            toast('✓ XML atualizado e salvo!');
           } catch(e) {
             console.warn('Auto-save XML error:', e.message);
+            toast('⚠ Erro ao salvar XML: ' + e.message);
           }
+        } else {
+          console.warn('carregarXML: ambiente não encontrado em ambientesBriefing', _ambNome);
         }
       }
-    }, 800); // slight delay to let gerarDescricaoDoXML populate _ambObj first
+    })();
   };
   r.readAsText(file);
   // Also send XML to Drive via Make
