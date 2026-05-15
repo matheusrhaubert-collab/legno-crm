@@ -3912,7 +3912,9 @@ async function pushProjeto(p) {
     fin_comissao: p.finComissao||0, fin_comissao_tipo: p.finComissaoTipo||'percent',
     fin_comissao_ext: p.finComissaoExt||0, fin_comissao_ext_tipo: p.finComissaoExtTipo||'percent',
     fin_frete: p.finFrete||0, fin_custo_extra: p.finCustoExtra||0,
-    fin_desconto_cliente: p.finDescontoCliente||0
+    fin_desconto_cliente: p.finDescontoCliente||0,
+    prazos: JSON.stringify(p.prazos||{}),
+    dias_instalacao: p.diasInstalacao||7,
   };
   // Extra columns — only sent if column exists in Supabase
   // Run the SQL below to enable them, then they'll save automatically
@@ -3920,8 +3922,6 @@ async function pushProjeto(p) {
     proposta_travada: p.propostaTravada||false,
     proposta_travada_por: p.propostaTravadaPor||'',
     pagamento: p.pagamento||'', prazo: p.prazo||'',
-    prazos: JSON.stringify(p.prazos||{}),
-    dias_instalacao: p.diasInstalacao||7,
     checklist_entrega: JSON.stringify(p.checklistEntrega||[]),
     fin_pagamentos: JSON.stringify(p.finPagamentos||[]),
     proposta_data: p.pdfPropostaData||'',
@@ -4055,6 +4055,12 @@ function mapProjeto(p) {
     finComissaoExt: p.fin_comissao_ext||0, finComissaoExtTipo: p.fin_comissao_ext_tipo||'percent',
     finFrete: p.fin_frete||0, finCustoExtra: p.fin_custo_extra||0,
     finDescontoCliente: p.fin_desconto_cliente||0,
+    prazos: (()=>{ try { return typeof p.prazos==='string' ? JSON.parse(p.prazos) : (p.prazos||{}); } catch(e){ return {}; } })(),
+    diasInstalacao: p.dias_instalacao||7,
+    finPagamentos: (()=>{ try { return typeof p.fin_pagamentos==='string' ? JSON.parse(p.fin_pagamentos) : (p.fin_pagamentos||[]); } catch(e){ return []; } })(),
+    checklistEntrega: (()=>{ try { return typeof p.checklist_entrega==='string' ? JSON.parse(p.checklist_entrega) : (p.checklist_entrega||[]); } catch(e){ return []; } })(),
+    condicaoTipo: p.condicao_tipo||'parcelado',
+    condicaoPrecoFinal: p.condicao_preco_final||0,
     pdfProposta: (p.proposta_html||p.proposta_data) ? 'local:'+p.id : '',
     pdfPropostaData: p.proposta_data||'',
     temPropostaNobanco: !!(p.proposta_html||p.proposta_data)
@@ -4714,6 +4720,12 @@ function renderProjetos(filter='') {
       const fotos    = a.imagens||[];
       const temFotos = fotos.length>0;
       const valorPromobAmb = a.xmlDados?.valorTotalNum||parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,''))||a.valor||0;
+      // Valor de venda = valorPromob aplicando desconto fábrica + taxa + multiplicador
+      const _mult  = p.finMultiplicador || CFG.finMultiplicador || 3;
+      const _desc  = p.finDesconto     || CFG.finDesconto      || 0;
+      const _taxa  = p.finTaxa         || CFG.finTaxa          || 0;
+      const _custoAmb = valorPromobAmb * (1 - _desc/100) * (1 + _taxa/100);
+      const valorVendaAmb = _custoAmb * _mult;
       const fmtA = n=>(isNaN(n)?0:n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
       // briefing desse ambiente: checa campos preenchidos
       // Briefing progress: check real lead fields
@@ -4780,8 +4792,8 @@ function renderProjetos(filter='') {
             ${temXml?`
               <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Arquivo</div>
               <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:8px">${a.xmlNome}</div>
-              ${valorPromobAmb>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Valor venda</div>
-              <div style="font-size:15px;font-weight:700;color:var(--gold);font-family:DM Mono,monospace;margin-bottom:8px">$ ${fmtA(valorPromobAmb)}</div>`:''}
+              ${valorVendaAmb>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Valor venda</div>
+              <div style="font-size:15px;font-weight:700;color:var(--gold);font-family:DM Mono,monospace;margin-bottom:8px">$ ${fmtA(valorVendaAmb)}</div>`:''}
               ${(()=>{
                 const cores = a.cores||[];
                 const coresNomes = cores.map(c=>c.nome||c).filter(Boolean);
