@@ -1050,15 +1050,24 @@ function _prepararAmbContext(projetoId, nomeAmb) {
 function abrirXMLDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   _prepararAmbContext(projetoId, nomeAmb);
-  const input = document.getElementById('xml-direto-input');
-  if (input) { input.value = ''; input.click(); }
+  // Recria o input para garantir que onchange dispara mesmo com o mesmo arquivo
+  const old = document.getElementById('xml-direto-input');
+  const novo = old.cloneNode(true);
+  novo.value = '';
+  novo.onchange = (e) => carregarXML(e);
+  old.parentNode.replaceChild(novo, old);
+  novo.click();
 }
 
 function abrirFotosDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   _prepararAmbContext(projetoId, nomeAmb);
-  const input = document.getElementById('fotos-direto-input');
-  if (input) { input.value = ''; input.click(); }
+  const old = document.getElementById('fotos-direto-input');
+  const novo = old.cloneNode(true);
+  novo.value = '';
+  novo.onchange = (e) => adicionarImagensAmbiente(e);
+  old.parentNode.replaceChild(novo, old);
+  novo.click();
 }
 
 function abrirAmbiente(projetoId, nomeAmb) {
@@ -4754,17 +4763,25 @@ function renderProjetos(filter='') {
             </div>
             <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${temXml?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${temXml?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${temXml?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${temXml?'Importado':'Pendente'}</div>
             ${temXml?`
-              <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Arquivo</div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Arquivo</div>
               <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:8px">${a.xmlNome}</div>
               ${valorPromobAmb>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Valor tabela</div>
-              <div style="font-size:15px;font-weight:700;color:var(--gold);font-family:DM Mono,monospace">$ ${fmtA(valorPromobAmb)}</div>`:''}
+              <div style="font-size:15px;font-weight:700;color:var(--gold);font-family:DM Mono,monospace;margin-bottom:8px">$ ${fmtA(valorPromobAmb)}</div>`:''}
+              ${(()=>{
+                const cores = a.cores||[];
+                const coresNomes = cores.map(c=>c.nome||c).filter(Boolean);
+                if (!coresNomes.length) return '';
+                return `<div style="font-size:10px;color:var(--text3);margin-bottom:4px">Cores</div>
+                <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">${coresNomes.slice(0,4).map(c=>`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.07);color:var(--text2);border:0.5px solid rgba(255,255,255,0.1)">${c}</span>`).join('')}${coresNomes.length>4?`<span style="font-size:9px;color:var(--text3)">+${coresNomes.length-4}</span>`:''}</div>`;
+              })()}
+              ${a.descricao?`<div style="font-size:10px;color:var(--text3);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${a.descricao}</div>`:''}
             `:`
               <div style="text-align:center;padding:10px 0">
                 <div style="font-size:24px;opacity:0.3;margin-bottom:6px">📐</div>
                 <div style="font-size:11px;color:var(--text3)">Nenhum XML importado</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">📐 ${temXml?'Atualizar XML':'Importar XML'}</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">📐 ${temXml?'Atualizar XML':'Importar XML'}</button>
           </div>
 
           <!-- FOTOS -->
