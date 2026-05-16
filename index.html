@@ -4446,6 +4446,7 @@ let filtroProj = '';
 function verAmbientesCliente(projetoId, ev) {
   if (ev) { ev.stopPropagation(); ev.preventDefault(); }
   _filtroProjetoId = projetoId;
+  filtroProj = ''; // reseta filtro para não bloquear projetos em produção
   setProjetosView('ambiente');
 }
 
@@ -4502,7 +4503,8 @@ function renderProjetos(filter='') {
   const itemsAtivos = items.filter(p => p.status !== 'producao');
   const itemsProd = items.filter(p => p.status === 'producao');
   const el = document.getElementById('list-projetos');
-  if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
+  // Se há filtro de projeto específico (Ver ambientes), não retornar cedo — vai direto pro bloco de ambientes
+  if (!items.length && !_filtroProjetoId) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
   if (projetosView === 'cliente') {
     el.innerHTML = '';
