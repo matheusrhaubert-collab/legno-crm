@@ -6811,9 +6811,24 @@ function abrirFinanceiro(projetoId) {
   document.getElementById('fin-frete').value = p.finFrete !== undefined ? p.finFrete : (CFG.finFrete !== undefined ? CFG.finFrete : 350);
   document.getElementById('fin-custo-extra').value = p.finCustoExtra || 0;
   document.getElementById('fin-desconto-cliente').value = p.finDescontoCliente || 0;
+  _finModoManual = false;
+  const _manualRow = document.getElementById('fin-manual-row');
+  if (_manualRow) { _manualRow.style.display='none'; document.getElementById('fin-valor-manual').value=''; }
+  const _modoLbl = document.getElementById('fin-modo-label'); if (_modoLbl) _modoLbl.textContent='Calculado';
+  const _toggleBtn = document.getElementById('fin-toggle-manual'); if (_toggleBtn) _toggleBtn.textContent='✎ Manual';
   calcFinanceiro();
   openModal('financeiro');
 }
+let _finModoManual = false;
+function toggleModoManualFin() {
+  _finModoManual = !_finModoManual;
+  document.getElementById('fin-manual-row').style.display = _finModoManual ? 'block' : 'none';
+  document.getElementById('fin-modo-label').textContent = _finModoManual ? 'Manual ativo' : 'Calculado';
+  document.getElementById('fin-toggle-manual').textContent = _finModoManual ? '× Usar calculado' : '✎ Manual';
+  if (!_finModoManual) { document.getElementById('fin-valor-manual').value = ''; }
+  calcFinanceiro();
+}
+
 function calcFinanceiro() {
   const p = DB.projetos.find(x=>x.id===_finProjetoId);
   const lead = DB.leads.find(l=>l.id===p?.leadId);
@@ -6834,77 +6849,119 @@ function calcFinanceiro() {
   const custoExtra = parseFloat(document.getElementById('fin-custo-extra').value) || 0;
   const descontoClientePct = parseFloat(document.getElementById('fin-desconto-cliente').value) || 0;
 
-  // ── Custo Promob (com desconto fábrica + taxa, sem frete) ──
+  // ── Custo Promob ──
   const descontoVal = valorPromob * (desconto / 100);
   const taxaVal = valorPromob * (taxa / 100);
   const custoPromob = valorPromob - descontoVal + taxaVal;
 
-  // ── Preço de venda ──
+  // ── Preço de venda calculado ──
   const precoBase = custoPromob * multiplicador;
   const descontoClienteVal = precoBase * (descontoClientePct / 100);
-  const precoFinal = precoBase - descontoClienteVal;
+  const precoFinalCalc = precoBase - descontoClienteVal;
 
-  // ── Custos de venda ──
+  // ── Modo manual: usa valor digitado se válido ──
+  const manualInput = _finModoManual ? (parseFloat(document.getElementById('fin-valor-manual').value) || 0) : 0;
+  const precoFinal = (manualInput > 0) ? manualInput : precoFinalCalc;
+
+  // ── Custos ──
   const comissaoFinal = comissaoTipo === 'percent' ? precoFinal * (comissaoVal / 100) : comissaoVal;
   const comissaoExtFinal = comissaoExtTipo === 'percent' ? precoFinal * (comissaoExtVal / 100) : comissaoExtVal;
   const totalCustosVenda = comissaoFinal + comissaoExtFinal;
-
-  // ── Custos de montagem ──
   const montagemVal = precoFinal * (montagemPct / 100);
-
-  // ── Custos de produtos ──
   const custoPromobFinal = custoPromob + frete + custoExtra;
-
-  // ── Margem bruta ──
   const totalCustos = totalCustosVenda + montagemVal + custoPromobFinal;
   const margem = precoFinal - totalCustos;
   const margemPct = precoFinal > 0 ? (margem / precoFinal * 100) : 0;
 
-  const fmt = v => '$ ' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmt  = v => '$ ' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
   const fmtNeg = v => '− $ ' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const cor  = margem >= 0 ? 'var(--green)' : 'var(--red)';
+  const barCor = margemPct >= 40 ? '#b090e0' : margemPct >= 30 ? 'var(--green)' : margemPct >= 15 ? 'var(--amber)' : 'var(--red)';
 
-  // Preço de venda
-  document.getElementById('fin-res-promob').textContent = fmt(valorPromob);
-  document.getElementById('fin-lbl-desconto').textContent = '− Desconto fábrica (' + desconto + '%)';
-  document.getElementById('fin-res-desconto').textContent = desconto > 0 ? fmtNeg(descontoVal) : '—';
-  document.getElementById('fin-lbl-taxa').textContent = '+ Taxa (' + taxa + '%)';
-  document.getElementById('fin-res-taxa').textContent = taxa > 0 ? '+ $ ' + taxaVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-  document.getElementById('fin-res-custo').textContent = fmt(custoPromob);
-  document.getElementById('fin-lbl-multiplicador').textContent = '× Multiplicador ' + multiplicador;
-  document.getElementById('fin-res-cliente').textContent = fmt(precoBase);
-  document.getElementById('fin-lbl-desc-cliente').textContent = '− Desconto cliente (' + descontoClientePct + '%)';
-  document.getElementById('fin-res-desconto-cliente').textContent = descontoClientePct > 0 ? fmtNeg(descontoClienteVal) : '—';
+  // ── Atualizar UI ──
   document.getElementById('fin-res-preco-final').textContent = fmt(precoFinal);
+  document.getElementById('fin-res-sobra').textContent = fmt(margem);
+  document.getElementById('fin-res-sobra').style.color = cor;
+  document.getElementById('fin-res-sobra-pct').textContent = margemPct.toFixed(1) + '%';
+  document.getElementById('fin-res-sobra-pct').style.color = cor;
+  const bar = document.getElementById('fin-margem-bar');
+  if (bar) { bar.style.width = Math.min(Math.max(margemPct,0),100)+'%'; bar.style.background = barCor; }
 
-  // Custos de venda
-  document.getElementById('fin-res-comissao').textContent = comissaoFinal > 0 ? fmtNeg(comissaoFinal) + (comissaoTipo==='percent'?' ('+comissaoVal+'%)':'') : '—';
-  document.getElementById('fin-res-comissao-ext').textContent = comissaoExtFinal > 0 ? fmtNeg(comissaoExtFinal) + (comissaoExtTipo==='percent'?' ('+comissaoExtVal+'%)':'') : '—';
+  // Breakdown
+  document.getElementById('fin-res-promob').textContent = fmt(valorPromob);
+  document.getElementById('fin-lbl-desconto').textContent = '− Desconto fábrica ('+desconto+'%)';
+  document.getElementById('fin-res-desconto').textContent = desconto > 0 ? fmtNeg(descontoVal) : '—';
+  document.getElementById('fin-lbl-taxa').textContent = '+ Taxa ('+taxa+'%)';
+  document.getElementById('fin-res-taxa').textContent = taxa > 0 ? '+ $ '+taxaVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  document.getElementById('fin-res-custo').textContent = fmt(custoPromob);
+  document.getElementById('fin-lbl-multiplicador').textContent = '× Multiplicador '+multiplicador;
+  document.getElementById('fin-res-cliente').textContent = fmt(precoBase);
+  document.getElementById('fin-lbl-desc-cliente').textContent = '− Desconto cliente ('+descontoClientePct+'%)';
+  document.getElementById('fin-res-desconto-cliente').textContent = descontoClientePct > 0 ? fmtNeg(descontoClienteVal) : '—';
+  document.getElementById('fin-res-comissao').textContent = comissaoFinal > 0 ? fmtNeg(comissaoFinal)+(comissaoTipo==='percent'?' ('+comissaoVal+'%)':'') : '—';
+  document.getElementById('fin-res-comissao-ext').textContent = comissaoExtFinal > 0 ? fmtNeg(comissaoExtFinal)+(comissaoExtTipo==='percent'?' ('+comissaoExtVal+'%)':'') : '—';
   document.getElementById('fin-res-desc-cliente2').textContent = descontoClientePct > 0 ? fmtNeg(descontoClienteVal) : '—';
-  document.getElementById('fin-res-total-venda').textContent = fmtNeg(totalCustosVenda);
-
-  // Custos de montagem
-  document.getElementById('fin-res-montagem').textContent = montagemVal > 0 ? fmtNeg(montagemVal) + ' (' + montagemPct + '%)' : '—';
-
-  // Custos de produtos
+  document.getElementById('fin-res-montagem').textContent = montagemVal > 0 ? fmtNeg(montagemVal)+' ('+montagemPct+'%)' : '—';
   document.getElementById('fin-res-custo2').textContent = fmtNeg(custoPromob);
   document.getElementById('fin-res-extra').textContent = custoExtra > 0 ? fmtNeg(custoExtra) : '—';
   document.getElementById('fin-res-frete').textContent = frete > 0 ? fmtNeg(frete) : '—';
+  document.getElementById('fin-res-total-venda').textContent = fmtNeg(totalCustosVenda);
   document.getElementById('fin-res-total-produtos').textContent = fmtNeg(custoPromobFinal);
+  document.getElementById('fin-res-margem-custos').textContent = montagemVal > 0 ? fmtNeg(montagemVal) : '—';
 
-  // Margem bruta
-  document.getElementById('fin-res-margem-venda').textContent = fmt(precoFinal);
-  document.getElementById('fin-res-margem-custos').textContent = fmtNeg(totalCustos);
-  document.getElementById('fin-res-sobra').textContent = fmt(margem);
-  document.getElementById('fin-res-sobra-pct').textContent = margemPct.toFixed(1) + '%';
-  const cor = margem >= 0 ? 'var(--green)' : 'var(--red)';
-  document.getElementById('fin-res-sobra').style.color = cor;
-  document.getElementById('fin-res-sobra-pct').style.color = cor;
+  // ── Por ambiente ──
+  const fmtN = v => parseFloat(v.toFixed(2));
+  const valorPromobTotal = valorPromob;
+  const ambDiv = document.getElementById('fin-por-ambiente');
+  const ambRows = document.getElementById('fin-amb-rows');
+  if (ambientes.length > 1 && ambDiv && ambRows) {
+    ambDiv.style.display = 'block';
+    ambRows.innerHTML = ambientes.map(a => {
+      const vXML = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
+      const proporcao = valorPromobTotal > 0 ? vXML / valorPromobTotal : 1/ambientes.length;
+      const dV = vXML*(desconto/100), tV = vXML*(taxa/100);
+      const custoV = vXML - dV + tV;
+      const pbV = custoV * multiplicador;
+      const dcV = pbV * (descontoClientePct/100);
+      const pfCalc = pbV - dcV;
+      // Se modo manual, distribui proporcionalmente
+      const pfV = manualInput > 0 ? manualInput * proporcao : pfCalc;
+      const comV = comissaoTipo==='percent' ? pfV*(comissaoVal/100) : comissaoVal*proporcao;
+      const comExtV = comissaoExtTipo==='percent' ? pfV*(comissaoExtVal/100) : comissaoExtVal*proporcao;
+      const montV = pfV*(montagemPct/100);
+      const freteV = frete*proporcao, extraV = custoExtra*proporcao;
+      const custosV = comV + comExtV + montV + custoV + freteV + extraV;
+      const mgV = pfV - custosV;
+      const mgPctV = pfV > 0 ? (mgV/pfV*100) : 0;
+      const cV = mgV >= 0 ? 'var(--green)' : 'var(--red)';
+      const barW = Math.min(Math.max(mgPctV,0),100);
+      const barC = mgPctV>=40?'#b090e0':mgPctV>=30?'var(--green)':mgPctV>=15?'var(--amber)':'var(--red)';
+      return `<div style="padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.05)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:12px;color:var(--text2);font-weight:500">${a.nome||a.tipo}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:13px;font-weight:700;font-family:DM Mono,monospace;color:var(--gold)">$ ${pfV.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:99px;background:${mgPctV>=30?'rgba(92,184,130,0.12)':'rgba(255,80,80,0.1)'};color:${cV};font-weight:700">${mgPctV.toFixed(1)}%</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
+          <span>Margem: <span style="color:${cV}">$ ${mgV.toLocaleString('en-US',{minimumFractionDigits:2})}</span></span>
+          <span>Custo: $ ${custoV.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+        </div>
+        <div style="height:3px;border-radius:99px;background:rgba(255,255,255,0.06)">
+          <div style="height:100%;width:${barW}%;background:${barC};border-radius:99px;transition:width 0.3s"></div>
+        </div>
+      </div>`;
+    }).join('');
+  } else if (ambDiv) { ambDiv.style.display = 'none'; }
 
   if (p) {
     p.finMontagem=montagemPct; p.finComissao=comissaoVal; p.finComissaoTipo=comissaoTipo;
     p.finComissaoExt=comissaoExtVal; p.finComissaoExtTipo=comissaoExtTipo;
     p.finFrete=frete; p.finCustoExtra=custoExtra; p.finMultiplicador=multiplicador;
-    p.finDescontoCliente=descontoClientePct;
+    p.finDescontoCliente=descontoClientePct; p.finDesconto=desconto; p.finTaxa=taxa;
+    p.finPrecoFinal=fmtN(precoFinal); p.finSobraPct=fmtN(margemPct);
+  }
     p.finPrecoFinal=precoFinal; p.finSobraPct=margemPct;
   }
 }
@@ -8700,7 +8757,7 @@ checkSession();
 
 <!-- MODAL FINANCEIRO -->
 <div class="overlay" id="modal-financeiro" onclick="closeModalOutside(event,'financeiro')">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:560px">
     <div class="modal-header">
       <div>
         <span class="modal-title" id="fin-modal-title">Financeiro</span>
@@ -8710,114 +8767,126 @@ checkSession();
     </div>
     <div class="modal-body" style="padding:16px;display:flex;flex-direction:column;gap:10px">
 
-      <!-- ── PREÇO DE VENDA ── -->
+      <!-- ── SIMULADOR: VALOR DE VENDA ── -->
+      <div style="background:linear-gradient(135deg,rgba(201,169,110,0.08),rgba(201,169,110,0.03));border:1px solid rgba(201,169,110,0.25);border-radius:12px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;font-weight:600">💵 Valor de Venda</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;color:var(--text3)" id="fin-modo-label">Calculado</span>
+            <button id="fin-toggle-manual" onclick="toggleModoManualFin()" style="font-size:10px;padding:3px 10px;border-radius:99px;border:1px solid rgba(201,169,110,0.4);background:rgba(201,169,110,0.1);color:var(--gold);cursor:pointer">✎ Manual</button>
+          </div>
+        </div>
+        <!-- Input manual (hidden by default) -->
+        <div id="fin-manual-row" style="display:none;margin-bottom:10px">
+          <input type="number" id="fin-valor-manual" class="form-input" oninput="calcFinanceiro()"
+            style="font-size:22px;font-family:DM Mono,monospace;color:var(--gold);text-align:right;padding:10px 14px;border-color:rgba(201,169,110,0.4)"
+            placeholder="0.00" step="50">
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">Digite o valor de venda desejado → a margem recalcula instantaneamente</div>
+        </div>
+        <!-- Resultado grande -->
+        <div style="display:flex;align-items:flex-end;justify-content:space-between">
+          <div>
+            <div style="font-size:28px;font-weight:700;font-family:DM Mono,monospace;color:var(--gold)" id="fin-res-preco-final">—</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px" id="fin-lbl-preco-sub">preço final ao cliente</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:22px;font-weight:700;font-family:DM Mono,monospace" id="fin-res-sobra">—</div>
+            <div style="font-size:11px;font-weight:600;font-family:DM Mono,monospace" id="fin-res-sobra-pct">—</div>
+            <div style="font-size:10px;color:var(--text3)">margem bruta</div>
+          </div>
+        </div>
+        <!-- Barra de margem -->
+        <div style="margin-top:10px;height:4px;border-radius:99px;background:rgba(255,255,255,0.07);overflow:hidden">
+          <div id="fin-margem-bar" style="height:100%;border-radius:99px;transition:width 0.3s,background 0.3s;width:0%"></div>
+        </div>
+      </div>
+
+      <!-- ── PARÂMETROS (2 colunas compactas) ── -->
       <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
         <div style="padding:10px 14px 8px;border-bottom:0.5px solid var(--border)">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Preço de Venda</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Desconto fábrica (%)</label><input type="number" id="fin-desconto" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" max="100"></div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Parâmetros</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Desc. fábrica (%)</label><input type="number" id="fin-desconto" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" max="100"></div>
             <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Taxa (%)</label><input type="number" id="fin-taxa" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0"></div>
             <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Multiplicador</label><input type="number" id="fin-multiplicador" class="form-input" oninput="calcFinanceiro()" step="0.1" min="1"></div>
-            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Desconto cliente (%)</label><input type="number" id="fin-desconto-cliente" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" max="100"></div>
+            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Desc. cliente (%)</label><input type="number" id="fin-desconto-cliente" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" max="100"></div>
+            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Montagem (%)</label><input type="number" id="fin-montagem" class="form-input" oninput="calcFinanceiro()" step="1" min="0"></div>
+            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Frete ($)</label><input type="number" id="fin-frete" class="form-input" oninput="calcFinanceiro()" step="100" min="0"></div>
           </div>
+        </div>
+        <div style="padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Comissão interna</label>
+            <div style="display:flex;gap:4px">
+              <input type="number" id="fin-comissao" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" style="flex:1">
+              <select id="fin-comissao-tipo" class="form-select" onchange="calcFinanceiro()" style="width:54px"><option value="percent">%</option><option value="fixed">$</option></select>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Comissão externa</label>
+            <div style="display:flex;gap:4px">
+              <input type="number" id="fin-comissao-ext" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" style="flex:1">
+              <select id="fin-comissao-ext-tipo" class="form-select" onchange="calcFinanceiro()" style="width:54px"><option value="percent">%</option><option value="fixed">$</option></select>
+            </div>
+          </div>
+          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Custo extra ($)</label><input type="number" id="fin-custo-extra" class="form-input" oninput="calcFinanceiro()" step="100" min="0"></div>
+        </div>
+      </div>
+
+      <!-- ── BREAKDOWN ── -->
+      <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <div style="padding:10px 14px;border-bottom:0.5px solid var(--border)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Breakdown</div>
         </div>
         <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2)">
           <div style="display:flex;justify-content:space-between"><span>Tabela Promob</span><span id="fin-res-promob" style="color:var(--text)">—</span></div>
           <div style="display:flex;justify-content:space-between"><span id="fin-lbl-desconto">− Desconto fábrica</span><span id="fin-res-desconto" style="color:var(--red)">—</span></div>
           <div style="display:flex;justify-content:space-between"><span id="fin-lbl-taxa">+ Taxa</span><span id="fin-res-taxa" style="color:var(--amber)">—</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)"><span>Custo Promob</span><span id="fin-res-custo">—</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)"><span id="fin-lbl-multiplicador">× Multiplicador 3</span><span id="fin-res-cliente">—</span></div>
+          <div style="display:flex;justify-content:space-between;color:var(--text3)"><span>Custo Promob</span><span id="fin-res-custo">—</span></div>
+          <div style="display:flex;justify-content:space-between;color:var(--text3)"><span id="fin-lbl-multiplicador">× Multiplicador</span><span id="fin-res-cliente">—</span></div>
           <div style="display:flex;justify-content:space-between"><span id="fin-lbl-desc-cliente">− Desconto cliente</span><span id="fin-res-desconto-cliente" style="color:var(--red)">—</span></div>
-          <div style="display:flex;justify-content:space-between;border-top:0.5px solid var(--border);padding-top:6px;margin-top:2px">
-            <span style="font-weight:600;color:var(--text)">Preço de Venda</span>
-            <span style="font-weight:700;font-family:'DM Mono',monospace;color:var(--gold2);font-size:16px" id="fin-res-preco-final">—</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── CUSTOS DE VENDA ── -->
-      <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
-        <div style="padding:10px 14px 8px;border-bottom:0.5px solid var(--border)">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Custos de Venda</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div>
-              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Comissão interna</label>
-              <div style="display:flex;gap:4px">
-                <input type="number" id="fin-comissao" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" style="flex:1">
-                <select id="fin-comissao-tipo" class="form-select" onchange="calcFinanceiro()" style="width:54px"><option value="percent">%</option><option value="fixed">$</option></select>
-              </div>
-            </div>
-            <div>
-              <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Comissão externa</label>
-              <div style="display:flex;gap:4px">
-                <input type="number" id="fin-comissao-ext" class="form-input" oninput="calcFinanceiro()" step="0.5" min="0" style="flex:1">
-                <select id="fin-comissao-ext-tipo" class="form-select" onchange="calcFinanceiro()" style="width:54px"><option value="percent">%</option><option value="fixed">$</option></select>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2)">
+          <div style="height:0.5px;background:var(--border);margin:4px 0"></div>
           <div style="display:flex;justify-content:space-between"><span>− Comissão interna</span><span id="fin-res-comissao" style="color:var(--red)">—</span></div>
           <div style="display:flex;justify-content:space-between"><span>− Comissão externa</span><span id="fin-res-comissao-ext" style="color:var(--red)">—</span></div>
           <div style="display:flex;justify-content:space-between"><span>− Desconto cliente</span><span id="fin-res-desc-cliente2" style="color:var(--red)">—</span></div>
-          <div style="display:flex;justify-content:space-between;border-top:0.5px solid var(--border);padding-top:6px;margin-top:2px">
-            <span style="font-weight:600;color:var(--text)">Total custos venda</span>
-            <span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--red);font-size:13px" id="fin-res-total-venda">—</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── CUSTOS DE MONTAGEM ── -->
-      <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
-        <div style="padding:10px 14px 8px;border-bottom:0.5px solid var(--border)">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Custos de Montagem</div>
-          <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Montagem (%)</label><input type="number" id="fin-montagem" class="form-input" oninput="calcFinanceiro()" step="1" min="0"></div>
-        </div>
-        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2)">
-          <div style="display:flex;justify-content:space-between;border-top:0.5px solid var(--border);padding-top:6px">
-            <span style="font-weight:600;color:var(--text)">Total montagem</span>
-            <span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--red);font-size:13px" id="fin-res-montagem">—</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── CUSTOS DE PRODUTOS ── -->
-      <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
-        <div style="padding:10px 14px 8px;border-bottom:0.5px solid var(--border)">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Custos de Produtos</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Custo extra ($)</label><input type="number" id="fin-custo-extra" class="form-input" oninput="calcFinanceiro()" step="100" min="0"></div>
-            <div><label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Frete ($)</label><input type="number" id="fin-frete" class="form-input" oninput="calcFinanceiro()" step="100" min="0"></div>
-          </div>
-        </div>
-        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2)">
-          <div style="display:flex;justify-content:space-between"><span>− Custo Promob (tabela)</span><span id="fin-res-custo2" style="color:var(--red)">—</span></div>
-          <div style="display:flex;justify-content:space-between"><span>− Custo extra fixo</span><span id="fin-res-extra" style="color:var(--red)">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span>− Montagem</span><span id="fin-res-montagem" style="color:var(--red)">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span>− Custo Promob</span><span id="fin-res-custo2" style="color:var(--red)">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span>− Custo extra</span><span id="fin-res-extra" style="color:var(--red)">—</span></div>
           <div style="display:flex;justify-content:space-between"><span>− Frete</span><span id="fin-res-frete" style="color:var(--red)">—</span></div>
           <div style="display:flex;justify-content:space-between;border-top:0.5px solid var(--border);padding-top:6px;margin-top:2px">
+            <span style="font-weight:600;color:var(--text)">Total custos</span>
+            <span style="font-weight:700;font-family:DM Mono,monospace;color:var(--red);font-size:13px" id="fin-res-total-venda">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
             <span style="font-weight:600;color:var(--text)">Total produtos</span>
-            <span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--red);font-size:13px" id="fin-res-total-produtos">—</span>
+            <span style="font-weight:700;font-family:DM Mono,monospace;color:var(--red);font-size:13px" id="fin-res-total-produtos">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-weight:600;color:var(--text)">Total montagem</span>
+            <span style="font-weight:700;font-family:DM Mono,monospace;color:var(--red);font-size:13px" id="fin-res-margem-custos">—</span>
           </div>
         </div>
       </div>
 
-      <!-- ── MARGEM BRUTA ── -->
-      <div style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius);padding:14px">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Margem Bruta</div>
-        <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2);margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between"><span>Preço de venda</span><span id="fin-res-margem-venda" style="color:var(--gold2)">—</span></div>
-          <div style="display:flex;justify-content:space-between"><span>− Total custos</span><span id="fin-res-margem-custos" style="color:var(--red)">—</span></div>
+      <!-- ── POR AMBIENTE ── -->
+      <div id="fin-por-ambiente" style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none">
+        <div style="padding:10px 14px;border-bottom:0.5px solid var(--border)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Por ambiente</div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;border-top:0.5px solid var(--border);padding-top:10px">
-          <span style="font-weight:600;font-size:14px;color:var(--text)">Margem Bruta</span>
-          <div style="text-align:right">
-            <div style="font-size:24px;font-weight:700;font-family:'DM Mono',monospace" id="fin-res-sobra">—</div>
-            <div style="font-size:14px;font-weight:600;font-family:'DM Mono',monospace" id="fin-res-sobra-pct">—</div>
-          </div>
-        </div>
+        <div id="fin-amb-rows" style="padding:10px 14px;display:flex;flex-direction:column;gap:6px"></div>
       </div>
+
+      <!-- hidden compat ids -->
+      <span id="fin-res-margem-venda" style="display:none"></span>
+      <span id="fin-res-sobra-old" style="display:none"></span>
 
     </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('financeiro')">Fechar</button>
+      <button class="btn btn-primary" onclick="salvarFinanceiro()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('financeiro')">Fechar</button>
       <button class="btn btn-primary" onclick="salvarFinanceiro()">💾 Salvar</button>
