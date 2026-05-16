@@ -4512,7 +4512,7 @@ function renderProjetos(filter='') {
   if (projetosView === 'cliente') {
     el.innerHTML = '';
     // Quando filtro é producao, mostra todos os items (incluindo producao) no card completo
-    const itemsParaRender = filtroProj === 'producao' ? items : itemsAtivos;
+    const itemsParaRender = (filtroProj === 'producao' || filtroProj === '') ? items : itemsAtivos;
     if (itemsParaRender.length) el.innerHTML = itemsParaRender.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
@@ -5035,8 +5035,8 @@ function renderProjetos(filter='') {
       </div>`;
     }).join('');
 
-    // Append 'Enviados para Produção' section (only when not already filtered to producao)
-    if (itemsProd.length && filtroProj !== 'producao') {
+    // Append 'Enviados para Produção' section (only when explicitly filtering projetando)
+    if (itemsProd.length && filtroProj === 'projetando') {
       const sep = itemsAtivos.length > 0 ? 'margin-top:32px;padding-top:20px;border-top:0.5px solid var(--border)' : '';
       el.innerHTML += `<div style="${sep}">
         <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
