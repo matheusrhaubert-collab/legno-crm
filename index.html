@@ -4717,6 +4717,7 @@ function renderProjetos(filter='') {
                 const etapasC = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[{label:'Entrada',pct:20},{label:'Medição',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
                 const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
                 return '<div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:'+tipoBg+';color:'+tipoCor+';margin-bottom:6px;border:1px solid '+tipoBrd+'">'+tipoLabel+'</div>'
+                  +(precoFinal>0?'<div style="margin-bottom:4px"><div style="font-size:9px;color:var(--text3)">Preço negociado</div><div style="font-size:12px;font-weight:600;color:var(--text2);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div></div>':'')
                   +(()=>{
                     const valorProposto = ambientes.reduce((s,a)=>{
                       const vXML = a.xmlDados?.valorTotalNum||parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,''))||0;
@@ -4725,9 +4726,8 @@ function renderProjetos(filter='') {
                       return s + (a.finValorManual>0 ? a.finValorManual : pb*(1-(p.finDescontoCliente||0)/100));
                     },0);
                     if (!valorProposto) return '';
-                    return '<div style="margin-bottom:4px"><div style="font-size:9px;color:var(--text3)">Valor proposto</div><div style="font-size:12px;font-weight:600;color:var(--text2);font-family:DM Mono,monospace">'+fmtV(valorProposto)+'</div></div>';
+                    return '<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text3)">Valor proposto</div><div style="font-size:14px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(valorProposto)+'</div></div>';
                   })()
-                  +(precoFinal>0?'<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text3)">Preço negociado</div><div style="font-size:14px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div></div>':'')
                   +(tipo==='parcelado'?'<div>'+etapasC.map(e=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:9px;color:var(--text3)">'+e.label+' ('+e.pct+'%)</span><span style="font-size:9px;color:var(--text2);font-family:DM Mono,monospace">'+fmtV((precoFinal||precoBase)*(e.pct/100))+'</span></div>').join('')+'</div>':'')
                   +(tipo==='financiado'?(()=>{
                     const parc=p.condicaoParcelas||1,pf2=precoFinal||precoBase;
