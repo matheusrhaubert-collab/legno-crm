@@ -355,6 +355,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       <div class="nav-item" onclick="goPage('perdidos')" data-page="perdidos">
         <span class="nav-icon">○</span> Perdidos
       </div>
+      <div class="nav-item" onclick="goPage('concluidos')" data-page="concluidos">
+        <span class="nav-icon">✓</span> Concluídos
+        <span class="nav-badge" id="badge-concluidos" style="display:none"></span>
+      </div>
       <div class="nav-section">Marketing</div>
       <div class="nav-item nav-admin" onclick="goPage('marketing')" data-page="marketing">
         <span class="nav-icon">✦</span> Marketing
@@ -441,6 +445,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
             style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px">◈ Projetando</button>
           <button id="fpj-producao" onclick="setFiltroProj('producao')"
             style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px">🏭 Em produção</button>
+          <button id="fpj-instalacao" onclick="setFiltroProj('instalacao')"
+            style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px">🔧 Instalação</button>
+          <button id="fpj-concluido" onclick="setFiltroProj('concluido')"
+            style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px">✓ Concluído</button>
           <div style="flex:1"></div>
           <div class="search-wrap" style="margin:0;max-width:200px">
             <span class="search-icon">⌕</span>
@@ -554,7 +562,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <div id="list-perdidos"></div>
       </div>
 
-      <!-- ══ IMAGENS ══ -->
+      <!-- ══ CONCLUÍDOS ══ -->
+      <div class="page" id="page-concluidos">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="search" placeholder="Buscar..." oninput="filterPage('concluidos',this.value)">
+        </div>
+        <div id="list-concluidos"></div>
+      </div>
       <div class="page" id="page-imagens">
         <div class="sec-header"><span class="sec-title">Upload de imagens por ambiente</span></div>
         <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
@@ -862,7 +877,7 @@ let AMBIENTES = [
 let currentContratoId = null;
 let currentApresId = null;
 let uploadFiles = [];
-let filterTexts = {leads:'',projetos:'',agenda:'',producao:'',perdidos:'',entrega:'',instalacao:''};
+let filterTexts = {leads:'',projetos:'',agenda:'',producao:'',perdidos:'',concluidos:'',entrega:'',instalacao:''};
 
 
 
@@ -4244,7 +4259,7 @@ function parseCSV(text) {
 // ══════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════
-const pageTitles = {leads:'Clients',projetos:'Projetos',marketing:'Marketing',financeiro:'Financeiro',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',imagens:'Imagens',config:'Configurações'};
+const pageTitles = {leads:'Clients',projetos:'Projetos',marketing:'Marketing',financeiro:'Financeiro',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',concluidos:'Concluídos',imagens:'Imagens',config:'Configurações'};
 const addBtnPages = {leads:true, projetos:false, agenda:false, producao:false, entrega:false, instalacao:false, perdidos:false, imagens:false, config:false};
 
 function goPage(page) {
@@ -4284,6 +4299,7 @@ function renderAll() {
   renderLeads();
   renderProjetos();
   renderPerdidos();
+  renderConcluidos();
   renderAgenda();
   renderProducao();
   renderEntrega();
@@ -4350,6 +4366,9 @@ function updateBadges() {
   const el_sins_s = document.getElementById('sins-semana');    if(el_sins_s) el_sins_s.textContent=insSem.length;
   const el_sins_c = document.getElementById('sins-concluidas');if(el_sins_c) el_sins_c.textContent=insConc.length;
   const el_bag_ins = document.getElementById('badge-instalacao'); if(el_bag_ins) el_bag_ins.textContent=insHoje.length||'';
+  const concluidos = DB.projetos.filter(p => p.status === 'concluido');
+  const el_bag_conc = document.getElementById('badge-concluidos');
+  if (el_bag_conc) { el_bag_conc.textContent = concluidos.length||''; el_bag_conc.style.display = concluidos.length ? '' : 'none'; }
 }
 
 function statusBadge(s) {
@@ -4466,7 +4485,7 @@ function setProjetosView(view) {
 
 function setFiltroProj(val) {
   filtroProj = val;
-  ['todos','projetando','producao'].forEach(k => {
+  ['todos','projetando','producao','instalacao','concluido'].forEach(k => {
     const el = document.getElementById('fpj-'+k);
     if (!el) return;
     const on = (val||'todos') === k;
@@ -4494,15 +4513,20 @@ function statusProjBadge(s) {
 function renderProjetos(filter='') {
   const f = (filter||filterTexts.projetos).toLowerCase();
   const idsEmProducao = new Set((DB.producao||[]).map(x => x.projetoId).filter(Boolean));
+  const idsEmInstalacao = new Set((DB.instalacoes||[]).filter(i=>!i.concluida).map(i=>i.clienteNome).filter(Boolean));
   let items = DB.projetos.filter(p => {
     const estaEmProducao = p.status === 'producao' || idsEmProducao.has(p.id);
+    const estaConcluido = p.status === 'concluido';
+    const estaEmInstalacao = p.status === 'instalacao' || (DB.instalacoes||[]).some(i=>!i.concluida && (i.clienteNome===p.nome || i.projetoId===p.id));
     const matchText = !f || p.nome.toLowerCase().includes(f);
     const matchStatus = !activeProjetoStatus || p.status === activeProjetoStatus;
     if (filtroProj === 'producao') return matchText && estaEmProducao;
-    if (filtroProj === 'projetando') return matchText && matchStatus && !estaEmProducao;
+    if (filtroProj === 'instalacao') return matchText && estaEmInstalacao;
+    if (filtroProj === 'concluido') return matchText && estaConcluido;
+    if (filtroProj === 'projetando') return matchText && matchStatus && !estaEmProducao && !estaConcluido;
     return matchText && matchStatus;
   });
-  const itemsAtivos = items.filter(p => p.status !== 'producao' && !idsEmProducao.has(p.id));
+  const itemsAtivos = items.filter(p => p.status !== 'producao' && !idsEmProducao.has(p.id) && p.status !== 'concluido');
   const itemsProd = items.filter(p => p.status === 'producao' || idsEmProducao.has(p.id));
   const el = document.getElementById('list-projetos');
 
@@ -4512,7 +4536,7 @@ function renderProjetos(filter='') {
   if (projetosView === 'cliente') {
     el.innerHTML = '';
     // Quando filtro é producao, mostra todos os items (incluindo producao) no card completo
-    const itemsParaRender = (filtroProj === 'producao' || filtroProj === '') ? items : itemsAtivos;
+    const itemsParaRender = (filtroProj === 'producao' || filtroProj === 'instalacao' || filtroProj === 'concluido' || filtroProj === '') ? items : itemsAtivos;
     if (itemsParaRender.length) el.innerHTML = itemsParaRender.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
@@ -5861,6 +5885,39 @@ function renderPerdidos(filter='') {
     </div>`).join('');
 }
 
+function renderConcluidos(filter='') {
+  const f = (filter||'').toLowerCase();
+  const el = document.getElementById('list-concluidos');
+  if (!el) return;
+  const items = DB.projetos.filter(p => p.status === 'concluido' && (!f || p.nome.toLowerCase().includes(f)));
+  if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">✓</span><p>Nenhum projeto concluído ainda.</p></div>`; return; }
+  el.innerHTML = items.map(p => {
+    const lead = DB.leads.find(l => l.id === p.leadId);
+    const ambs = lead?.ambientesBriefing || [];
+    const inst = (DB.instalacoes||[]).filter(i => i.clienteNome === p.nome || i.projetoId === p.id);
+    const instConcluida = inst.find(i => i.concluida);
+    const pz = p.prazos || {};
+    const valorFinal = p.condicaoPrecoFinal || p.finPrecoFinal || 0;
+    const fmtV = v => v > 0 ? '$ ' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+    return `
+    <div class="card" style="border-color:rgba(92,184,130,0.3);background:rgba(92,184,130,0.03)">
+      <div class="card-header">
+        <div>
+          <div class="card-name">${p.nome}</div>
+          <div class="card-sub">${p.tipo||''} · ${ambs.length} ambiente${ambs.length!==1?'s':''}</div>
+        </div>
+        <span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Concluído</span>
+      </div>
+      <div class="card-meta">
+        <span>📅 Início: ${formatDate(p.data)}</span>
+        ${pz.entrega ? `<span>🚚 Entrega: ${formatDate(pz.entrega)}</span>` : ''}
+        ${instConcluida?.data ? `<span>🔧 Instalação: ${formatDate(instConcluida.data)}</span>` : ''}
+        ${valorFinal > 0 ? `<span style="color:var(--gold)">💰 ${fmtV(valorFinal)}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ── ENTREGA ──
 let _filterEntrega = '';
 function renderEntrega(filter='') {
@@ -6026,8 +6083,14 @@ async function concluirInstalacao(id) {
   const i = (DB.instalacoes||[]).find(x=>x.id===id); if(!i) return;
   i.concluida = true;
   try { await sbFetch('instalacoes?id=eq.'+id,'PATCH',{concluida:true}); } catch(err){}
-  renderInstalacao(); updateBadges();
-  toast('Instalação concluída! ✓');
+  // Marcar projeto como concluído
+  const proj = DB.projetos.find(p => p.nome === i.clienteNome || p.id === i.projetoId);
+  if (proj && proj.status !== 'concluido') {
+    proj.status = 'concluido';
+    try { await pushProjeto(proj); } catch(err){}
+  }
+  renderInstalacao(); updateBadges(); renderAll();
+  toast('✓ Instalação concluída! Projeto marcado como concluído.');
 }
 
 async function deletarInstalacao(id) {
@@ -6651,6 +6714,7 @@ function filterPage(page, val) {
   if (page==='leads') renderLeads(val);
   if (page==='projetos') renderProjetos(val);
   if (page==='perdidos') renderPerdidos(val);
+  if (page==='concluidos') renderConcluidos(val);
   if (page==='producao') renderProducao(val);
   if (page==='entrega') renderEntrega(val);
   if (page==='instalacao') renderInstalacao(val);
