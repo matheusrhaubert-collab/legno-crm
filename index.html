@@ -4562,9 +4562,15 @@ function renderProjetos(filter='') {
             <div style="flex:1">
               ${ambientes.slice(0,5).map(a=>{
                 const xmlOk=!!a.xmlNome, fotoOk=(a.imagens||[]).length>0, ambOk=xmlOk&&fotoOk;
+                const vXML = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
+                const custoP = vXML*(1-(p.finDesconto||0)/100)*(1+(p.finTaxa||0)/100);
+                const pb = custoP*(p.finMultiplicador||3);
+                const pf = a.finValorManual>0 ? a.finValorManual : pb*(1-(p.finDescontoCliente||0)/100);
+                const valorStr = pf>0 ? '$ '+pf.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
                 return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">'
                   +'<span style="font-size:9px;width:14px;text-align:center">'+(ambOk?'✅':xmlOk?'📐':fotoOk?'🖼':'⬜')+'</span>'
                   +'<span style="font-size:10px;color:'+(ambOk?'var(--text2)':'var(--text3)')+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+(a.nome||a.tipo)+'</span>'
+                  +(valorStr?'<span style="font-size:10px;font-family:DM Mono,monospace;color:var(--gold);white-space:nowrap">'+valorStr+'</span>':'')
                   +'</div>';
               }).join('')}
               ${ambientes.length>5?`<div style="font-size:10px;color:var(--text3)">+${ambientes.length-5} mais</div>`:''}
@@ -4848,7 +4854,7 @@ function renderProjetos(filter='') {
           <div style="background:#180d20;border:1px solid rgba(176,144,224,0.25);border-radius:10px;padding:12px">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📊</span>
-              <span style="font-size:12px;font-weight:600;color:var(--text)">Financeiro</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text)">Formação preço de venda</span>
             </div>
             ${isAdmin()?`
               <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${aFinOk?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${aFinOk?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${aFinOk?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${aFinOk?'Atualizado':'Pendente'}</div>
@@ -4874,7 +4880,7 @@ function renderProjetos(filter='') {
                 </div>
               `:'<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Sem dados</div>'}
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro completo</button>
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();abrirMiniFinanceiro('${p.id}')">📈 Resumo do projeto</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();abrirMiniFinanceiro('${p.id}','${a.nome||a.tipo}')">📈 Resumo do ambiente</button>
             `:`
               <div style="text-align:center;padding:16px 0">
                 <div style="font-size:28px;margin-bottom:8px">🔒</div>
@@ -6701,7 +6707,7 @@ async function _salvarAmbObjDireto(projetoId, nomeAmb) {
   }
 }
 
-function abrirMiniFinanceiro(projetoId) {
+function abrirMiniFinanceiro(projetoId, nomeAmb) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
   const lead = DB.leads.find(l=>l.id===p.leadId);
@@ -6709,75 +6715,92 @@ function abrirMiniFinanceiro(projetoId) {
   const fmt = v => '$ ' + Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtNeg = v => '− $ ' + Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-  // Recalculate totals using saved per-ambiente values
-  let totalVenda=0, totalComissao=0, totalMontagem=0, totalProdutos=0;
-  ambs.forEach(a => {
+  // Se chamado de um card de ambiente, mostra só aquele ambiente
+  const soloAmb = nomeAmb ? ambs.find(a=>(a.nome||a.tipo||'').trim().toLowerCase()===nomeAmb.trim().toLowerCase()) : null;
+  const targets = soloAmb ? [soloAmb] : ambs;
+  const titulo = soloAmb ? (soloAmb.nome||soloAmb.tipo) : p.nome;
+
+  const _calc = (a) => {
     const vXML = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
     const desc = p.finDesconto||0, taxa = p.finTaxa||0, mult = p.finMultiplicador||3;
     const custoPromob = vXML * (1 - desc/100) * (1 + taxa/100);
     const precoBase = custoPromob * mult;
     const descCli = precoBase * ((p.finDescontoCliente||0)/100);
     const precoFinal = a.finValorManual > 0 ? a.finValorManual : (precoBase - descCli);
-    const comissao = p.finComissaoTipo==='percent' ? precoFinal*(p.finComissao||0)/100 : (p.finComissao||0)/ambs.length;
-    const comissaoExt = p.finComissaoExtTipo==='percent' ? precoFinal*(p.finComissaoExt||0)/100 : (p.finComissaoExt||0)/ambs.length;
+    const n = ambs.length || 1;
+    const comissao = p.finComissaoTipo==='percent' ? precoFinal*(p.finComissao||0)/100 : (p.finComissao||0)/n;
+    const comissaoExt = p.finComissaoExtTipo==='percent' ? precoFinal*(p.finComissaoExt||0)/100 : (p.finComissaoExt||0)/n;
     const montagem = precoFinal * ((p.finMontagem||0)/100);
-    totalVenda += precoFinal;
-    totalComissao += comissao + comissaoExt;
-    totalMontagem += montagem;
-    totalProdutos += custoPromob + (p.finFrete||0)/ambs.length + (p.finCustoExtra||0)/ambs.length;
+    const frete = (p.finFrete||0)/n;
+    const extra = (p.finCustoExtra||0)/n;
+    const totalCustos = comissao + comissaoExt + montagem + custoPromob + frete + extra;
+    const margem = precoFinal - totalCustos;
+    const margemPct = precoFinal > 0 ? (margem/precoFinal*100) : 0;
+    return {vXML, custoPromob, precoBase, precoFinal, comissao, comissaoExt, montagem, frete, extra, totalCustos, margem, margemPct, manual: a.finValorManual > 0};
+  };
+
+  // Soma os targets
+  let tVenda=0,tComissao=0,tMontagem=0,tProdutos=0,tMargem=0;
+  targets.forEach(a => {
+    const c = _calc(a);
+    tVenda += c.precoFinal; tComissao += c.comissao+c.comissaoExt;
+    tMontagem += c.montagem; tProdutos += c.custoPromob+c.frete+c.extra;
+    tMargem += c.margem;
   });
-  const totalMargem = totalVenda - totalComissao - totalMontagem - totalProdutos;
-  const margemPct = totalVenda > 0 ? (totalMargem/totalVenda*100) : 0;
-  const cor = totalMargem >= 0 ? 'var(--green)' : 'var(--red)';
+  const tMargemPct = tVenda > 0 ? (tMargem/tVenda*100) : 0;
+  const cor = tMargem >= 0 ? 'var(--green)' : 'var(--red)';
+  const barCor = tMargemPct>=40?'#b090e0':tMargemPct>=30?'var(--green)':tMargemPct>=15?'var(--amber)':'var(--red)';
+
+  const rows = [
+    ['💵 Valor de venda', fmt(tVenda), 'var(--gold)', true],
+    ['📉 Comissões', tComissao>0?fmtNeg(tComissao):'—', 'var(--red)', false],
+    ['🔧 Montagem', tMontagem>0?fmtNeg(tMontagem):'—', '#f0a500', false],
+    ['📦 Custo produto', fmtNeg(tProdutos), 'var(--red)', false],
+  ];
 
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  const rows = [
-    ['💵 Valor de venda total', fmt(totalVenda), 'var(--text)', true],
-    ['📉 Comissões', fmtNeg(totalComissao), 'var(--red)', false],
-    ['🔧 Montagem', fmtNeg(totalMontagem), 'var(--amber)', false],
-    ['📦 Custo produtos', fmtNeg(totalProdutos), 'var(--red)', false],
-  ];
   ov.innerHTML = `
-    <div style="background:#141414;border:1px solid rgba(201,169,110,0.3);border-radius:16px;padding:28px;max-width:400px;width:100%">
-      <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">📊 Resumo Financeiro</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:20px">${p.nome}</div>
-      ${rows.map(([label,val,cor,bold])=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)">
-          <span style="font-size:12px;color:var(--text2);${bold?'font-weight:600':''};">${label}</span>
-          <span style="font-size:13px;font-weight:700;font-family:DM Mono,monospace;color:${cor}">${val}</span>
+    <div style="background:#141414;border:1px solid rgba(201,169,110,0.3);border-radius:16px;padding:24px;max-width:380px;width:100%">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${soloAmb?'Ambiente':'Projeto'}</div>
+      <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:16px">${titulo}</div>
+
+      ${rows.map(([label,val,c,bold])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)">
+          <span style="font-size:12px;color:var(--text2);${bold?'font-weight:600':''}">${label}</span>
+          <span style="font-size:13px;font-weight:700;font-family:DM Mono,monospace;color:${c}">${val}</span>
         </div>`).join('')}
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 4px">
-        <span style="font-size:14px;font-weight:700;color:var(--text)">Margem</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px;font-weight:700;font-family:DM Mono,monospace;color:${cor}">${fmt(totalMargem)}</span>
-          <span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${margemPct>=30?'rgba(92,184,130,0.15)':'rgba(255,80,80,0.1)'};color:${cor};font-weight:700">${margemPct.toFixed(1)}%</span>
+
+      <div style="padding:14px 0 8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Margem bruta</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:17px;font-weight:700;font-family:DM Mono,monospace;color:${cor}">${fmt(tMargem)}</span>
+            <span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${tMargemPct>=30?'rgba(92,184,130,0.15)':'rgba(255,80,80,0.1)'};color:${cor};font-weight:700">${tMargemPct.toFixed(1)}%</span>
+          </div>
+        </div>
+        <div style="height:5px;border-radius:99px;background:rgba(255,255,255,0.07)">
+          <div style="height:100%;width:${Math.min(Math.max(tMargemPct,0),100)}%;background:${barCor};border-radius:99px"></div>
         </div>
       </div>
-      ${ambs.length > 1 ? `
-      <div style="margin-top:16px;border-top:0.5px solid rgba(255,255,255,0.08);padding-top:14px">
+
+      ${!soloAmb && ambs.length>1 ? `
+      <div style="border-top:0.5px solid rgba(255,255,255,0.08);padding-top:14px;margin-top:4px">
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Por ambiente</div>
         ${ambs.map(a=>{
-          const vXML = a.xmlDados?.valorTotalNum||0;
-          const custoP = vXML*(1-(p.finDesconto||0)/100)*(1+(p.finTaxa||0)/100);
-          const pb = custoP*(p.finMultiplicador||3);
-          const pf = a.finValorManual>0 ? a.finValorManual : pb*(1-(p.finDescontoCliente||0)/100);
-          const cm = p.finComissaoTipo==='percent'?pf*(p.finComissao||0)/100:(p.finComissao||0)/ambs.length;
-          const mt = pf*((p.finMontagem||0)/100);
-          const mg = pf - cm - mt - custoP;
-          const mgPct = pf>0?(mg/pf*100):0;
-          const c2 = mg>=0?'var(--green)':'var(--red)';
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)">
-            <span style="font-size:11px;color:var(--text2)">${a.nome||a.tipo}</span>
+          const c = _calc(a);
+          const cc = c.margem>=0?'var(--green)':'var(--red)';
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+            <span style="font-size:11px;color:var(--text2)">${a.nome||a.tipo}${c.manual?' <span style="color:var(--amber);font-size:9px">✎</span>':''}</span>
             <div style="display:flex;align-items:center;gap:6px">
-              ${a.finValorManual>0?'<span style="font-size:9px;color:var(--amber)">✎ manual</span>':''}
-              <span style="font-size:12px;font-family:DM Mono,monospace;color:var(--text)">$ ${pf.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
-              <span style="font-size:9px;padding:1px 5px;border-radius:99px;background:${mgPct>=30?'rgba(92,184,130,0.12)':'rgba(255,80,80,0.1)'};color:${c2}">${mgPct.toFixed(1)}%</span>
+              <span style="font-size:12px;font-family:DM Mono,monospace;color:var(--text)">$ ${c.precoFinal.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+              <span style="font-size:9px;padding:1px 5px;border-radius:99px;background:${c.margemPct>=30?'rgba(92,184,130,0.12)':'rgba(255,80,80,0.1)'};color:${cc}">${c.margemPct.toFixed(1)}%</span>
             </div>
           </div>`;
         }).join('')}
-      </div>`:'' }
-      <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:18px;padding:11px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Fechar</button>
+      </div>` : ''}
+
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:16px;padding:10px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Fechar</button>
     </div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click', e => { if(e.target===ov) ov.remove(); });
