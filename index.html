@@ -4514,7 +4514,7 @@ function renderProjetos(filter='') {
 
   if (projetosView === 'cliente') {
     el.innerHTML = '';
-    if (items.length) el.innerHTML = items.map(p => {
+    if (items.length) { el.innerHTML = items.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
 
