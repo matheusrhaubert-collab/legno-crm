@@ -4442,57 +4442,54 @@ function filterProjetosByStatus(status) {
 let projetosView = 'cliente';
 let filtroProj = ''; // '' = todos, 'projetando' = not producao, 'producao' = only producao
 
-function setFiltroProj(val) {
-  filtroProj = val;
-  // Always force cliente view (producao section only renders there)
-  projetosView = 'cliente';
-  ['cliente','ambiente'].forEach(v => {
-    const b = document.getElementById('btn-view-'+v);
-    if (!b) return;
-    b.style.background = v==='cliente' ? 'var(--gold-dim)' : '';
-    b.style.borderColor = v==='cliente' ? 'var(--gold)' : '';
-    b.style.color = v==='cliente' ? 'var(--gold2)' : '';
-    b.style.borderRadius = '99px';
-  });
-  // Update pill styles
+function _updatePillStyles() {
   ['todos','projetando','producao'].forEach(k => {
     const el = document.getElementById('fpj-'+k);
     if (!el) return;
-    el.style.background = 'transparent';
-    el.style.borderColor = 'var(--border2)';
-    el.style.color = 'var(--text2)';
+    const on = (filtroProj||'todos') === k;
+    el.style.background = on ? 'var(--gold-dim)' : 'transparent';
+    el.style.borderColor = on ? 'var(--gold)' : 'var(--border2)';
+    el.style.color = on ? 'var(--gold2)' : 'var(--text2)';
   });
-  const key = val || 'todos';
-  const active = document.getElementById('fpj-'+key);
-  if (active) {
-    active.style.background = 'var(--gold-dim)';
-    active.style.borderColor = 'var(--gold)';
-    active.style.color = 'var(--gold2)';
-  }
-  renderProjetos();
-}
-let _filtroProjetoId = null;
-
-function verAmbientesCliente(projetoId) {
-  _filtroProjetoId = projetoId;
-  setProjetosView('ambiente');
-  // Show back button
-  const el = document.getElementById('list-projetos');
-  const p = DB.projetos.find(x=>x.id===projetoId);
-  // renderProjetos will handle the filter
 }
 
-function setProjetosView(view) {
-  projetosView = view;
+function _updateViewBtns() {
   ['cliente','ambiente'].forEach(v => {
     const el = document.getElementById('btn-view-'+v);
     if (!el) return;
-    const on = view === v;
+    const on = projetosView === v;
     el.style.background = on ? 'var(--gold-dim)' : '';
     el.style.borderColor = on ? 'var(--gold)' : '';
     el.style.color = on ? 'var(--gold2)' : '';
     el.style.borderRadius = '99px';
   });
+}
+
+function setFiltroProj(val) {
+  filtroProj = val;
+  // filtros só funcionam em vista cliente
+  projetosView = 'cliente';
+  _filtroProjetoId = null;
+  _updateViewBtns();
+  _updatePillStyles();
+  renderProjetos();
+}
+
+let _filtroProjetoId = null;
+
+function verAmbientesCliente(projetoId) {
+  _filtroProjetoId = projetoId;
+  filtroProj = ''; // reset filtro ao entrar em ambiente
+  projetosView = 'ambiente';
+  _updateViewBtns();
+  _updatePillStyles();
+  renderProjetos();
+}
+
+function setProjetosView(view) {
+  projetosView = view;
+  if (view !== 'ambiente') _filtroProjetoId = null;
+  _updateViewBtns();
   renderProjetos();
 }
 
@@ -4526,9 +4523,6 @@ function renderProjetos(filter='') {
   }) : [];
   const el = document.getElementById('list-projetos');
   if (!items.length && !itemsProd.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
-
-  // Em producao filter always uses cliente view
-  if (filtroProj === 'producao') projetosView = 'cliente';
 
   if (projetosView === 'cliente') {
     el.innerHTML = '';
