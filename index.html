@@ -4478,12 +4478,16 @@ function setFiltroProj(val) {
 let _filtroProjetoId = null;
 
 function verAmbientesCliente(projetoId) {
+  if (window.event) window.event.stopPropagation();
   _filtroProjetoId = projetoId;
-  filtroProj = ''; // reset filtro ao entrar em ambiente
+  filtroProj = '';
   projetosView = 'ambiente';
   _updateViewBtns();
   _updatePillStyles();
-  renderProjetos();
+  const elC = document.getElementById('content');
+  if (elC) elC.scrollTop = 0;
+  // Small delay to avoid being overridden by parent event handlers
+  setTimeout(() => renderProjetos(), 10);
 }
 
 function setProjetosView(view) {
