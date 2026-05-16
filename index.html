@@ -429,7 +429,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         </div>
 
         <!-- TOGGLE VISÃO -->
-        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
           <button class="btn btn-sm" id="btn-view-cliente" onclick="setProjetosView('cliente')" style="background:var(--gold-dim);border-color:var(--gold);color:var(--gold2)">Por cliente</button>
           <button class="btn btn-sm" id="btn-view-ambiente" onclick="setProjetosView('ambiente')">Por ambiente</button>
           <div style="flex:1"></div>
@@ -437,6 +437,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
             <span class="search-icon">⌕</span>
             <input type="search" placeholder="Buscar..." oninput="filterPage('projetos',this.value)" style="width:100%">
           </div>
+        </div>
+        <!-- FILTROS RÁPIDOS -->
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          <button class="btn btn-sm filtro-rapido active" id="fpj-todos" onclick="setFiltroProj('')">Todos</button>
+          <button class="btn btn-sm filtro-rapido" id="fpj-projetando" onclick="setFiltroProj('projetando')">◈ Projetando</button>
+          <button class="btn btn-sm filtro-rapido" id="fpj-producao" onclick="setFiltroProj('producao')">🏭 Enviados pra produção</button>
         </div>
 
         <!-- LISTA -->
@@ -3708,6 +3714,41 @@ function salvarAssinatura(projId){
   }).then(()=>{alert('${lang==='en'?'Contract signed and saved!':lang==='pt'?'Contrato assinado e salvo!':'Contrato firmado y guardado!'}');}).catch(()=>{});
 }
 <\/script>
+<!-- MODAL CONFIRMAR PRODUÇÃO -->
+<div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🏭 Confirmar Envio para Produção</span>
+      <div class="icon-btn" onclick="closeModal('confirmarProducao')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
+        ⚠️ Após confirmar, o projeto será travado e não poderá ser editado.
+      </div>
+      <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data entrada na fábrica *</label>
+          <input class="form-input" id="cp-data-fabrica" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data entrega ao cliente *</label>
+          <input class="form-input" id="cp-data-entrega" type="date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações (opcional)</label>
+        <textarea class="form-textarea" id="cp-obs" placeholder="Detalhes adicionais para a fábrica..." style="min-height:70px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
+      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">🏭 Confirmar e travar projeto</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>`;
 
@@ -4388,6 +4429,18 @@ function filterProjetosByStatus(status) {
   renderProjetos();
 }
 let projetosView = 'cliente';
+let filtroProj = ''; // '' = todos, 'projetando' = not producao, 'producao' = only producao
+
+function setFiltroProj(val) {
+  filtroProj = val;
+  ['todos','projetando','producao'].forEach(k => {
+    const el = document.getElementById('fpj-'+k);
+    if (el) el.classList.remove('active');
+  });
+  const key = val || 'todos';
+  const el = document.getElementById('fpj-'+key); if(el) el.classList.add('active');
+  renderProjetos();
+}
 let _filtroProjetoId = null;
 
 function verAmbientesCliente(projetoId) {
@@ -4426,13 +4479,20 @@ function statusProjBadge(s) {
 
 function renderProjetos(filter='') {
   const f = (filter||filterTexts.projetos).toLowerCase();
+  const showProjetando = filtroProj !== 'producao';
+  const showProducao   = filtroProj !== 'projetando';
   let items = DB.projetos.filter(p => {
     const matchText = !f || p.nome.toLowerCase().includes(f);
     const matchStatus = !activeProjetoStatus || p.status === activeProjetoStatus;
-    return matchText && matchStatus;
+    const notProd = p.status !== 'producao';
+    return matchText && matchStatus && notProd && showProjetando;
+  });
+  const itemsProd = DB.projetos.filter(p => {
+    const matchText = !f || p.nome.toLowerCase().includes(f);
+    return matchText && p.status === 'producao' && showProducao;
   });
   const el = document.getElementById('list-projetos');
-  if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto em andamento.</p></div>`; return; }
+  if (!items.length && !itemsProd.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
   if (projetosView === 'cliente') {
     el.innerHTML = items.map(p => {
@@ -4951,6 +5011,38 @@ function renderProjetos(filter='') {
         </div>
       </div>`;
     }).join('');
+
+    // Append 'Enviados para Produção' section
+    if (itemsProd.length) {
+      el.innerHTML += `<div style="margin-top:32px;padding-top:20px;border-top:0.5px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--blue);display:inline-block"></span>
+          Enviados para Produção (${itemsProd.length})
+        </div>
+        ${itemsProd.map(p=>{
+          const lead2 = DB.leads.find(l=>l.id===p.leadId);
+          const ambs2 = lead2?.ambientesBriefing||[];
+          const pz2 = p.prazos||{};
+          return `<div style="background:var(--bg2);border:0.5px solid rgba(96,144,208,0.2);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;opacity:0.8">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div>
+                <div style="font-size:14px;font-weight:500;color:var(--text)">${p.nome}</div>
+                <div style="font-size:12px;color:var(--text3);margin-top:2px">
+                  🏭 Enviado: ${formatDate(p.dataEnvioProducao)}
+                  ${pz2.producao ? ' · Fábrica: '+formatDate(pz2.producao) : ''}
+                  ${pz2.entrega ? ' · Entrega: '+formatDate(pz2.entrega) : ''}
+                  · ${ambs2.length} ambiente${ambs2.length!==1?'s':''}
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:11px;padding:3px 10px;border-radius:99px;background:var(--blue-dim);color:var(--blue);white-space:nowrap">🏭 Em produção</span>
+                <span style="font-size:11px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,0.04);color:var(--text3);border:0.5px solid var(--border)">🔒 Travado</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
   }
 }
 
@@ -5581,6 +5673,41 @@ ${(()=>{
 
 
 <button class="print-btn no-print" onclick="window.print()">${T.print}</button>
+
+<!-- MODAL CONFIRMAR PRODUÇÃO -->
+<div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🏭 Confirmar Envio para Produção</span>
+      <div class="icon-btn" onclick="closeModal('confirmarProducao')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
+        ⚠️ Após confirmar, o projeto será travado e não poderá ser editado.
+      </div>
+      <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data entrada na fábrica *</label>
+          <input class="form-input" id="cp-data-fabrica" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data entrega ao cliente *</label>
+          <input class="form-input" id="cp-data-entrega" type="date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações (opcional)</label>
+        <textarea class="form-textarea" id="cp-obs" placeholder="Detalhes adicionais para a fábrica..." style="min-height:70px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
+      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">🏭 Confirmar e travar projeto</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>`;
@@ -7222,24 +7349,40 @@ async function toggleAprovacaoAmbiente(projetoId, nomeAmb, status) {
   toast(status === 'aprovado' ? '✓ Ambiente aprovado!' : '✕ Ambiente reprovado.');
 }
 
-async function enviarProducao(projetoId) {
+let _confirmarProducaoId = null;
+
+function enviarProducao(projetoId) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  if (!p.contratoAprovado) { toast('⚠️ Contrato não aprovado. Aprove o contrato primeiro.'); return; }
+  const lead = DB.leads.find(l=>l.id===p.leadId);
+  const ambientes = lead?.ambientesBriefing || [];
+  if (!ambientes.length) { toast('⚠️ Nenhum ambiente encontrado no projeto.'); return; }
+
+  _confirmarProducaoId = projetoId;
+  document.getElementById('cp-nome-cliente').textContent = '📦 ' + p.nome;
+  // Pre-fill with existing prazos if available
+  const pz = p.prazos || {};
+  document.getElementById('cp-data-fabrica').value = pz.producao || '';
+  document.getElementById('cp-data-entrega').value = pz.entrega || '';
+  document.getElementById('cp-obs').value = '';
+  openModal('confirmarProducao');
+}
+
+async function confirmarEnvioProducao() {
+  const projetoId = _confirmarProducaoId;
+  if (!projetoId) return;
+  const dataFabrica = document.getElementById('cp-data-fabrica').value;
+  const dataEntrega = document.getElementById('cp-data-entrega').value;
+  const obs = document.getElementById('cp-obs').value.trim();
+  if (!dataFabrica) { toast('⚠️ Informe a data de entrada na fábrica'); return; }
+  if (!dataEntrega) { toast('⚠️ Informe a data de entrega ao cliente'); return; }
+
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
   const lead = DB.leads.find(l=>l.id===p.leadId);
-  
-  // Check contrato aprovado
-  if (!p.contratoAprovado) {
-    toast('⚠️ Contrato não aprovado. Aprove o contrato primeiro.');
-    return;
-  }
-  
   const ambientes = lead?.ambientesBriefing || [];
-  const aprovados = ambientes.length ? ambientes : [];
-  if (!aprovados.length) {
-    toast('⚠️ Nenhum ambiente encontrado no projeto.');
-    return;
-  }
-  
+
   // Create producao record
   const prod = {
     id: 'PROD'+Date.now(),
@@ -7248,44 +7391,35 @@ async function enviarProducao(projetoId) {
     tipo: p.tipo || '',
     etapa: 'fabricando',
     dataEnvio: new Date().toISOString().slice(0,10),
-    dataEntrega: p.dataEntregaPrev || '',
-    dataInstalacao: p.dataInstalacaoPrev || '',
+    dataEntrega: dataEntrega,
+    dataInstalacao: p.prazos?.instalacao || '',
     responsavelFabricacao: p.responsavelFabricacao || '',
     responsavelEntrega: p.responsavelEntrega || '',
     responsavelInstalacao: p.responsavelInstalacao || '',
-    ambientes: aprovados.map(a=>({
-      nome: a.nome||a.tipo,
-      tipo: a.tipo||'',
-      descricao: a.descricao||'',
-      valor: a.finPrecoFinal || 0,
-      xmlNome: a.xmlNome||''
+    ambientes: ambientes.map(a=>({
+      nome: a.nome||a.tipo, tipo: a.tipo||'',
+      descricao: a.descricao||'', valor: a.finPrecoFinal || 0, xmlNome: a.xmlNome||''
     })),
-    obs: ''
+    obs: obs
   };
-  
+
   try {
+    closeModal('confirmarProducao');
     await pushProducao(prod);
     DB.producao.push(prod);
-    // Keep projeto but mark as sent to producao
+    // Mark and lock projeto
     p.status = 'producao';
+    p.propostaTravada = true;
+    p.propostaTravadaPor = 'producao';
     p.dataEnvioProducao = new Date().toISOString().slice(0,10);
+    if (!p.prazos) p.prazos = {};
+    p.prazos.producao = dataFabrica;
+    p.prazos.entrega = dataEntrega;
     await pushProjeto(p);
     renderAll();
-    toast(`✓ ${p.nome} enviado para Produção!`);
-    // Send email with XMLs
-    await enviarEmailXMLs(p, aprovados);
-    // Update prazo producao
-    if (!p.prazos) p.prazos = {};
-    if (!p.prazos.producao) {
-      const add = (d,n)=>{ const r=new Date(d+'T12:00:00'); r.setDate(r.getDate()+n); return r.toISOString().slice(0,10); };
-      const base = new Date().toISOString().slice(0,10);
-      p.prazos.producao = base;
-      if (!p.prazos.entrega)    p.prazos.entrega    = add(base,18);
-      if (!p.prazos.instalacao) p.prazos.instalacao = add(base,21);
-      await pushProjeto(p);
-      renderProjetos();
-      criarTarefasPrazo(p);
-    }
+    toast(`✓ ${p.nome} enviado para Produção e travado!`);
+    await enviarEmailXMLs(p, ambientes);
+    criarTarefasPrazo(p);
     goPage('producao');
   } catch(e) { toast('Erro ao enviar para produção: ' + e.message); }
 }
@@ -9207,6 +9341,41 @@ checkSession();
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('novaInstalacao')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarNovaInstalacao()">✓ Agendar instalação</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR PRODUÇÃO -->
+<div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🏭 Confirmar Envio para Produção</span>
+      <div class="icon-btn" onclick="closeModal('confirmarProducao')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
+        ⚠️ Após confirmar, o projeto será travado e não poderá ser editado.
+      </div>
+      <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data entrada na fábrica *</label>
+          <input class="form-input" id="cp-data-fabrica" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data entrega ao cliente *</label>
+          <input class="form-input" id="cp-data-entrega" type="date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações (opcional)</label>
+        <textarea class="form-textarea" id="cp-obs" placeholder="Detalhes adicionais para a fábrica..." style="min-height:70px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
+      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">🏭 Confirmar e travar projeto</button>
     </div>
   </div>
 </div>
