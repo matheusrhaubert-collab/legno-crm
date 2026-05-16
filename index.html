@@ -4493,7 +4493,6 @@ function statusProjBadge(s) {
 
 function renderProjetos(filter='') {
   const f = (filter||filterTexts.projetos).toLowerCase();
-  // Cross-check: projetos that have a DB.producao entry are considered 'producao' even if status isn't set
   const idsEmProducao = new Set((DB.producao||[]).map(x => x.projetoId).filter(Boolean));
   let items = DB.projetos.filter(p => {
     const estaEmProducao = p.status === 'producao' || idsEmProducao.has(p.id);
@@ -4511,7 +4510,6 @@ function renderProjetos(filter='') {
 
   if (projetosView === 'cliente') {
     el.innerHTML = '';
-    if (!itemsAtivos.length && !itemsProd.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
     if (itemsAtivos.length) el.innerHTML = itemsAtivos.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
@@ -5036,8 +5034,8 @@ function renderProjetos(filter='') {
 
     // Append 'Enviados para Produção' section
     if (itemsProd.length) {
-      const hasSeparator = itemsAtivos.length > 0;
-      el.innerHTML += `<div style="${hasSeparator ? 'margin-top:32px;padding-top:20px;border-top:0.5px solid var(--border)' : ''}">
+      const sep = itemsAtivos.length > 0 ? 'margin-top:32px;padding-top:20px;border-top:0.5px solid var(--border)' : '';
+      el.innerHTML += `<div style="${sep}">
         <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
           <span style="width:6px;height:6px;border-radius:50%;background:var(--blue);display:inline-block"></span>
           Enviados para Produção (${itemsProd.length})
