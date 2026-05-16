@@ -6962,8 +6962,6 @@ function calcFinanceiro() {
     p.finDescontoCliente=descontoClientePct; p.finDesconto=desconto; p.finTaxa=taxa;
     p.finPrecoFinal=fmtN(precoFinal); p.finSobraPct=fmtN(margemPct);
   }
-    p.finPrecoFinal=precoFinal; p.finSobraPct=margemPct;
-  }
 }
 async function salvarFinanceiro() {
   const p = DB.projetos.find(x=>x.id===_finProjetoId);
