@@ -727,6 +727,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <select class="form-select" id="nl-responsavel"><option value="">Selecionar...</option></select>
         </div>
       </div>
+      <div class="form-group"><label class="form-label">Vendedor Externo</label><input class="form-input" id="nl-vendedor-externo" placeholder="Nome do vendedor externo..."></div>
       <div class="form-group"><label class="form-label">Observações iniciais</label><textarea class="form-textarea" id="nl-obs" placeholder="Briefing inicial, referências, estilo..."></textarea></div>
     </div>
     <div class="modal-footer">
@@ -3924,6 +3925,7 @@ async function pushLead(l) {
     status: l.status||'aguardando', data: l.data||new Date().toISOString().slice(0,10),
     valor: l.valor||'', valor_total: l.valorTotal||'',
     especificador: l.especificador||'', previsao_instalacao: l.previsaoInstalacao||'',
+    vendedor_externo: l.vendedorExterno||'',
     motivo_desq: l.motivoDesq||'', novo: l.novo||false,
     ambientes_briefing: ambientesSemRaw
   };
@@ -4512,10 +4514,10 @@ function renderProjetos(filter='') {
         : p.propostaAceita
           ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();abrirContrato('${p.id}')">📋 Gerar contrato</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📋 Gerar contrato</button>`;
-      const podeEnviar = p.contratoAprovado && aprovados2.length > 0;
-      const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : !p.contratoAprovado ? 'Aprove o contrato primeiro' : 'Aprove ao menos um ambiente';
+      const podeEnviar = p.contratoAprovado;
+      const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : 'Aprove o contrato primeiro';
       const btnProd = podeEnviar
-        ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção (${aprovados2.length})</button>`
+        ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção</button>`
         : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" title="${motivoEnvio}" disabled>🏭 Enviar pra produção</button>`;
 
       // ── Venda badge no header ──
@@ -5939,6 +5941,7 @@ async function criarLead() {
     tipo: document.getElementById('nl-tipo').value,
     obs: document.getElementById('nl-obs').value,
     responsavel: document.getElementById('nl-responsavel').value,
+    vendedorExterno: document.getElementById('nl-vendedor-externo').value.trim(),
     status: 'aguardando', data: new Date().toISOString().slice(0,10),
     updatedAt: new Date().toISOString()
   };
@@ -7231,9 +7234,9 @@ async function enviarProducao(projetoId) {
   }
   
   const ambientes = lead?.ambientesBriefing || [];
-  const aprovados = ambientes.filter(a=>a.aprovado==='aprovado');
+  const aprovados = ambientes.length ? ambientes : [];
   if (!aprovados.length) {
-    toast('⚠️ Nenhum ambiente aprovado para enviar.');
+    toast('⚠️ Nenhum ambiente encontrado no projeto.');
     return;
   }
   
