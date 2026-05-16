@@ -429,20 +429,23 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         </div>
 
         <!-- TOGGLE VISÃO -->
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
-          <button class="btn btn-sm" id="btn-view-cliente" onclick="setProjetosView('cliente')" style="background:var(--gold-dim);border-color:var(--gold);color:var(--gold2)">Por cliente</button>
-          <button class="btn btn-sm" id="btn-view-ambiente" onclick="setProjetosView('ambiente')">Por ambiente</button>
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+          <!-- Visão: pill group retangular -->
+          <button class="btn btn-sm" id="btn-view-cliente" onclick="setProjetosView('cliente')" style="background:var(--gold-dim);border-color:var(--gold);color:var(--gold2);border-radius:99px">Por cliente</button>
+          <button class="btn btn-sm" id="btn-view-ambiente" onclick="setProjetosView('ambiente')" style="border-radius:99px">Por ambiente</button>
+          <div style="width:1px;height:20px;background:var(--border2);margin:0 4px"></div>
+          <!-- Filtro: pills circulares menores -->
+          <button id="fpj-todos" onclick="setFiltroProj('')"
+            style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--gold);background:var(--gold-dim);color:var(--gold2);font-size:11px;font-family:inherit;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px">Todos</button>
+          <button id="fpj-projetando" onclick="setFiltroProj('projetando')"
+            style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px">◈ Projetando</button>
+          <button id="fpj-producao" onclick="setFiltroProj('producao')"
+            style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;transition:all 0.15s;letter-spacing:0.3px">🏭 Em produção</button>
           <div style="flex:1"></div>
           <div class="search-wrap" style="margin:0;max-width:200px">
             <span class="search-icon">⌕</span>
             <input type="search" placeholder="Buscar..." oninput="filterPage('projetos',this.value)" style="width:100%">
           </div>
-        </div>
-        <!-- FILTROS RÁPIDOS -->
-        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-          <button class="btn btn-sm filtro-rapido active" id="fpj-todos" onclick="setFiltroProj('')">Todos</button>
-          <button class="btn btn-sm filtro-rapido" id="fpj-projetando" onclick="setFiltroProj('projetando')">◈ Projetando</button>
-          <button class="btn btn-sm filtro-rapido" id="fpj-producao" onclick="setFiltroProj('producao')">🏭 Enviados pra produção</button>
         </div>
 
         <!-- LISTA -->
@@ -2253,7 +2256,11 @@ async function fazerLogin() {
   const btn = document.querySelector('#login-screen .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = 'Entrando...'; }
   try {
-    const rows = await sbFetch(`usuarios?nome=ilike.${encodeURIComponent(nome)}&senha=eq.${encodeURIComponent(senha)}&select=nome,perfil`);
+    // Use service key for login to bypass RLS
+    const loginRes = await fetch(SB_URL + '/rest/v1/usuarios?nome=ilike.' + encodeURIComponent(nome) + '&senha=eq.' + encodeURIComponent(senha) + '&select=nome,perfil', {
+      headers: { 'apikey': SB_KEY_SERVICE, 'Authorization': 'Bearer ' + SB_KEY_SERVICE }
+    });
+    const rows = loginRes.ok ? await loginRes.json() : [];
     if (rows && rows.length > 0) {
       const u = rows[0];
       usuarioAtual = { nome: u.nome, perfil: u.perfil || 'administrativo' };
@@ -4435,10 +4442,18 @@ function setFiltroProj(val) {
   filtroProj = val;
   ['todos','projetando','producao'].forEach(k => {
     const el = document.getElementById('fpj-'+k);
-    if (el) el.classList.remove('active');
+    if (!el) return;
+    el.style.background = 'transparent';
+    el.style.borderColor = 'var(--border2)';
+    el.style.color = 'var(--text2)';
   });
   const key = val || 'todos';
-  const el = document.getElementById('fpj-'+key); if(el) el.classList.add('active');
+  const active = document.getElementById('fpj-'+key);
+  if (active) {
+    active.style.background = 'var(--gold-dim)';
+    active.style.borderColor = 'var(--gold)';
+    active.style.color = 'var(--gold2)';
+  }
   renderProjetos();
 }
 let _filtroProjetoId = null;
@@ -4454,12 +4469,15 @@ function verAmbientesCliente(projetoId) {
 
 function setProjetosView(view) {
   projetosView = view;
-  document.getElementById('btn-view-cliente').style.background = view==='cliente' ? 'var(--gold-dim)' : '';
-  document.getElementById('btn-view-cliente').style.borderColor = view==='cliente' ? 'var(--gold)' : '';
-  document.getElementById('btn-view-cliente').style.color = view==='cliente' ? 'var(--gold2)' : '';
-  document.getElementById('btn-view-ambiente').style.background = view==='ambiente' ? 'var(--gold-dim)' : '';
-  document.getElementById('btn-view-ambiente').style.borderColor = view==='ambiente' ? 'var(--gold)' : '';
-  document.getElementById('btn-view-ambiente').style.color = view==='ambiente' ? 'var(--gold2)' : '';
+  ['cliente','ambiente'].forEach(v => {
+    const el = document.getElementById('btn-view-'+v);
+    if (!el) return;
+    const on = view === v;
+    el.style.background = on ? 'var(--gold-dim)' : '';
+    el.style.borderColor = on ? 'var(--gold)' : '';
+    el.style.color = on ? 'var(--gold2)' : '';
+    el.style.borderRadius = '99px';
+  });
   renderProjetos();
 }
 
