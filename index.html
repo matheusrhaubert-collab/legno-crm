@@ -4265,10 +4265,11 @@ const pageTitles = {leads:'Clients',projetos:'Projetos',marketing:'Marketing',fi
 const addBtnPages = {leads:true, projetos:false, agenda:false, producao:false, entrega:false, instalacao:false, perdidos:false, imagens:false, config:false};
 
 function goPage(page) {
+  console.log('goPage called:', page);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pageEl = document.getElementById('page-'+page);
-  if (!pageEl) return;
+  if (!pageEl) { toast('ERRO: page-'+page+' nao encontrado'); return; }
   pageEl.classList.add('active');
   const navEl = document.querySelector(`[data-page="${page}"]`);
   if (navEl) navEl.classList.add('active');
@@ -8986,6 +8987,20 @@ async function deletarLead(id, nome) {
   }
 }
 checkSession();
+
+// DEBUG ANDROID — remover depois
+(function(){
+  const dbg = document.createElement('div');
+  dbg.id = 'dbg-bar';
+  dbg.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a00;color:#ffff00;font-size:11px;padding:4px 8px;z-index:99999;font-family:monospace;display:none';
+  document.body.appendChild(dbg);
+  function log(msg){ dbg.style.display='block'; dbg.textContent = msg; }
+  document.addEventListener('touchstart', e => {
+    const t = e.target;
+    log('touch: '+t.tagName+' class='+t.className.slice(0,40));
+  }, {passive:true});
+  window._dbg = log;
+})();
 </script>
 
 <div class="overlay" id="modal-desqualificar" onclick="closeModalOutside(event,'desqualificar')">
