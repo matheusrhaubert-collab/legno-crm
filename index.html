@@ -4527,6 +4527,9 @@ function renderProjetos(filter='') {
   const el = document.getElementById('list-projetos');
   if (!items.length && !itemsProd.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
+  // Em producao filter always uses cliente view
+  if (filtroProj === 'producao') projetosView = 'cliente';
+
   if (projetosView === 'cliente') {
     el.innerHTML = '';
     if (items.length) { el.innerHTML = items.map(p => {
