@@ -4283,7 +4283,7 @@ function renderAll() {
 function updateBadges() {
   const leads = DB.leads.filter(l => l.status !== 'desqualificado');
   document.getElementById('badge-leads').textContent = leads.length;
-  document.getElementById('badge-projetos').textContent = DB.projetos.length;
+  document.getElementById('badge-projetos').textContent = DB.projetos.filter(p=>p.status!=='producao').length;
   // stats leads
   document.getElementById('sl-total').textContent = DB.leads.length;
   document.getElementById('sl-aguard').textContent = DB.leads.filter(l=>l.status==='aguardando').length;
@@ -4495,7 +4495,8 @@ function renderProjetos(filter='') {
   if (!items.length && !itemsProd.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
   if (projetosView === 'cliente') {
-    el.innerHTML = items.map(p => {
+    el.innerHTML = '';
+    if (items.length) el.innerHTML = items.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
 
@@ -5010,7 +5011,7 @@ function renderProjetos(filter='') {
 
         </div>
       </div>`;
-    }).join('');
+    }).join(''); }
 
     // Append 'Enviados para Produção' section
     if (itemsProd.length) {
