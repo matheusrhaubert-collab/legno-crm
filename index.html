@@ -3778,7 +3778,7 @@ function salvarAssinatura(projId){
 <\/script>
 <!-- MODAL CONFIRMAR PRODUÇÃO -->
 <div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:560px">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <span class="modal-title">🏭 Confirmar Envio para Produção</span>
@@ -3786,27 +3786,35 @@ function salvarAssinatura(projId){
     </div>
     <div class="modal-body">
       <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
-        ⚠️ Após confirmar, o projeto será travado e não poderá ser editado.
+        ⚠️ Após confirmar, o projeto será travado. Um email com os XMLs será enviado para orders@legnocabinets.com.
       </div>
-      <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
+      <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:0.5px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">📎 Ambientes / XMLs a enviar</div>
+        <div id="cp-xml-lista" style="font-size:13px;color:var(--text2);line-height:2"></div>
+      </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Data entrada na fábrica *</label>
+          <label class="form-label">📅 Data entrada na fábrica *</label>
           <input class="form-input" id="cp-data-fabrica" type="date">
         </div>
         <div class="form-group">
-          <label class="form-label">Data entrega ao cliente *</label>
-          <input class="form-input" id="cp-data-entrega" type="date">
+          <label class="form-label" style="color:var(--gold2);font-weight:600">🎯 Data de entrega ao cliente *</label>
+          <input class="form-input" id="cp-data-entrega" type="date" style="border-color:var(--gold);background:var(--gold-dim)">
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Observações (opcional)</label>
-        <textarea class="form-textarea" id="cp-obs" placeholder="Detalhes adicionais para a fábrica..." style="min-height:70px"></textarea>
+        <label class="form-label">🔧 Data instalação (opcional)</label>
+        <input class="form-input" id="cp-data-instalacao" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">💬 Mensagem para a fábrica (será incluída no email)</label>
+        <textarea class="form-textarea" id="cp-obs" placeholder="Ex: Atenção ao acabamento da porta da cozinha. Cliente exigente com detalhes..." style="min-height:100px"></textarea>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
-      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">🏭 Confirmar e travar projeto</button>
+      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">📧 Confirmar e enviar XMLs</button>
     </div>
   </div>
 </div>
@@ -5798,39 +5806,7 @@ ${(()=>{
 <button class="print-btn no-print" onclick="window.print()">${T.print}</button>
 
 <!-- MODAL CONFIRMAR PRODUÇÃO -->
-<div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-handle"></div>
-    <div class="modal-header">
-      <span class="modal-title">🏭 Confirmar Envio para Produção</span>
-      <div class="icon-btn" onclick="closeModal('confirmarProducao')">✕</div>
-    </div>
-    <div class="modal-body">
-      <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
-        ⚠️ Após confirmar, o projeto será travado e não poderá ser editado.
-      </div>
-      <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Data entrada na fábrica *</label>
-          <input class="form-input" id="cp-data-fabrica" type="date">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Data entrega ao cliente *</label>
-          <input class="form-input" id="cp-data-entrega" type="date">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Observações (opcional)</label>
-        <textarea class="form-textarea" id="cp-obs" placeholder="Detalhes adicionais para a fábrica..." style="min-height:70px"></textarea>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
-      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">🏭 Confirmar e travar projeto</button>
-    </div>
-  </div>
-</div>
+
 
 </body>
 </html>`;
@@ -7524,10 +7500,28 @@ function enviarProducao(projetoId) {
 
   _confirmarProducaoId = projetoId;
   document.getElementById('cp-nome-cliente').textContent = '📦 ' + p.nome;
-  // Pre-fill with existing prazos if available
+
+  // Mostrar lista de ambientes e XMLs
+  const listaEl = document.getElementById('cp-xml-lista');
+  if (listaEl) {
+    listaEl.innerHTML = ambientes.map(a => {
+      const temXml = !!(a.xmlNome);
+      const valor = a.finPrecoFinal || a.xmlDados?.valorTotalNum || 0;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:0.5px solid var(--border)">
+        <span style="font-size:14px">${temXml ? '✅' : '⚠️'}</span>
+        <span style="flex:1;color:var(--text)">${a.nome||a.tipo}</span>
+        ${temXml ? `<span style="font-size:11px;color:var(--green)">${a.xmlNome}</span>` : '<span style="font-size:11px;color:var(--amber)">Sem XML</span>'}
+        ${valor ? `<span style="font-size:11px;color:var(--gold2);font-family:\'DM Mono\',monospace">$${parseFloat(valor).toLocaleString('en-US',{minimumFractionDigits:2})}</span>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Pre-fill datas dos prazos do projeto
   const pz = p.prazos || {};
   document.getElementById('cp-data-fabrica').value = pz.producao || '';
   document.getElementById('cp-data-entrega').value = pz.entrega || '';
+  const instEl = document.getElementById('cp-data-instalacao');
+  if (instEl) instEl.value = pz.instalacao || '';
   document.getElementById('cp-obs').value = '';
   openModal('confirmarProducao');
 }
@@ -7537,6 +7531,7 @@ async function confirmarEnvioProducao() {
   if (!projetoId) return;
   const dataFabrica = document.getElementById('cp-data-fabrica').value;
   const dataEntrega = document.getElementById('cp-data-entrega').value;
+  const dataInstalacao = document.getElementById('cp-data-instalacao')?.value || '';
   const obs = document.getElementById('cp-obs').value.trim();
   if (!dataFabrica) { toast('⚠️ Informe a data de entrada na fábrica'); return; }
   if (!dataEntrega) { toast('⚠️ Informe a data de entrega ao cliente'); return; }
@@ -7545,25 +7540,38 @@ async function confirmarEnvioProducao() {
   if (!p) return;
   const lead = DB.leads.find(l=>l.id===p.leadId);
   const ambientes = lead?.ambientesBriefing || [];
+  const responsavel = usuarioAtual?.nome || '';
+  const hoje = new Date().toISOString().slice(0,10);
 
-  // Create producao record
+  // Quadro 1 pré-preenchido automaticamente
+  const quadros = {
+    xmlEnviado: {
+      responsavel: responsavel,
+      data: hoje,
+      obs: obs || `XMLs enviados para orders@legnocabinets.com`,
+      confirmedAt: hoje,
+      confirmedBy: responsavel
+    }
+  };
+
   const prod = {
     id: 'PROD'+Date.now(),
     projetoId: p.id,
     clienteNome: p.nome,
     tipo: p.tipo || '',
     etapa: 'fabricando',
-    dataEnvio: new Date().toISOString().slice(0,10),
+    dataEnvio: hoje,
     dataEntrega: dataEntrega,
-    dataInstalacao: p.prazos?.instalacao || '',
-    responsavelFabricacao: p.responsavelFabricacao || '',
+    dataInstalacao: dataInstalacao || p.prazos?.instalacao || '',
+    responsavelFabricacao: responsavel,
     responsavelEntrega: p.responsavelEntrega || '',
     responsavelInstalacao: p.responsavelInstalacao || '',
     ambientes: ambientes.map(a=>({
       nome: a.nome||a.tipo, tipo: a.tipo||'',
       descricao: a.descricao||'', valor: a.finPrecoFinal || 0, xmlNome: a.xmlNome||''
     })),
-    obs: obs
+    obs: obs,
+    quadros
   };
 
   try {
@@ -7574,40 +7582,73 @@ async function confirmarEnvioProducao() {
     p.status = 'producao';
     p.propostaTravada = true;
     p.propostaTravadaPor = 'producao';
-    p.dataEnvioProducao = new Date().toISOString().slice(0,10);
+    p.dataEnvioProducao = hoje;
     if (!p.prazos) p.prazos = {};
     p.prazos.producao = dataFabrica;
     p.prazos.entrega = dataEntrega;
+    if (dataInstalacao) p.prazos.instalacao = dataInstalacao;
     await pushProjeto(p);
     renderAll();
-    toast(`✓ ${p.nome} enviado para Produção e travado!`);
-    await enviarEmailXMLs(p, ambientes);
+    toast(`✓ ${p.nome} enviado para Produção!`);
+    await enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel);
     criarTarefasPrazo(p);
     goPage('producao');
   } catch(e) { toast('Erro ao enviar para produção: ' + e.message); }
 }
 
-async function enviarEmailXMLs(p, ambientes) {
-  const xmlLinks = ambientes.filter(a=>a.xmlNome).map(a=>'• '+a.nome+' ('+a.xmlNome+')').join('\n');
-  if (!xmlLinks) { toast('⚠️ Nenhum XML para enviar'); return; }
+async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel) {
+  const fmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const valorTotal = ambientes.reduce((s,a)=>s+(parseFloat(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0)),0);
+  const xmlAmbs = ambientes.filter(a=>a.xmlNome);
 
-  const corpo = 'Novo pedido para producao:\n\nCliente: '+p.nome+'\nData: '+new Date().toLocaleDateString('pt-BR')+'\n\nAmbientes:\n'+xmlLinks+'\n\nValor total: $ '+(p.condicaoPrecoFinal||p.finPrecoFinal||0).toLocaleString('en-US',{minimumFractionDigits:2})+'\n\nEnviado via Studio Legno CRM';
+  const linhasAmb = ambientes.map(a => {
+    const v = parseFloat(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0);
+    return `  • ${a.nome||a.tipo}${a.xmlNome?' — XML: '+a.xmlNome:' — ⚠ SEM XML'}${v?' — $ '+v.toLocaleString('en-US',{minimumFractionDigits:2}):''}`;
+  }).join('\n');
 
-  const SUPA_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
-  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1OTM4MCwiZXhwIjoyMDk0MDM1MzgwfQ.4IBUHBrqgYE-KaFn_mNocAhMRyBSvAYkvW9JqGp0Tos';
+  const corpo = [
+    '═══════════════════════════════════════',
+    '  NOVO PEDIDO DE PRODUÇÃO — STUDIO LEGNO',
+    '═══════════════════════════════════════',
+    '',
+    `Cliente:        ${p.nome}`,
+    `Tipo:           ${p.tipo||'—'}`,
+    `Responsável:    ${responsavel||'—'}`,
+    `Data do envio:  ${new Date().toLocaleDateString('pt-BR')}`,
+    '',
+    '── PRAZOS ──────────────────────────────',
+    `Entrada na fábrica:   ${fmt(dataFabrica)}`,
+    `🎯 ENTREGA AO CLIENTE: ${fmt(dataEntrega)}`,
+    `Instalação prevista:  ${fmt(dataInstalacao)||'—'}`,
+    '',
+    '── AMBIENTES ───────────────────────────',
+    linhasAmb,
+    '',
+    `Valor total:    $ ${valorTotal.toLocaleString('en-US',{minimumFractionDigits:2})}`,
+    '',
+    obs ? '── MENSAGEM DO RESPONSÁVEL ─────────────\n'+obs+'\n' : '',
+    '═══════════════════════════════════════',
+    'Enviado via Studio Legno CRM',
+    '═══════════════════════════════════════'
+  ].filter(l=>l!==undefined).join('\n');
+
   try {
-    await fetch(SUPA_URL+'/functions/v1/send-email', {
+    const res = await fetch(SB_URL+'/functions/v1/send-email', {
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPA_KEY},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY_SERVICE},
       body: JSON.stringify({
         to: 'orders@legnocabinets.com',
-        subject: '[PEDIDO] '+p.nome+' — Studio Legno',
+        subject: `[PEDIDO] ${p.nome} — Entrega: ${fmt(dataEntrega)} — Studio Legno`,
         text: corpo
       })
     });
-    toast('📧 Email enviado para orders@legnocabinets.com');
+    if (res.ok) {
+      toast('📧 Email enviado para orders@legnocabinets.com');
+    } else {
+      throw new Error('Status '+res.status);
+    }
   } catch(e) {
-    toast('⚠️ Email não enviado (configure a função no Supabase)');
+    toast('⚠️ Email não enviado — verifique a função no Supabase');
     console.warn('Email error:', e);
   }
 }
@@ -10146,39 +10187,7 @@ checkSession();
 </div>
 
 <!-- MODAL CONFIRMAR PRODUÇÃO -->
-<div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-handle"></div>
-    <div class="modal-header">
-      <span class="modal-title">🏭 Confirmar Envio para Produção</span>
-      <div class="icon-btn" onclick="closeModal('confirmarProducao')">✕</div>
-    </div>
-    <div class="modal-body">
-      <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
-        ⚠️ Após confirmar, o projeto será travado e não poderá ser editado.
-      </div>
-      <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Data entrada na fábrica *</label>
-          <input class="form-input" id="cp-data-fabrica" type="date">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Data entrega ao cliente *</label>
-          <input class="form-input" id="cp-data-entrega" type="date">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Observações (opcional)</label>
-        <textarea class="form-textarea" id="cp-obs" placeholder="Detalhes adicionais para a fábrica..." style="min-height:70px"></textarea>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
-      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">🏭 Confirmar e travar projeto</button>
-    </div>
-  </div>
-</div>
+
 
 </body>
 </html>
