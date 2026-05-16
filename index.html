@@ -4560,20 +4560,19 @@ function renderProjetos(filter='') {
             ${bloqueioAmb?'<div style="font-size:10px;color:var(--text3);margin-bottom:6px">Complete o briefing primeiro</div>':''}
             <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${etapa2Ok?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${etapa2Ok?'var(--green)':'var(--text3)'};margin-bottom:8px;border:1px solid ${etapa2Ok?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${prontos.length}/${ambientes.length} prontos</div>
             <div style="flex:1">
-              ${ambientes.slice(0,5).map(a=>{
+              ${ambientes.map(a=>{
                 const xmlOk=!!a.xmlNome, fotoOk=(a.imagens||[]).length>0, ambOk=xmlOk&&fotoOk;
                 const vXML = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
                 const custoP = vXML*(1-(p.finDesconto||0)/100)*(1+(p.finTaxa||0)/100);
                 const pb = custoP*(p.finMultiplicador||3);
                 const pf = a.finValorManual>0 ? a.finValorManual : pb*(1-(p.finDescontoCliente||0)/100);
                 const valorStr = pf>0 ? '$ '+pf.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-                return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">'
+                return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">'
                   +'<span style="font-size:9px;width:14px;text-align:center">'+(ambOk?'✅':xmlOk?'📐':fotoOk?'🖼':'⬜')+'</span>'
-                  +'<span style="font-size:10px;color:'+(ambOk?'var(--text2)':'var(--text3)')+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+(a.nome||a.tipo)+'</span>'
+                  +'<span style="font-size:10px;color:'+(ambOk?'var(--text2)':'var(--text3)')+';flex:1">'+(a.nome||a.tipo)+'</span>'
                   +(valorStr?'<span style="font-size:10px;font-family:DM Mono,monospace;color:var(--gold);white-space:nowrap">'+valorStr+'</span>':'')
                   +'</div>';
               }).join('')}
-              ${ambientes.length>5?`<div style="font-size:10px;color:var(--text3)">+${ambientes.length-5} mais</div>`:''}
               <div style="font-size:9px;color:var(--text3);margin-top:4px">✅ XML+foto &nbsp; 📐 só XML &nbsp; 🖼 só foto</div>
             </div>
             <div style="margin-top:10px">
@@ -4660,8 +4659,7 @@ function renderProjetos(filter='') {
             <div style="flex:1">
               ${!bloqueioProposta&&ambientes.length>0?`
                 <div style="font-size:9px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px">Ambientes</div>
-                ${ambientes.slice(0,4).map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
-                ${ambientes.length>4?`<div style="font-size:9px;color:var(--text3)">+${ambientes.length-4} mais</div>`:''}
+                ${ambientes.map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;color:var(--text2)">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
                 <div style="border-top:0.5px solid rgba(255,255,255,0.06);margin-top:6px;padding-top:6px">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                     <span style="font-size:9px;color:var(--text3)">Total sem desconto</span>
@@ -4789,16 +4787,18 @@ function renderProjetos(filter='') {
         </div>
 
         <!-- 4 PAINÉIS -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 12px 12px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 16px 16px">
 
           <!-- BRIEFING DO AMBIENTE -->
-          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">
+          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirBriefing('${p.leadId}','${a.nome||a.tipo}')">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📋</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">Briefing</span>
             </div>
             ${a.tipo?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Tipo</div>
-            <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:500">${a.tipo}</div>`:''}
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:500">${a.tipo}${a.nome&&a.nome!==a.tipo?' — '+a.nome:''}</div>`:''}
+            ${a.valor?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Valor estimado</div>
+            <div style="font-size:13px;font-weight:700;color:var(--gold);font-family:DM Mono,monospace;margin-bottom:6px">${a.valor}</div>`:''}
             ${a.prioridade?`<div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;margin-bottom:6px;background:${a.prioridade==='Alta'?'rgba(255,80,80,0.12)':a.prioridade==='Média'?'rgba(212,148,74,0.12)':'rgba(92,184,130,0.1)'};color:${a.prioridade==='Alta'?'var(--red)':a.prioridade==='Média'?'var(--amber)':'var(--green)'};border:1px solid ${a.prioridade==='Alta'?'rgba(255,80,80,0.3)':a.prioridade==='Média'?'rgba(212,148,74,0.3)':'rgba(92,184,130,0.25)'}">Prioridade: ${a.prioridade}</div>`:''}
             ${(()=>{
               const cores = (a.cores||[]).map(c=>c.nome||c).filter(Boolean);
@@ -4807,7 +4807,7 @@ function renderProjetos(filter='') {
               <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">${cores.slice(0,3).map(c=>`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:var(--text2);border:0.5px solid rgba(255,255,255,0.1)">${c}</span>`).join('')}${cores.length>3?`<span style="font-size:9px;color:var(--text3)">+${cores.length-3}</span>`:''}</div>`;
             })()}
             ${a.obs?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Observações</div>
-            <div style="font-size:10px;color:var(--text2);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical">${a.obs}</div>`
+            <div style="font-size:10px;color:var(--text2);line-height:1.6">${a.obs}</div>`
             :'<div style="font-size:10px;color:var(--text3);text-align:center;padding:8px 0;opacity:0.6">Sem observações no briefing</div>'}
             <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">📋 Ver detalhes</button>
           </div>
@@ -4821,7 +4821,7 @@ function renderProjetos(filter='') {
             <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${temXml?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${temXml?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${temXml?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${temXml?'Importado':'Pendente'}</div>
             ${temXml?`
               <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Arquivo</div>
-              <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:8px">${a.xmlNome}</div>
+              <div style="font-size:11px;color:var(--text2);word-break:break-all;margin-bottom:8px">${a.xmlNome}</div>
               ${valorVendaAmb>0?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Valor venda</div>
               <div style="font-size:15px;font-weight:700;color:var(--gold);font-family:DM Mono,monospace;margin-bottom:8px">$ ${fmtA(valorVendaAmb)}</div>`:''}
               ${(()=>{
@@ -4831,7 +4831,7 @@ function renderProjetos(filter='') {
                 return `<div style="font-size:10px;color:var(--text3);margin-bottom:4px">Cores</div>
                 <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">${coresNomes.slice(0,4).map(c=>`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.07);color:var(--text2);border:0.5px solid rgba(255,255,255,0.1)">${c}</span>`).join('')}${coresNomes.length>4?`<span style="font-size:9px;color:var(--text3)">+${coresNomes.length-4}</span>`:''}</div>`;
               })()}
-              ${a.descricao?`<div style="font-size:10px;color:var(--text3);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${a.descricao}</div>`:''}
+              ${a.descricao?`<div style="font-size:10px;color:var(--text3);line-height:1.6">${a.descricao}</div>`:''}
             `:`
               <div style="text-align:center;padding:10px 0">
                 <div style="font-size:24px;opacity:0.3;margin-bottom:6px">📐</div>
@@ -5941,7 +5941,7 @@ function isProjetoBloqueado(leadId) {
   return proj?.propostaTravada || false;
 }
 
-function abrirBriefing(id) {
+function abrirBriefing(id, focusAmb) {
   if (isProjetoBloqueado(id)) {
     const proj = DB.projetos.find(p=>p.leadId===id);
     if (!isAdmin()) {
@@ -5991,6 +5991,23 @@ function abrirBriefing(id) {
   if (pdfBtn2) pdfBtn2.style.display = l.ambientesBriefing?.length ? 'inline-flex' : 'none';
   openModal('briefing');
   setTimeout(atualizarSoma, 50);
+  // Scroll to specific ambiente if requested
+  if (focusAmb) {
+    setTimeout(() => {
+      const idx = (_briefingAmbientes).findIndex(a =>
+        (a.nome||a.tipo||'').trim().toLowerCase() === focusAmb.trim().toLowerCase() ||
+        (a.tipo||'').trim().toLowerCase() === focusAmb.trim().toLowerCase()
+      );
+      if (idx >= 0) {
+        const el = document.getElementById('bf-amb-'+idx);
+        if (el) {
+          el.scrollIntoView({behavior:'smooth', block:'center'});
+          el.style.outline = '2px solid var(--amber)';
+          setTimeout(() => el.style.outline = '', 2000);
+        }
+      }
+    }, 200);
+  }
 }
 
 const TIPOS_AMBIENTE = [
@@ -6002,7 +6019,7 @@ const TIPOS_AMBIENTE = [
 function renderAmbientesBriefing() {
   const el = document.getElementById('bf-ambientes-list');
   el.innerHTML = _briefingAmbientes.map((a, i) => `
-    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
+    <div id="bf-amb-${i}" style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span style="font-size:12px;color:var(--gold);font-weight:500">Ambiente ${i+1}</span>
         ${_briefingAmbientes.length > 1 ? `<span style="cursor:pointer;color:var(--text3);font-size:12px" onclick="removerAmbienteBriefing(${i})">✕ remover</span>` : ''}
