@@ -4759,10 +4759,18 @@ function renderProjetos(filter='') {
       const bBrd = bOk>=4?'rgba(92,184,130,0.3)':bOk>0?'rgba(212,148,74,0.3)':'rgba(255,255,255,0.1)';
       // financeiro por ambiente
       const aFinOk = !!(a.finPrecoFinal&&a.finPrecoFinal>0);
-      const aVenda = a.finPrecoFinal||0;
-      const aCusto = valorPromobAmb;
-      const aMargem= aVenda - aCusto;
-      const aMargPct= aVenda>0?(aMargem/aVenda*100):0;
+      const aVenda = a.finValorManual>0 ? a.finValorManual : (a.finPrecoFinal||0);
+      const _vXML = valorPromobAmb;
+      const _custoP = _vXML*(1-(p.finDesconto||0)/100)*(1+(p.finTaxa||0)/100);
+      const _n = (lead?.ambientesBriefing||[]).length||1;
+      const _comissao = p.finComissaoTipo==='percent' ? aVenda*(p.finComissao||0)/100 : (p.finComissao||0)/_n;
+      const _comissaoExt = p.finComissaoExtTipo==='percent' ? aVenda*(p.finComissaoExt||0)/100 : (p.finComissaoExt||0)/_n;
+      const _montagem = aVenda*((p.finMontagem||0)/100);
+      const _frete = (p.finFrete||0)/_n;
+      const _extra = (p.finCustoExtra||0)/_n;
+      const aCusto = _custoP + _comissao + _comissaoExt + _montagem + _frete + _extra;
+      const aMargem = aVenda - aCusto;
+      const aMargPct = aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
       const travado = !!(p.propostaTravada && !isAdmin());
       return `
@@ -4783,18 +4791,27 @@ function renderProjetos(filter='') {
         <!-- 4 PAINÉIS -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 12px 12px">
 
-          <!-- BRIEFING -->
-          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">
+          <!-- BRIEFING DO AMBIENTE -->
+          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📋</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">Briefing</span>
             </div>
-            <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${bBg};color:${bCor};margin-bottom:8px;border:1px solid ${bBrd}">${bStatus}</div>
-            <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:3px;margin-bottom:8px;overflow:hidden">
-              <div style="height:100%;width:${bPct}%;background:${bCor};border-radius:99px"></div>
-            </div>
-            ${['Dados do cliente','Ambientes','Valor previsto','Detalhes extras'].map((s,i)=>'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><span style="width:13px;height:13px;border-radius:50%;background:'+(i<bOk?'var(--green)':'transparent')+';border:1.5px solid '+(i<bOk?'var(--green)':'rgba(255,255,255,0.12)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:#0d0d0d;font-weight:700">'+(i<bOk?'✓':'')+'</span><span style="font-size:10px;color:'+(i<bOk?'var(--text2)':'var(--text3)')+'">'+s+'</span></div>').join('')}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">📋 Ver</button>
+            ${a.tipo?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Tipo</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:500">${a.tipo}</div>`:''}
+            ${a.prioridade?`<div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;margin-bottom:6px;background:${a.prioridade==='Alta'?'rgba(255,80,80,0.12)':a.prioridade==='Média'?'rgba(212,148,74,0.12)':'rgba(92,184,130,0.1)'};color:${a.prioridade==='Alta'?'var(--red)':a.prioridade==='Média'?'var(--amber)':'var(--green)'};border:1px solid ${a.prioridade==='Alta'?'rgba(255,80,80,0.3)':a.prioridade==='Média'?'rgba(212,148,74,0.3)':'rgba(92,184,130,0.25)'}">Prioridade: ${a.prioridade}</div>`:''}
+            ${(()=>{
+              const cores = (a.cores||[]).map(c=>c.nome||c).filter(Boolean);
+              if (!cores.length) return '';
+              return `<div style="font-size:10px;color:var(--text3);margin-bottom:4px">Cores</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">${cores.slice(0,3).map(c=>`<span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.06);color:var(--text2);border:0.5px solid rgba(255,255,255,0.1)">${c}</span>`).join('')}${cores.length>3?`<span style="font-size:9px;color:var(--text3)">+${cores.length-3}</span>`:''}</div>`;
+            })()}
+            ${a.obs?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Obs</div>
+            <div style="font-size:10px;color:var(--text2);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical">${a.obs}</div>`
+            : a.descricao?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Descrição</div>
+            <div style="font-size:10px;color:var(--text2);line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical">${a.descricao}</div>`
+            :'<div style="font-size:10px;color:var(--text3);text-align:center;padding:8px 0">Sem informações</div>'}
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">📋 Ver detalhes</button>
           </div>
 
           <!-- XML -->
@@ -6912,11 +6929,12 @@ function calcFinanceiro() {
 
   // Breakdown
   document.getElementById('fin-res-promob').textContent = fmt(valorPromob);
-  document.getElementById('fin-lbl-desconto').textContent = '− Desconto fábrica ('+desconto+'%)';
-  document.getElementById('fin-res-desconto').textContent = desconto > 0 ? fmtNeg(descontoVal) : '—';
-  document.getElementById('fin-lbl-taxa').textContent = '+ Taxa ('+taxa+'%)';
-  document.getElementById('fin-res-taxa').textContent = taxa > 0 ? '+ $ '+taxaVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-  document.getElementById('fin-res-taxa').style.color = '#f0a500';
+  document.getElementById('fin-lbl-desconto').textContent = '+ Desconto fábrica ('+desconto+'%)';
+  document.getElementById('fin-res-desconto').textContent = desconto > 0 ? '+ $ '+descontoVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  document.getElementById('fin-res-desconto').style.color = 'var(--green)';
+  document.getElementById('fin-lbl-taxa').textContent = '− Taxa ('+taxa+'%)';
+  document.getElementById('fin-res-taxa').textContent = taxa > 0 ? fmtNeg(taxaVal) : '—';
+  document.getElementById('fin-res-taxa').style.color = 'var(--red)';
   document.getElementById('fin-res-custo').textContent = fmt(custoPromob);
   document.getElementById('fin-lbl-multiplicador').textContent = '× Multiplicador '+multiplicador;
   document.getElementById('fin-res-cliente').textContent = fmt(precoBase);
@@ -6948,8 +6966,8 @@ function calcFinanceiro() {
       const pbV = custoV * multiplicador;
       const dcV = pbV * (descontoClientePct/100);
       const pfCalc = pbV - dcV;
-      // Se modo manual, distribui proporcionalmente
-      const pfV = manualInput > 0 ? manualInput * proporcao : pfCalc;
+      // Prioridade: 1) valor manual do ambiente, 2) modo manual do modal distribuído, 3) calculado
+      const pfV = a.finValorManual > 0 ? a.finValorManual : (manualInput > 0 ? manualInput * proporcao : pfCalc);
       const comV = comissaoTipo==='percent' ? pfV*(comissaoVal/100) : comissaoVal*proporcao;
       const comExtV = comissaoExtTipo==='percent' ? pfV*(comissaoExtVal/100) : comissaoExtVal*proporcao;
       const montV = pfV*(montagemPct/100);
@@ -6962,7 +6980,7 @@ function calcFinanceiro() {
       const barC = mgPctV>=40?'#b090e0':mgPctV>=30?'var(--green)':mgPctV>=15?'var(--amber)':'var(--red)';
       return `<div style="padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.05)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-size:12px;color:var(--text2);font-weight:500">${a.nome||a.tipo}</span>
+          <span style="font-size:12px;color:var(--text2);font-weight:500">${a.nome||a.tipo}${a.finValorManual>0?' <span style="font-size:9px;color:var(--amber)">✎</span>':''}</span>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:13px;font-weight:700;font-family:DM Mono,monospace;color:var(--gold)">$ ${pfV.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
             <span style="font-size:10px;padding:2px 6px;border-radius:99px;background:${mgPctV>=30?'rgba(92,184,130,0.12)':'rgba(255,80,80,0.1)'};color:${cV};font-weight:700">${mgPctV.toFixed(1)}%</span>
@@ -8862,8 +8880,8 @@ checkSession();
         </div>
         <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2)">
           <div style="display:flex;justify-content:space-between"><span>Tabela Promob</span><span id="fin-res-promob" style="color:var(--text)">—</span></div>
-          <div style="display:flex;justify-content:space-between"><span id="fin-lbl-desconto">− Desconto fábrica</span><span id="fin-res-desconto" style="color:var(--red)">—</span></div>
-          <div style="display:flex;justify-content:space-between"><span id="fin-lbl-taxa">+ Taxa</span><span id="fin-res-taxa" style="color:#f0a500">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span id="fin-lbl-desconto">+ Desconto fábrica</span><span id="fin-res-desconto" style="color:var(--green)">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span id="fin-lbl-taxa">− Taxa</span><span id="fin-res-taxa" style="color:var(--red)">—</span></div>
           <div style="display:flex;justify-content:space-between;color:var(--text3)"><span>Custo Promob</span><span id="fin-res-custo">—</span></div>
           <div style="display:flex;justify-content:space-between;color:var(--text3)"><span id="fin-lbl-multiplicador">× Multiplicador</span><span id="fin-res-cliente">—</span></div>
           <div style="display:flex;justify-content:space-between"><span id="fin-lbl-desc-cliente">− Desconto cliente</span><span id="fin-res-desconto-cliente" style="color:var(--red)">—</span></div>
