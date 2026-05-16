@@ -3448,13 +3448,13 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
     const xmlD = a.xmlDados || {};
     const cores = [...new Set([...(xmlD.coresPaineis||a.coresPaineis||[]),...(xmlD.coresFrontais||a.coresFrontais||[]),...(xmlD.coresBox||a.coresBox||[])])].filter(Boolean);
     const xmlVal = xmlD.valorTotal ? fmtV(xmlD.valorTotalNum||0) : '';
-    const imagens = (a.imagens||[]).slice(0,4);
-    const gridCols = imagens.length >= 3 ? 3 : imagens.length || 1;
+    const imagens = (a.imagens||[]);
     const fotosHtml = imagens.length ? `
-      <tr><td colspan="3" style="padding:0 12px 12px">
-        <div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:6px">
-          ${imagens.map(img=>`<img src="${img.url||img.data||img}" style="width:100%;height:110px;object-fit:cover;border-radius:4px;display:block" onerror="this.style.display='none'">`).join('')}
-        </div>
+      <tr><td colspan="3" style="padding:0 12px 16px">
+        ${imagens.map((img,i)=>`
+          <div style="margin-bottom:8px;border-radius:6px;overflow:hidden;border:1px solid #e8e0d0">
+            <img src="${img.url||img.data||img}" style="width:100%;max-height:420px;object-fit:contain;display:block;background:#f8f6f1" onerror="this.style.display='none'">
+          </div>`).join('')}
       </td></tr>` : '';
     const coresHtml = cores.length ? `
       <tr><td colspan="3" style="padding:0 12px 14px">
@@ -4005,6 +4005,8 @@ async function pushProjeto(p) {
     fin_desconto_cliente: p.finDescontoCliente||0,
     prazos: JSON.stringify(p.prazos||{}),
     dias_instalacao: p.diasInstalacao||7,
+    proposta_travada: p.propostaTravada||false,
+    proposta_travada_por: p.propostaTravadaPor||'',
   };
   // Extra columns — only sent if column exists in Supabase
   // Run the SQL below to enable them, then they'll save automatically
@@ -4018,6 +4020,7 @@ async function pushProjeto(p) {
     contrato_data: p.contratoData||'',
     contrato_assinado_em: p.contratoAssinadoEm||null,
     desconto_projeto: p.descontoProjeto||0,
+    data_envio_producao: p.dataEnvioProducao||'',
   };
   try {
     await sbFetch('projetos?on_conflict=id', 'POST', [{..._base,..._extras}], 'resolution=merge-duplicates');
@@ -4153,7 +4156,8 @@ function mapProjeto(p) {
     condicaoPrecoFinal: p.condicao_preco_final||0,
     pdfProposta: (p.proposta_html||p.proposta_data) ? 'local:'+p.id : '',
     pdfPropostaData: p.proposta_data||'',
-    temPropostaNobanco: !!(p.proposta_html||p.proposta_data)
+    temPropostaNobanco: !!(p.proposta_html||p.proposta_data),
+    dataEnvioProducao: p.data_envio_producao||''
   };
 }
 function mapTarefa(t) {
@@ -4583,21 +4587,26 @@ function renderProjetos(filter='') {
       // ── Botões da barra inferior ──
       const todos2 = ambientes;
       const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
-      const btnProposta = p.propostaAceita
-        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${isAdmin()?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'}" title="${isAdmin()?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${isAdmin()?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
-        : proposalPronta
-          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
-          : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
+      const emProducao = p.status === 'producao';
+      const btnProposta = emProducao
+        ? `<button class="btn" style="flex:1;border-color:var(--blue);color:var(--blue);opacity:0.6;cursor:not-allowed" disabled>🏭 Em produção</button>`
+        : p.propostaAceita
+          ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${isAdmin()?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'  }" title="${isAdmin()?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${isAdmin()?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
+          : proposalPronta
+            ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
+            : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
       const btnContrato = p.contratoAprovado
         ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green)" onclick="event.stopPropagation();abrirContrato('${p.id}')">✓ Ver contrato</button>`
         : p.propostaAceita
           ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();abrirContrato('${p.id}')">📋 Gerar contrato</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📋 Gerar contrato</button>`;
-      const podeEnviar = p.contratoAprovado;
+      const podeEnviar = p.contratoAprovado && !emProducao;
       const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : 'Aprove o contrato primeiro';
-      const btnProd = podeEnviar
-        ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção</button>`
-        : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" title="${motivoEnvio}" disabled>🏭 Enviar pra produção</button>`;
+      const btnProd = emProducao
+        ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue);opacity:0.5;cursor:not-allowed" disabled>✓ Enviado pra produção</button>`
+        : podeEnviar
+          ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção</button>`
+          : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" title="${motivoEnvio}" disabled>🏭 Enviar pra produção</button>`;
 
       // ── Venda badge no header ──
       const vendaBadge = p.finPrecoFinal ? (()=>{
