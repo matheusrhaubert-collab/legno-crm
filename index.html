@@ -298,12 +298,50 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .filtro-rapido{border-color:var(--border2);color:var(--text2)}
 .filtro-rapido.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold2)}
 
+/* ── MOBILE APP ── */
+#mobile-app{display:none;position:fixed;inset:0;background:var(--bg);z-index:500;flex-direction:column;overflow:hidden}
+.mob-header{padding:calc(var(--safe-top) + 16px) 20px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--bg2);flex-shrink:0}
+.mob-header-title{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold2);flex:1}
+.mob-back{width:36px;height:36px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text2);flex-shrink:0}
+.mob-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 16px}
+.mob-home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mob-btn{background:var(--bg2);border:0.5px solid var(--border2);border-radius:16px;padding:22px 16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;cursor:pointer;transition:all 0.15s;width:100%;text-align:left;position:relative}
+.mob-btn:active{background:var(--bg3);transform:scale(0.97)}
+.mob-btn-icon{font-size:26px;line-height:1}
+.mob-btn-label{font-size:15px;font-weight:600;color:var(--text)}
+.mob-btn-sub{font-size:11px;color:var(--text3)}
+.mob-btn-badge{position:absolute;top:12px;right:12px;background:var(--gold);color:#0d0d0d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;min-width:18px;text-align:center}
+.mob-section{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px;font-weight:500}
+.mob-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;cursor:pointer}
+.mob-card:active{background:var(--bg3)}
+.mob-card-name{font-size:16px;font-weight:600;color:var(--text)}
+.mob-card-sub{font-size:12px;color:var(--text3);margin-top:3px}
+.mob-card-meta{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.mob-tag{font-size:11px;padding:3px 10px;border-radius:99px;background:var(--bg3);border:0.5px solid var(--border);color:var(--text2)}
+.mob-fab{position:fixed;bottom:calc(20px + var(--safe-bottom));right:16px;width:52px;height:52px;border-radius:50%;background:var(--gold);color:#0d0d0d;font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(201,169,110,0.35);border:none;z-index:600;font-weight:700}
+.mob-user-bar{padding:10px 16px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-shrink:0;padding-bottom:calc(10px + var(--safe-bottom))}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
+
+<!-- ══ MOBILE APP ══ -->
+<div id="mobile-app">
+  <div class="mob-header">
+    <button class="mob-back" id="mob-back-btn" onclick="mobGoHome()" style="display:none">←</button>
+    <div class="mob-header-title" id="mob-title">Studio Legno</div>
+    <div class="user-avatar" id="mob-avatar" style="width:32px;height:32px;font-size:13px;flex-shrink:0">?</div>
+  </div>
+  <div class="mob-content" id="mob-content"></div>
+  <div class="mob-user-bar" id="mob-user-bar">
+    <div class="user-avatar" style="width:28px;height:28px;font-size:11px" id="mob-user-avatar2">?</div>
+    <span style="font-size:13px;color:var(--text2)" id="mob-user-name2">—</span>
+    <button onclick="fazerLogout()" style="margin-left:auto;background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:6px 10px">Sair ⏻</button>
+  </div>
+</div>
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">STUDIO LEGNO</div>
@@ -2286,7 +2324,7 @@ async function fazerLogin() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('user-avatar').textContent = usuarioAtual.nome[0].toUpperCase();
       document.getElementById('user-name-badge').textContent = usuarioAtual.nome;
-      init();
+      init().then(() => { if (isMobile()) initMobile(); });
     } else {
       document.getElementById('login-err').textContent = 'Usuário ou senha incorretos.';
       document.getElementById('login-err').style.display = 'block';
@@ -3903,10 +3941,11 @@ function init() {
   renderAmbienteEditor();
   updateClienteSelect();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
-  // Load from Supabase (replaces Google Sheets sync)
-  loadFromSupabase();
-  // Auto-sync every 2 minutes
-  setInterval(loadFromSupabase, 60000);
+  // Load from Supabase and update mobile UI after data loads
+  const p = loadFromSupabase().then(() => { if (isMobile()) mobGoHome(); });
+  // Auto-sync every 60 seconds
+  setInterval(() => loadFromSupabase().then(() => { if (isMobile() && mobCurrentPage==='home') mobGoHome(); }), 60000);
+  return p;
 }
 
 function checkSession() {
@@ -3925,7 +3964,7 @@ function checkSession() {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('user-avatar').textContent = usuarioAtual.nome[0].toUpperCase();
       document.getElementById('user-name-badge').textContent = usuarioAtual.nome;
-      init();
+      init().then(() => { if (isMobile()) initMobile(); });
     } catch(e) { localStorage.removeItem('studioUser'); }
   }
 }
@@ -9002,6 +9041,364 @@ async function deletarLead(id, nome) {
     toast('Erro ao deletar: ' + e.message);
   }
 }
+// ══════════════════════════════════════════
+// MOBILE APP
+// ══════════════════════════════════════════
+const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+let mobCurrentPage = 'home';
+
+function initMobile() {
+  const app = document.getElementById('mobile-app');
+  if (!app) return;
+  app.style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  // Update user info
+  const nome = usuarioAtual?.nome || '?';
+  const av = document.getElementById('mob-avatar');
+  const av2 = document.getElementById('mob-user-avatar2');
+  const nm2 = document.getElementById('mob-user-name2');
+  if (av) av.textContent = nome[0].toUpperCase();
+  if (av2) av2.textContent = nome[0].toUpperCase();
+  if (nm2) nm2.textContent = nome;
+  mobGoHome();
+}
+
+function mobGoHome() {
+  mobCurrentPage = 'home';
+  document.getElementById('mob-title').textContent = 'Studio Legno';
+  document.getElementById('mob-back-btn').style.display = 'none';
+  document.getElementById('mob-user-bar').style.display = 'flex';
+
+  const leads = DB.leads.length;
+  const projetos = DB.projetos.filter(p=>p.status!=='producao'&&p.status!=='concluido').length;
+  const producao = (DB.producao||[]).length;
+  const tarefasHoje = (DB.tarefas||[]).filter(t=>!t.concluida && t.data===new Date().toISOString().slice(0,10)).length;
+  const entregas = (DB.entregas||[]).filter(e=>!e.concluida).length;
+
+  document.getElementById('mob-content').innerHTML = `
+    <div style="margin-bottom:6px">
+      <div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--text3);margin-bottom:18px">
+        ${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}
+      </div>
+      <div class="mob-home-grid">
+        <button class="mob-btn" onclick="mobGoPage('clientes')">
+          <span class="mob-btn-icon">◎</span>
+          <span class="mob-btn-label">Clientes</span>
+          <span class="mob-btn-sub">Leads e contatos</span>
+          ${leads?`<span class="mob-btn-badge">${leads}</span>`:''}
+        </button>
+        <button class="mob-btn" onclick="mobGoPage('projetos')">
+          <span class="mob-btn-icon">◈</span>
+          <span class="mob-btn-label">Projetos</span>
+          <span class="mob-btn-sub">Em andamento</span>
+          ${projetos?`<span class="mob-btn-badge">${projetos}</span>`:''}
+        </button>
+        <button class="mob-btn" onclick="mobGoPage('agenda')">
+          <span class="mob-btn-icon">📅</span>
+          <span class="mob-btn-label">Agenda</span>
+          <span class="mob-btn-sub">Tarefas</span>
+          ${tarefasHoje?`<span class="mob-btn-badge" style="background:var(--red)">${tarefasHoje}</span>`:''}
+        </button>
+        <button class="mob-btn" onclick="mobGoPage('producao')">
+          <span class="mob-btn-icon">🏭</span>
+          <span class="mob-btn-label">Produção</span>
+          <span class="mob-btn-sub">Fábrica</span>
+          ${producao?`<span class="mob-btn-badge">${producao}</span>`:''}
+        </button>
+        <button class="mob-btn" onclick="mobGoPage('entrega')">
+          <span class="mob-btn-icon">🚚</span>
+          <span class="mob-btn-label">Entregas</span>
+          <span class="mob-btn-sub">Agendadas</span>
+          ${entregas?`<span class="mob-btn-badge">${entregas}</span>`:''}
+        </button>
+        <button class="mob-btn" onclick="mobGoPage('imagens')">
+          <span class="mob-btn-icon">📷</span>
+          <span class="mob-btn-label">Imagens</span>
+          <span class="mob-btn-sub">Upload por ambiente</span>
+        </button>
+      </div>
+    </div>`;
+}
+
+function mobGoPage(page) {
+  mobCurrentPage = page;
+  document.getElementById('mob-back-btn').style.display = 'flex';
+  document.getElementById('mob-user-bar').style.display = 'none';
+
+  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', imagens:'Imagens'};
+  document.getElementById('mob-title').textContent = titles[page] || page;
+
+  const content = document.getElementById('mob-content');
+  content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)"><div style="font-size:24px;margin-bottom:8px">⏳</div>Carregando...</div>';
+
+  if (page === 'clientes') mobRenderClientes(content);
+  if (page === 'projetos') mobRenderProjetos(content);
+  if (page === 'agenda') mobRenderAgenda(content);
+  if (page === 'producao') mobRenderProducao(content);
+  if (page === 'entrega') mobRenderEntrega(content);
+  if (page === 'imagens') mobRenderImagens(content);
+}
+
+// ── CLIENTES ──
+function mobRenderClientes(el) {
+  const leads = DB.leads.filter(l=>l.status!=='desqualificado');
+  el.innerHTML = `
+    <div style="margin-bottom:14px">
+      <input class="form-input" placeholder="🔍 Buscar cliente..." oninput="mobFiltrarClientes(this.value)" style="height:42px">
+    </div>
+    <div id="mob-lista-clientes">
+      ${leads.map(l => `
+        <div class="mob-card" onclick="mobAbrirCliente('${l.id}')">
+          <div class="mob-card-name">${l.nome}</div>
+          <div class="mob-card-sub">${l.tipo} · ${l.origem}</div>
+          <div class="mob-card-meta">
+            <span class="mob-tag">${l.status==='aguardando'?'🔵 Novo':l.status==='briefing'?'🟡 Briefing':'📋 '+l.status}</span>
+            ${l.tel?`<span class="mob-tag">📱 ${l.tel}</span>`:''}
+          </div>
+        </div>`).join('')}
+      ${!leads.length?'<div style="text-align:center;padding:40px;color:var(--text3)">Nenhum cliente</div>':''}
+    </div>
+    <button class="mob-fab" onclick="openModal('novoLead')">＋</button>`;
+}
+
+function mobFiltrarClientes(q) {
+  const f = q.toLowerCase();
+  const leads = DB.leads.filter(l=>l.status!=='desqualificado' && (!f || l.nome.toLowerCase().includes(f) || (l.tel||'').includes(f)));
+  document.getElementById('mob-lista-clientes').innerHTML = leads.map(l => `
+    <div class="mob-card" onclick="mobAbrirCliente('${l.id}')">
+      <div class="mob-card-name">${l.nome}</div>
+      <div class="mob-card-sub">${l.tipo} · ${l.origem}</div>
+      <div class="mob-card-meta">
+        <span class="mob-tag">${l.status==='aguardando'?'🔵 Novo':l.status==='briefing'?'🟡 Briefing':'📋 '+l.status}</span>
+        ${l.tel?`<span class="mob-tag">📱 ${l.tel}</span>`:''}
+      </div>
+    </div>`).join('') || '<div style="text-align:center;padding:24px;color:var(--text3)">Nenhum resultado</div>';
+}
+
+function mobAbrirCliente(id) {
+  const l = DB.leads.find(x=>x.id===id);
+  if (!l) return;
+  const proj = DB.projetos.find(p=>p.leadId===id);
+  document.getElementById('mob-content').innerHTML = `
+    <div style="margin-bottom:16px">
+      <button onclick="mobGoPage('clientes')" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Voltar</button>
+      <div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">${l.nome}</div>
+      <div style="font-size:13px;color:var(--text3)">${l.tipo} · ${l.origem}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${l.tel?`<a href="tel:${l.tel}" class="mob-btn" style="text-decoration:none;align-items:center;flex-direction:row;gap:12px;min-height:auto;padding:16px">
+        <span style="font-size:20px">📱</span>
+        <div><div class="mob-btn-label" style="font-size:14px">${l.tel}</div><div class="mob-btn-sub">Ligar</div></div>
+      </a>`:''}
+      ${l.tel?`<a href="https://wa.me/${l.tel.replace(/\D/g,'')}" target="_blank" class="mob-btn" style="text-decoration:none;align-items:center;flex-direction:row;gap:12px;min-height:auto;padding:16px;border-color:rgba(37,211,102,0.4)">
+        <span style="font-size:20px">💬</span>
+        <div><div class="mob-btn-label" style="font-size:14px">WhatsApp</div><div class="mob-btn-sub">Abrir conversa</div></div>
+      </a>`:''}
+      <button class="mob-btn" onclick="abrirBriefing('${l.id}')" style="align-items:center;flex-direction:row;gap:12px;min-height:auto;padding:16px">
+        <span style="font-size:20px">📋</span>
+        <div><div class="mob-btn-label" style="font-size:14px">Briefing</div><div class="mob-btn-sub">${(l.ambientesBriefing||[]).length} ambiente(s)</div></div>
+      </button>
+      ${proj?`<button class="mob-btn" onclick="mobGoPage('imagens')" style="align-items:center;flex-direction:row;gap:12px;min-height:auto;padding:16px">
+        <span style="font-size:20px">📷</span>
+        <div><div class="mob-btn-label" style="font-size:14px">Fotos</div><div class="mob-btn-sub">Upload de imagens</div></div>
+      </button>`:''}
+    </div>
+    ${l.obs?`<div style="margin-top:16px;padding:14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:13px;color:var(--text2);line-height:1.6">${l.obs}</div>`:''}`;
+}
+
+// ── PROJETOS ──
+function mobRenderProjetos(el) {
+  const items = DB.projetos.filter(p=>p.status!=='producao'&&p.status!=='concluido');
+  el.innerHTML = `
+    ${items.map(p => {
+      const lead = DB.leads.find(l=>l.id===p.leadId);
+      const ambs = lead?.ambientesBriefing||[];
+      const pz = p.prazos||{};
+      return `<div class="mob-card">
+        <div class="mob-card-name">${p.nome}</div>
+        <div class="mob-card-sub">${p.tipo||''} · ${ambs.length} ambiente(s)</div>
+        <div class="mob-card-meta">
+          ${pz.entrega?`<span class="mob-tag">📅 Entrega: ${formatDate(pz.entrega)}</span>`:''}
+          ${lead?.responsavel?`<span class="mob-tag">👤 ${lead.responsavel}</span>`:''}
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="abrirBriefing('${p.leadId}')">📋 Briefing</button>
+          <button class="btn btn-sm" onclick="mobGoPage('imagens')">📷 Fotos</button>
+        </div>
+      </div>`;
+    }).join('')}
+    ${!items.length?'<div style="text-align:center;padding:40px;color:var(--text3)">Nenhum projeto ativo</div>':''}`;
+}
+
+// ── AGENDA ──
+function mobRenderAgenda(el) {
+  const hoje = new Date().toISOString().slice(0,10);
+  const tarefas = (DB.tarefas||[]).filter(t=>!t.concluida).sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  const atrasadas = tarefas.filter(t=>t.data && t.data < hoje);
+  const deHoje = tarefas.filter(t=>t.data===hoje);
+  const proximas = tarefas.filter(t=>t.data > hoje);
+
+  const renderT = (t) => `
+    <div class="mob-card" style="${t.data<hoje?'border-color:var(--red)':t.data===hoje?'border-color:var(--gold)':''}">
+      <div class="mob-card-name" style="font-size:14px">${t.titulo}</div>
+      <div class="mob-card-meta">
+        ${t.data?`<span class="mob-tag">${t.data<hoje?'⚠ ':t.data===hoje?'📅 Hoje':'📅 '}${formatDate(t.data)}</span>`:''}
+        ${t.responsavel?`<span class="mob-tag">👤 ${t.responsavel}</span>`:''}
+        <span class="mob-tag" style="color:${t.prioridade==='Alta'?'var(--red)':t.prioridade==='Média'?'var(--amber)':'var(--text3)'}">${t.prioridade||'—'}</span>
+      </div>
+      <button class="btn btn-sm" style="margin-top:10px;color:var(--green)" onclick="abrirConcluirTarefa('${t.id}')">✓ Concluir</button>
+    </div>`;
+
+  el.innerHTML = `
+    ${atrasadas.length?`<div class="mob-section" style="color:var(--red)">⚠ Atrasadas (${atrasadas.length})</div>${atrasadas.map(renderT).join('')}`:''}
+    ${deHoje.length?`<div class="mob-section" style="color:var(--gold)">📅 Hoje (${deHoje.length})</div>${deHoje.map(renderT).join('')}`:''}
+    ${proximas.length?`<div class="mob-section">Próximas</div>${proximas.slice(0,10).map(renderT).join('')}`:''}
+    ${!tarefas.length?'<div style="text-align:center;padding:40px;color:var(--text3)">✓ Nenhuma tarefa pendente</div>':''}
+    <button class="mob-fab" onclick="openModal('novaTarefa')">＋</button>`;
+}
+
+// ── PRODUCAO ──
+function mobRenderProducao(el) {
+  const items = DB.producao||[];
+  el.innerHTML = `
+    ${items.map(p => {
+      const q = p.quadros||{};
+      const etapas = [!!q.xmlEnviado?.confirmedAt, !!q.recebidoFabrica?.confirmedAt, !!q.invoice?.confirmedAt, !!q.comprasEspeciais?.confirmedAt, !!q.saidaFabrica?.confirmedAt];
+      const ok = etapas.filter(Boolean).length;
+      const proj = DB.projetos.find(x=>x.id===p.projetoId);
+      const dataEntrega = p.dataEntrega || proj?.prazos?.entrega || '';
+      return `<div class="mob-card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div>
+            <div class="mob-card-name">${p.clienteNome}</div>
+            <div class="mob-card-sub">${p.ambientes?.length||0} ambiente(s)</div>
+          </div>
+          ${dataEntrega?`<div style="text-align:right;flex-shrink:0">
+            <div style="font-size:10px;color:var(--text3)">Entrega</div>
+            <div style="font-size:14px;font-weight:700;color:var(--gold2)">${formatDate(dataEntrega)}</div>
+          </div>`:''}
+        </div>
+        <!-- Mini progresso -->
+        <div style="margin-top:12px;display:flex;gap:4px">
+          ${['XML','Fáb.','Inv.','Comp.','Saída'].map((l,i)=>`
+            <div style="flex:1;text-align:center;padding:4px 2px;border-radius:6px;font-size:9px;background:${etapas[i]?'rgba(92,184,130,0.15)':'var(--bg3)'};color:${etapas[i]?'var(--green)':'var(--text3)'};border:0.5px solid ${etapas[i]?'rgba(92,184,130,0.3)':'var(--border)'}">
+              ${etapas[i]?'✓':''} ${l}
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3)">${ok}/5 etapas · ${Math.round(ok/5*100)}%</div>
+      </div>`;
+    }).join('')}
+    ${!items.length?'<div style="text-align:center;padding:40px;color:var(--text3)">Nenhum projeto em produção</div>':''}`;
+}
+
+// ── ENTREGA ──
+function mobRenderEntrega(el) {
+  const hoje = new Date().toISOString().slice(0,10);
+  const items = (DB.entregas||[]).filter(e=>!e.concluida).sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  el.innerHTML = `
+    ${items.map(e => `
+      <div class="mob-card" style="${e.data<hoje?'border-color:var(--red)':e.data===hoje?'border-color:var(--gold)':''}">
+        <div class="mob-card-name">${e.cliente}</div>
+        <div class="mob-card-sub">${e.endereco||'Endereço não informado'}</div>
+        <div class="mob-card-meta">
+          ${e.data?`<span class="mob-tag">📅 ${formatDate(e.data)}${e.hora?' '+e.hora:''}</span>`:''}
+          ${e.responsavel?`<span class="mob-tag">👤 ${e.responsavel}</span>`:''}
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          ${e.endereco?`<a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e.endereco)}" target="_blank" class="btn btn-sm" style="color:var(--blue)">🗺 Rota</a>`:''}
+          <button class="btn btn-sm" style="color:var(--green)" onclick="concluirEntrega('${e.id}');mobGoPage('entrega')">✓ Concluir</button>
+        </div>
+      </div>`).join('')}
+    ${!items.length?'<div style="text-align:center;padding:40px;color:var(--text3)">✓ Nenhuma entrega pendente</div>':''}
+    <button class="mob-fab" onclick="openModal('novaEntrega')">＋</button>`;
+}
+
+// ── IMAGENS ──
+function mobRenderImagens(el) {
+  const projetos = DB.projetos.filter(p=>p.status!=='concluido');
+  el.innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Selecione o projeto e ambiente:</div>
+      <select class="form-input" id="mob-img-proj" onchange="mobUpdateAmbientes()" style="margin-bottom:10px">
+        <option value="">Projeto...</option>
+        ${projetos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('')}
+      </select>
+      <select class="form-input" id="mob-img-amb" style="margin-bottom:16px">
+        <option value="">Ambiente...</option>
+      </select>
+      <button class="btn btn-primary" style="width:100%;height:50px;font-size:15px;justify-content:center" onclick="mobTriggerUpload()">
+        📷 Selecionar fotos
+      </button>
+      <input type="file" id="mob-file-input" accept="image/*" multiple style="display:none" onchange="mobHandleUpload(this)">
+    </div>
+    <div id="mob-upload-status"></div>`;
+}
+
+function mobUpdateAmbientes() {
+  const projId = document.getElementById('mob-img-proj').value;
+  const proj = DB.projetos.find(p=>p.id===projId);
+  const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+  const ambs = lead?.ambientesBriefing || proj?.ambientes?.map(n=>({nome:n})) || [];
+  const sel = document.getElementById('mob-img-amb');
+  sel.innerHTML = '<option value="">Ambiente...</option>' +
+    ambs.map(a=>`<option value="${a.nome||a.tipo}">${a.nome||a.tipo}</option>`).join('');
+}
+
+function mobTriggerUpload() {
+  const projId = document.getElementById('mob-img-proj')?.value;
+  const ambNome = document.getElementById('mob-img-amb')?.value;
+  if (!projId) { toast('Selecione um projeto'); return; }
+  if (!ambNome) { toast('Selecione um ambiente'); return; }
+  document.getElementById('mob-file-input').click();
+}
+
+async function mobHandleUpload(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const projId = document.getElementById('mob-img-proj').value;
+  const ambNome = document.getElementById('mob-img-amb').value;
+  const proj = DB.projetos.find(p=>p.id===projId);
+  const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+  if (!lead) { toast('Projeto não encontrado'); return; }
+
+  const statusEl = document.getElementById('mob-upload-status');
+  statusEl.innerHTML = `<div style="padding:16px;text-align:center;color:var(--gold)">⏳ Enviando ${files.length} foto(s)...</div>`;
+
+  _ambProjetoId = projId;
+  _ambNome = ambNome;
+  const ambObj = getAmbObj(projId, ambNome) || {};
+  _ambObj = ambObj;
+  if (lead.ambientesBriefing) {
+    _ambIdx = lead.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===ambNome);
+  }
+
+  let enviadas = 0;
+  for (const f of files) {
+    try {
+      const {url, path} = await uploadImagemSupabase(f, lead.nome, ambNome);
+      if (!_ambObj.imagens) _ambObj.imagens = [];
+      _ambObj.imagens.push({nome:f.name, url, path, data:url});
+      enviadas++;
+      statusEl.innerHTML = `<div style="padding:16px;text-align:center;color:var(--gold)">⏳ ${enviadas}/${files.length} enviada(s)...</div>`;
+    } catch(e) {
+      toast('Erro: ' + e.message);
+    }
+  }
+
+  if (_ambIdx >= 0 && lead.ambientesBriefing) {
+    lead.ambientesBriefing[_ambIdx] = {...lead.ambientesBriefing[_ambIdx], ..._ambObj};
+    try {
+      await pushLead(lead);
+      statusEl.innerHTML = `<div style="padding:16px;text-align:center;color:var(--green)">✓ ${enviadas} foto(s) salva(s) com sucesso!</div>`;
+      toast(`✓ ${enviadas} foto(s) enviada(s)!`);
+    } catch(e) {
+      statusEl.innerHTML = `<div style="padding:16px;text-align:center;color:var(--red)">Erro ao salvar: ${e.message}</div>`;
+    }
+  }
+  input.value = '';
+}
+
 checkSession();
 </script>
 
