@@ -4074,7 +4074,8 @@ async function pushProducao(p) {
     responsavel_fabricacao: p.responsavelFabricacao||'',
     responsavel_entrega: p.responsavelEntrega||'',
     responsavel_instalacao: p.responsavelInstalacao||'',
-    ambientes: p.ambientes||[], obs: p.obs||''
+    ambientes: p.ambientes||[], obs: p.obs||'',
+    quadros: p.quadros||{}
   }], 'resolution=merge-duplicates');
 }
 
@@ -4201,7 +4202,8 @@ function mapProducao(p) {
     responsavelFabricacao: p.responsavel_fabricacao||'',
     responsavelEntrega: p.responsavel_entrega||'',
     responsavelInstalacao: p.responsavel_instalacao||'',
-    ambientes: p.ambientes||[], obs: p.obs||''
+    ambientes: p.ambientes||[], obs: p.obs||'',
+    quadros: p.quadros||{}
   };
 }
 
@@ -8090,6 +8092,15 @@ function renderProducao(filter='') {
   el.innerHTML = items.map(prod => renderCardProducao(prod)).join('');
 }
 
+function _selectUsuarios(prodId, quadro, campo, valorAtual) {
+  const users = (DB.usuarios||[]).map(u=>u.nome).filter(Boolean);
+  const opts = ['', ...users].map(n =>
+    `<option value="${n}" ${n===valorAtual?'selected':''}>${n||'Selecionar...'}</option>`
+  ).join('');
+  return `<select class="form-input" style="height:30px;font-size:12px;padding:4px 8px"
+    onchange="_setProdQ('${prodId}','${quadro}','${campo}',this.value)">${opts}</select>`;
+}
+
 function renderCardProducao(p) {
   const proj = DB.projetos.find(x => x.id === p.projetoId);
   const lead = proj ? DB.leads.find(l => l.id === proj.leadId) : null;
@@ -8111,15 +8122,15 @@ function renderCardProducao(p) {
   const q = p.quadros || {};
 
   // Quadro 1 — XML enviado
-  const q1ok = !!q.xmlEnviado;
+  const q1ok = !!q.xmlEnviado?.confirmedAt;
   // Quadro 2 — Recebido fábrica
-  const q2ok = !!q.recebidoFabrica;
+  const q2ok = !!q.recebidoFabrica?.confirmedAt;
   // Quadro 3 — Invoice
-  const q3ok = !!(q.invoice?.url || q.invoice?.texto);
+  const q3ok = !!q.invoice?.confirmedAt;
   // Quadro 4 — Compras especiais
-  const q4ok = !!q.comprasEspeciais;
+  const q4ok = !!q.comprasEspeciais?.confirmedAt;
   // Quadro 5 — Saída fábrica
-  const q5ok = !!q.saidaFabrica;
+  const q5ok = !!q.saidaFabrica?.confirmedAt;
 
   const etapas5 = [q1ok, q2ok, q3ok, q4ok, q5ok];
   const etapasConcluidas = etapas5.filter(Boolean).length;
@@ -8188,8 +8199,7 @@ function renderCardProducao(p) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
-            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.xmlEnviado?.responsavel||''}"
-              oninput="_setProdQ('${p.id}','xmlEnviado','responsavel',this.value)">
+            ${_selectUsuarios(p.id,'xmlEnviado','responsavel',q.xmlEnviado?.responsavel||'')}
           </div>
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data envio XML</div>
@@ -8221,8 +8231,7 @@ function renderCardProducao(p) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
-            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.recebidoFabrica?.responsavel||''}"
-              oninput="_setProdQ('${p.id}','recebidoFabrica','responsavel',this.value)">
+            ${_selectUsuarios(p.id,'recebidoFabrica','responsavel',q.recebidoFabrica?.responsavel||'')}
           </div>
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data recebimento</div>
@@ -8262,8 +8271,7 @@ function renderCardProducao(p) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
-            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.invoice?.responsavel||''}"
-              oninput="_setProdQ('${p.id}','invoice','responsavel',this.value)">
+            ${_selectUsuarios(p.id,'invoice','responsavel',q.invoice?.responsavel||'')}
           </div>
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Valor da invoice ($)</div>
@@ -8301,8 +8309,7 @@ function renderCardProducao(p) {
         </div>
         <div style="margin-bottom:8px">
           <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
-          <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.comprasEspeciais?.responsavel||''}"
-            oninput="_setProdQ('${p.id}','comprasEspeciais','responsavel',this.value)">
+          ${_selectUsuarios(p.id,'comprasEspeciais','responsavel',q.comprasEspeciais?.responsavel||'')}
         </div>
         <div style="margin-bottom:8px">
           <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Descrição das compras</div>
@@ -8334,8 +8341,7 @@ function renderCardProducao(p) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
-            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.saidaFabrica?.responsavel||''}"
-              oninput="_setProdQ('${p.id}','saidaFabrica','responsavel',this.value)">
+            ${_selectUsuarios(p.id,'saidaFabrica','responsavel',q.saidaFabrica?.responsavel||'')}
           </div>
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data real de saída</div>
