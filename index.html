@@ -4444,11 +4444,17 @@ let filtroProj = ''; // '' = todos, 'projetando' = not producao, 'producao' = on
 
 function setFiltroProj(val) {
   filtroProj = val;
-  // Producao filter only makes sense in cliente view
-  if (val === 'producao' && projetosView !== 'cliente') {
-    setProjetosView('cliente');
-    return; // setProjetosView calls renderProjetos
-  }
+  // Always force cliente view (producao section only renders there)
+  projetosView = 'cliente';
+  ['cliente','ambiente'].forEach(v => {
+    const b = document.getElementById('btn-view-'+v);
+    if (!b) return;
+    b.style.background = v==='cliente' ? 'var(--gold-dim)' : '';
+    b.style.borderColor = v==='cliente' ? 'var(--gold)' : '';
+    b.style.color = v==='cliente' ? 'var(--gold2)' : '';
+    b.style.borderRadius = '99px';
+  });
+  // Update pill styles
   ['todos','projetando','producao'].forEach(k => {
     const el = document.getElementById('fpj-'+k);
     if (!el) return;
