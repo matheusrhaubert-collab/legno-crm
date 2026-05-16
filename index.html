@@ -8171,7 +8171,7 @@ function renderCardProducao(p) {
     </div>
 
     <!-- ── 5 QUADROS ── -->
-    <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
+    <div style="padding:0 14px 14px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:start">
 
       <!-- QUADRO 1: XML ENVIADO -->
       <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q1ok,false)}">
@@ -8997,20 +8997,6 @@ async function deletarLead(id, nome) {
   }
 }
 checkSession();
-
-// DEBUG ANDROID — remover depois
-(function(){
-  const dbg = document.createElement('div');
-  dbg.id = 'dbg-bar';
-  dbg.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a00;color:#ffff00;font-size:11px;padding:4px 8px;z-index:99999;font-family:monospace;display:none';
-  document.body.appendChild(dbg);
-  function log(msg){ dbg.style.display='block'; dbg.textContent = msg; }
-  document.addEventListener('touchstart', e => {
-    const t = e.target;
-    log('touch: '+t.tagName+' class='+t.className.slice(0,40));
-  }, {passive:true});
-  window._dbg = log;
-})();
 </script>
 
 <div class="overlay" id="modal-desqualificar" onclick="closeModalOutside(event,'desqualificar')">
