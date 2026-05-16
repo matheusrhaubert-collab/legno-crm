@@ -4857,6 +4857,11 @@ function renderProjetos(filter='') {
                   <div style="font-size:10px;color:var(--text3)">Valor de venda</div>
                   <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
                 </div>
+                ${valorPromobAmb>0?`
+                <div style="margin-bottom:6px">
+                  <div style="font-size:10px;color:var(--text3)">Tabela Promob</div>
+                  <div style="font-size:12px;font-weight:600;color:var(--gold);font-family:DM Mono,monospace">$ ${fmtA(valorPromobAmb)}</div>
+                </div>`:''}
                 <div style="display:flex;justify-content:space-between;align-items:center;padding-top:5px;border-top:0.5px solid rgba(255,255,255,0.06)">
                   <span style="font-size:11px;color:var(--text);font-weight:600">Margem</span>
                   <div style="display:flex;align-items:center;gap:4px">
