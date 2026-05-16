@@ -8050,6 +8050,10 @@ const ETAPAS_PROD = [
   {key:'instalado',  label:'Instalado',     color:'var(--text3)'},
 ];
 
+// ══════════════════════════════════════════
+// PRODUÇÃO — NOVO RENDERIZADOR (5 QUADROS)
+// ══════════════════════════════════════════
+
 function renderProducao(filter='') {
   const f = (filter||filterTexts.producao||'').toLowerCase();
   const items = (DB.producao||[]).filter(p => !f || p.clienteNome.toLowerCase().includes(f));
@@ -8059,67 +8063,338 @@ function renderProducao(filter='') {
     el.innerHTML = `<div class="empty"><span class="empty-icon">🏭</span><p>Nenhum projeto em produção ainda.<br>Aprove ambientes e envie para produção em Projetos.</p></div>`;
     return;
   }
-  el.innerHTML = items.map(p => {
-    const etapa = ETAPAS_PROD.find(e=>e.key===p.etapa) || ETAPAS_PROD[0];
-    const ambs = p.ambientes || [];
-    return `
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-header">
-        <div>
-          <div class="card-name">${p.clienteNome}</div>
-          <div class="card-sub">${p.tipo||''} · ${ambs.length} ambiente(s) aprovado(s)</div>
+  el.innerHTML = items.map(prod => renderCardProducao(prod)).join('');
+}
+
+function renderCardProducao(p) {
+  const proj = DB.projetos.find(x => x.id === p.projetoId);
+  const lead = proj ? DB.leads.find(l => l.id === proj.leadId) : null;
+  const prazos = proj?.prazos || {};
+  const ambs = p.ambientes || [];
+
+  // Datas vindas do projeto (prazos)
+  const dataEntrega  = p.dataEntrega  || prazos.entrega    || '';
+  const dataInstalacao = p.dataInstalacao || prazos.instalacao || '';
+  const dataFabricacao = prazos.producao || p.dataEnvio || '';
+
+  // Dias restantes para entrega
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const diasRestantes = dataEntrega ? Math.ceil((new Date(dataEntrega+'T00:00:00') - hoje) / 86400000) : null;
+  const diasCor = diasRestantes === null ? 'var(--text3)' : diasRestantes < 0 ? 'var(--red)' : diasRestantes <= 7 ? 'var(--amber)' : 'var(--green)';
+  const diasLabel = diasRestantes === null ? '—' : diasRestantes < 0 ? `${Math.abs(diasRestantes)}d atrasado` : diasRestantes === 0 ? 'Hoje!' : `${diasRestantes}d restantes`;
+
+  // Quadros
+  const q = p.quadros || {};
+
+  // Quadro 1 — XML enviado
+  const q1ok = !!q.xmlEnviado;
+  // Quadro 2 — Recebido fábrica
+  const q2ok = !!q.recebidoFabrica;
+  // Quadro 3 — Invoice
+  const q3ok = !!(q.invoice?.url || q.invoice?.texto);
+  // Quadro 4 — Compras especiais
+  const q4ok = !!q.comprasEspeciais;
+  // Quadro 5 — Saída fábrica
+  const q5ok = !!q.saidaFabrica;
+
+  const etapas5 = [q1ok, q2ok, q3ok, q4ok, q5ok];
+  const etapasConcluidas = etapas5.filter(Boolean).length;
+  const progPct = Math.round(etapasConcluidas / 5 * 100);
+
+  function quadroBg(ok, alertaAtivo) {
+    if (alertaAtivo) return 'background:#1a0f05;border-color:rgba(212,148,74,0.6)';
+    if (ok) return 'background:#0d1a10;border-color:rgba(92,184,130,0.4)';
+    return 'background:var(--bg3);border-color:var(--border)';
+  }
+
+  const q1alertaAtivo = false;
+  const q2alertaAtivo = !!(q.recebidoFabrica && q.recebidoFabrica.alerta);
+  const q4alertaAtivo = !!(q.comprasEspeciais && q.comprasEspeciais.alerta);
+
+  return `
+  <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:18px;overflow:hidden">
+
+    <!-- ── TOPO: Identificação + Prazo Destaque ── -->
+    <div style="padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:17px;font-weight:600;color:var(--text)">${p.clienteNome}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:3px">${p.tipo||''} · ${ambs.length} ambiente(s)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+          ${ambs.map(a=>`<span style="font-size:11px;padding:2px 9px;background:var(--bg4);border:0.5px solid var(--border);border-radius:99px;color:var(--text2)">${a.nome}</span>`).join('')}
         </div>
-        <span style="font-size:11px;padding:3px 10px;border-radius:99px;border:1px solid ${etapa.color};color:${etapa.color}">${etapa.label}</span>
       </div>
-      <!-- Etapas -->
-      <div style="display:flex;gap:4px;margin:10px 0;flex-wrap:wrap">
-        ${ETAPAS_PROD.map(e => `
-          <button onclick="event.stopPropagation();mudarEtapaProd('${p.id}','${e.key}')"
-            style="font-size:11px;padding:4px 10px;border-radius:99px;border:1px solid ${p.etapa===e.key?e.color:'var(--border)'};color:${p.etapa===e.key?e.color:'var(--text3)'};background:${p.etapa===e.key?'rgba(0,0,0,0.2)':'transparent'};cursor:pointer">
-            ${e.label}
-          </button>`).join('')}
+      <!-- PRAZO EM DESTAQUE -->
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">📅 Finalização da fabricação</div>
+        <div style="font-size:22px;font-weight:700;color:${diasCor};font-family:'DM Mono',monospace;line-height:1">${dataEntrega ? new Date(dataEntrega+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</div>
+        <div style="font-size:12px;color:${diasCor};margin-top:3px;font-weight:500">${diasLabel}</div>
+        ${dataInstalacao ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">🔧 Instalação: ${new Date(dataInstalacao+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>` : ''}
       </div>
-      <!-- Ambientes -->
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">
-        ${ambs.map(a=>`<span style="font-size:11px;padding:3px 10px;background:var(--bg3);border:0.5px solid var(--border);border-radius:99px">${a.nome}</span>`).join('')}
+    </div>
+
+    <!-- ── BARRA DE PROGRESSO ── -->
+    <div style="padding:12px 18px 0">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${progPct}%;background:${progPct===100?'var(--green)':progPct>=60?'var(--gold)':'var(--blue)'};border-radius:99px;transition:width 0.4s"></div>
+        </div>
+        <span style="font-size:11px;color:${progPct===100?'var(--green)':progPct>=60?'var(--gold)':'var(--text3)'};font-weight:600;white-space:nowrap">${progPct}% — ${etapasConcluidas}/5 etapas</span>
       </div>
-      <!-- Datas e responsáveis -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Entrega prevista</div>
-          <input type="date" class="form-input" style="height:30px;font-size:12px;padding:4px 8px"
-            value="${p.dataEntrega||''}" onchange="atualizarProd('${p.id}','dataEntrega',this.value)">
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Instalação prevista</div>
-          <input type="date" class="form-input" style="height:30px;font-size:12px;padding:4px 8px"
-            value="${p.dataInstalacao||''}" onchange="atualizarProd('${p.id}','dataInstalacao',this.value)">
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Resp. Fabricação</div>
-          <input type="text" class="form-input" style="height:30px;font-size:12px;padding:4px 8px"
-            value="${p.responsavelFabricacao||''}" placeholder="Nome..." onchange="atualizarProd('${p.id}','responsavelFabricacao',this.value)">
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Resp. Entrega</div>
-          <input type="text" class="form-input" style="height:30px;font-size:12px;padding:4px 8px"
-            value="${p.responsavelEntrega||''}" placeholder="Nome..." onchange="atualizarProd('${p.id}','responsavelEntrega',this.value)">
-        </div>
-        <div style="grid-column:1/-1">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Resp. Instalação</div>
-          <input type="text" class="form-input" style="height:30px;font-size:12px;padding:4px 8px"
-            value="${p.responsavelInstalacao||''}" placeholder="Nome..." onchange="atualizarProd('${p.id}','responsavelInstalacao',this.value)">
-        </div>
+      <div style="display:flex;gap:4px;margin-bottom:14px">
+        ${['XML','Fábrica','Invoice','Compras','Saída'].map((l,i)=>`
+          <div style="flex:1;text-align:center;font-size:9px;padding:3px 2px;border-radius:4px;background:${etapas5[i]?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.04)'};color:${etapas5[i]?'var(--green)':'var(--text3)'};border:0.5px solid ${etapas5[i]?'rgba(92,184,130,0.3)':'var(--border)'}">${etapas5[i]?'✓ ':''} ${l}</div>`).join('')}
       </div>
-      <div class="card-footer">
-        <div class="card-actions">
-          <button class="btn btn-sm" onclick="event.stopPropagation();abrirObsProd('${p.id}')">📝 Obs</button>
-          <button class="btn btn-sm" style="color:var(--red)" onclick="event.stopPropagation();if(confirm('Remover da produção?')){deleteProducao('${p.id}').then(()=>{DB.producao=DB.producao.filter(x=>x.id!=='${p.id}');renderAll();}).catch(e=>toast('Erro: '+e.message));}">✕</button>
+    </div>
+
+    <!-- ── 5 QUADROS ── -->
+    <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
+
+      <!-- QUADRO 1: XML ENVIADO -->
+      <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q1ok,false)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:15px">📄</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">1. XML Enviado</div>
+              <div style="font-size:10px;color:var(--text3)">Responsável, cliente e projeto</div>
+            </div>
+          </div>
+          ${q1ok ? '<span style="font-size:16px">✅</span>' : ''}
         </div>
-        <div style="font-size:11px;color:var(--text3)">Enviado: ${formatDate(p.dataEnvio)}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
+            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.xmlEnviado?.responsavel||''}"
+              oninput="_setProdQ('${p.id}','xmlEnviado','responsavel',this.value)">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data envio XML</div>
+            <input type="date" class="form-input" style="height:30px;font-size:12px;padding:4px 8px" value="${q.xmlEnviado?.data||''}"
+              onchange="_setProdQ('${p.id}','xmlEnviado','data',this.value)">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Observação</div>
+          <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Detalhes do envio..." value="${q.xmlEnviado?.obs||''}"
+            oninput="_setProdQ('${p.id}','xmlEnviado','obs',this.value)">
+        </div>
+        ${!q1ok ? `<button class="btn btn-sm btn-primary" style="margin-top:10px;width:100%;justify-content:center" onclick="confirmarQuadro('${p.id}','xmlEnviado')">✓ Confirmar envio do XML</button>` : `<div style="margin-top:8px;font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.xmlEnviado?.confirmedAt||q.xmlEnviado?.data)}</div>`}
       </div>
-    </div>`;
-  }).join('');
+
+      <!-- QUADRO 2: RECEBIDO PELA FÁBRICA -->
+      <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q2ok,q2alertaAtivo)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:15px">🏭</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">2. Recebido pela Fábrica</div>
+              <div style="font-size:10px;color:var(--text3)">Confirmação + possíveis alertas</div>
+            </div>
+          </div>
+          ${q2ok && !q2alertaAtivo ? '<span style="font-size:16px">✅</span>' : ''}
+          ${q2alertaAtivo ? '<span style="font-size:14px;color:var(--amber)">⚠️ Alerta</span>' : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
+            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.recebidoFabrica?.responsavel||''}"
+              oninput="_setProdQ('${p.id}','recebidoFabrica','responsavel',this.value)">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data recebimento</div>
+            <input type="date" class="form-input" style="height:30px;font-size:12px;padding:4px 8px" value="${q.recebidoFabrica?.data||''}"
+              onchange="_setProdQ('${p.id}','recebidoFabrica','data',this.value)">
+          </div>
+        </div>
+        <!-- Alerta / Problema -->
+        <div style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <label style="font-size:11px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px">
+              <input type="checkbox" ${q.recebidoFabrica?.alerta?'checked':''} style="accent-color:var(--amber)"
+                onchange="_setProdQBool('${p.id}','recebidoFabrica','alerta',this.checked);renderProducao()">
+              <span style="color:var(--amber)">⚠️ Registrar alerta / problema</span>
+            </label>
+          </div>
+          ${q.recebidoFabrica?.alerta ? `
+          <textarea class="form-textarea" style="min-height:60px;font-size:12px;border-color:rgba(212,148,74,0.5)"
+            placeholder="Descreva o problema ou alerta..." oninput="_setProdQ('${p.id}','recebidoFabrica','mensagem',this.value)">${q.recebidoFabrica?.mensagem||''}</textarea>
+          ` : ''}
+        </div>
+        ${!q2ok ? `<button class="btn btn-sm btn-primary" style="margin-top:4px;width:100%;justify-content:center;${!q1ok?'opacity:0.4;cursor:not-allowed':''}" ${!q1ok?'disabled title="Confirme o XML primeiro"':''} onclick="confirmarQuadro('${p.id}','recebidoFabrica')">✓ Confirmar recebimento na fábrica</button>` : `<div style="margin-top:8px;font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.recebidoFabrica?.confirmedAt||q.recebidoFabrica?.data)}</div>`}
+      </div>
+
+      <!-- QUADRO 3: INVOICE -->
+      <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q3ok,false)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:15px">🧾</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">3. Invoice da Fábrica</div>
+              <div style="font-size:10px;color:var(--text3)">Valor e documento — reflete no financeiro</div>
+            </div>
+          </div>
+          ${q3ok ? '<span style="font-size:16px">✅</span>' : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
+            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.invoice?.responsavel||''}"
+              oninput="_setProdQ('${p.id}','invoice','responsavel',this.value)">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Valor da invoice ($)</div>
+            <input type="number" class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="0.00" value="${q.invoice?.valor||''}"
+              onchange="_setProdQ('${p.id}','invoice','valor',this.value);_syncInvoiceFinanceiro('${p.id}',this.value)">
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Número / referência da invoice</div>
+          <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Ex: INV-2026-0142..." value="${q.invoice?.numero||''}"
+            oninput="_setProdQ('${p.id}','invoice','numero',this.value)">
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Link / URL do documento</div>
+          <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="https://drive.google.com/..." value="${q.invoice?.url||''}"
+            oninput="_setProdQ('${p.id}','invoice','url',this.value)">
+        </div>
+        ${q.invoice?.url ? `<a href="${q.invoice.url}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3);display:inline-flex;margin-top:4px">📎 Abrir invoice</a>` : ''}
+        ${q.invoice?.valor ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(201,169,110,0.1);border-radius:8px;border:0.5px solid rgba(201,169,110,0.3)"><span style="font-size:11px;color:var(--text3)">Custo fábrica (financeiro): </span><span style="font-size:14px;font-weight:700;color:var(--gold2);font-family:'DM Mono',monospace">$ ${parseFloat(q.invoice.valor).toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>` : ''}
+        ${!q3ok ? `<button class="btn btn-sm btn-primary" style="margin-top:8px;width:100%;justify-content:center;${!q2ok?'opacity:0.4;cursor:not-allowed':''}" ${!q2ok?'disabled title="Confirme o recebimento primeiro"':''} onclick="confirmarQuadro('${p.id}','invoice')">✓ Confirmar invoice recebida</button>` : `<div style="margin-top:8px;font-size:11px;color:var(--green)">✓ Invoice confirmada</div>`}
+      </div>
+
+      <!-- QUADRO 4: COMPRAS ESPECIAIS -->
+      <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q4ok,q4alertaAtivo)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:15px">🛒</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">4. Compras Especiais</div>
+              <div style="font-size:10px;color:var(--text3)">Itens extras, hardware, acessórios</div>
+            </div>
+          </div>
+          ${q4ok && !q4alertaAtivo ? '<span style="font-size:16px">✅</span>' : ''}
+          ${q4alertaAtivo ? '<span style="font-size:14px;color:var(--amber)">⚠️ Alerta</span>' : ''}
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
+          <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.comprasEspeciais?.responsavel||''}"
+            oninput="_setProdQ('${p.id}','comprasEspeciais','responsavel',this.value)">
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Descrição das compras</div>
+          <textarea class="form-textarea" style="min-height:70px;font-size:12px" placeholder="Descreva os itens a comprar ou comprados..."
+            oninput="_setProdQ('${p.id}','comprasEspeciais','mensagem',this.value)">${q.comprasEspeciais?.mensagem||''}</textarea>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <label style="font-size:11px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px">
+            <input type="checkbox" ${q.comprasEspeciais?.alerta?'checked':''} style="accent-color:var(--amber)"
+              onchange="_setProdQBool('${p.id}','comprasEspeciais','alerta',this.checked);renderProducao()">
+            <span style="color:var(--amber)">⚠️ Marcar como alerta urgente</span>
+          </label>
+        </div>
+        ${!q4ok ? `<button class="btn btn-sm btn-primary" style="margin-top:4px;width:100%;justify-content:center" onclick="confirmarQuadro('${p.id}','comprasEspeciais')">✓ Confirmar compras concluídas</button>` : `<div style="margin-top:4px;font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.comprasEspeciais?.confirmedAt)}</div>`}
+      </div>
+
+      <!-- QUADRO 5: SAÍDA DA FÁBRICA -->
+      <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q5ok,false)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:15px">🚛</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">5. Saída da Fábrica</div>
+              <div style="font-size:10px;color:var(--text3)">Liberação e data real de saída</div>
+            </div>
+          </div>
+          ${q5ok ? '<span style="font-size:16px">✅</span>' : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
+            <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nome..." value="${q.saidaFabrica?.responsavel||''}"
+              oninput="_setProdQ('${p.id}','saidaFabrica','responsavel',this.value)">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data real de saída</div>
+            <input type="date" class="form-input" style="height:30px;font-size:12px;padding:4px 8px" value="${q.saidaFabrica?.data||''}"
+              onchange="_setProdQ('${p.id}','saidaFabrica','data',this.value)">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Observações da saída</div>
+          <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nota fiscal, transportadora, etc..." value="${q.saidaFabrica?.obs||''}"
+            oninput="_setProdQ('${p.id}','saidaFabrica','obs',this.value)">
+        </div>
+        ${!q5ok ? `<button class="btn btn-sm" style="margin-top:10px;width:100%;justify-content:center;background:var(--green);color:#0d0d0d;border-color:var(--green);font-weight:600;${!q3ok?'opacity:0.4;cursor:not-allowed':''}" ${!q3ok?'disabled title="Confirme a invoice primeiro"':''} onclick="confirmarQuadro('${p.id}','saidaFabrica')">🚛 Confirmar saída da fábrica</button>` : `
+          <div style="margin-top:10px;padding:10px 14px;background:rgba(92,184,130,0.1);border-radius:8px;border:0.5px solid rgba(92,184,130,0.3);display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">✅</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--green)">Fábrica liberou! Saiu em ${formatDate(q.saidaFabrica?.data||q.saidaFabrica?.confirmedAt)}</div>
+              <div style="font-size:11px;color:var(--text3)">Agendar entrega e instalação.</div>
+            </div>
+          </div>`}
+      </div>
+
+    </div><!-- /5 quadros -->
+
+    <!-- ── RODAPÉ ── -->
+    <div style="padding:10px 18px 14px;border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="font-size:11px;color:var(--text3)">Enviado: ${formatDate(p.dataEnvio)} · ${p.responsavelFabricacao?'👤 '+p.responsavelFabricacao:''}</div>
+      <button class="btn btn-sm" style="color:var(--red);border-color:transparent" onclick="event.stopPropagation();if(confirm('Remover da produção?')){deleteProducao('${p.id}').then(()=>{DB.producao=DB.producao.filter(x=>x.id!=='${p.id}');renderAll();}).catch(e=>toast('Erro: '+e.message));}">🗑 Remover</button>
+    </div>
+
+  </div>`;
+}
+
+// Helpers para atualizar sub-campos dos quadros
+function _setProdQ(prodId, quadro, campo, valor) {
+  const p = (DB.producao||[]).find(x=>x.id===prodId);
+  if (!p) return;
+  if (!p.quadros) p.quadros = {};
+  if (!p.quadros[quadro]) p.quadros[quadro] = {};
+  p.quadros[quadro][campo] = valor;
+  // Debounce save
+  clearTimeout(p._saveTimer);
+  p._saveTimer = setTimeout(() => pushProducao(p).catch(()=>{}), 800);
+}
+
+function _setProdQBool(prodId, quadro, campo, valor) {
+  const p = (DB.producao||[]).find(x=>x.id===prodId);
+  if (!p) return;
+  if (!p.quadros) p.quadros = {};
+  if (!p.quadros[quadro]) p.quadros[quadro] = {};
+  p.quadros[quadro][campo] = valor;
+  pushProducao(p).catch(()=>{});
+}
+
+async function confirmarQuadro(prodId, quadro) {
+  const p = (DB.producao||[]).find(x=>x.id===prodId);
+  if (!p) return;
+  if (!p.quadros) p.quadros = {};
+  if (!p.quadros[quadro]) p.quadros[quadro] = {};
+  p.quadros[quadro].confirmedAt = new Date().toISOString().slice(0,10);
+  p.quadros[quadro].confirmedBy = usuarioAtual?.nome || 'Sistema';
+  // Marcar como "ok" — o campo confirmedAt serve de flag
+  // Também atualiza etapa geral do prod
+  const etapaMap = {xmlEnviado:'xml_enviado', recebidoFabrica:'recebido_fabrica', invoice:'invoice', comprasEspeciais:'compras', saidaFabrica:'pronto'};
+  if (etapaMap[quadro]) p.etapa = etapaMap[quadro];
+  try {
+    await pushProducao(p);
+    renderProducao();
+    updateBadges();
+    const labels = {xmlEnviado:'XML enviado ✓', recebidoFabrica:'Recebimento confirmado ✓', invoice:'Invoice confirmada ✓', comprasEspeciais:'Compras confirmadas ✓', saidaFabrica:'Saída da fábrica confirmada! 🚛'};
+    toast(labels[quadro] || 'Confirmado ✓');
+  } catch(e) { toast('Erro: ' + e.message); }
+}
+
+// Sincronizar valor da invoice com o financeiro do projeto
+async function _syncInvoiceFinanceiro(prodId, valor) {
+  const p = (DB.producao||[]).find(x=>x.id===prodId);
+  if (!p || !p.projetoId) return;
+  const proj = DB.projetos.find(x=>x.id===p.projetoId);
+  if (!proj) return;
+  const num = parseFloat(valor) || 0;
+  proj.finCustoFabrica = num;
+  try { await pushProjeto(proj); } catch(e) {}
 }
 
 async function mudarEtapaProd(prodId, etapa) {
