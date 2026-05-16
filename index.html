@@ -4331,7 +4331,7 @@ function goPage(page) {
   document.getElementById('addBtn').style.display = addBtnPages[page] ? 'flex' : 'none';
   closeSidebar();
   try {
-    if (page === 'projetos') renderProjetos();
+    if (page === 'projetos') { projetosView = 'cliente'; setProjetosView('cliente'); setFiltroProj('projetando'); }
     if (page === 'agenda') renderAgenda();
     if (page === 'producao') renderProducao();
     if (page === 'entrega') renderEntrega();
@@ -4641,6 +4641,9 @@ function renderProjetos(filter='') {
       const etapa4Ok = !!(pz.medicao && pz.producao && pz.entrega && pz.instalacao);
       // Etapa 5: Proposta gerada
       const etapa5Ok = !!(p.pdfProposta || p.propostaAceita);
+      const propostaGerada = !!(p.contratoGerado || p.contratoData || p.contratoHtml || localStorage.getItem('contrato_html_'+p.id));
+      // Sync contratoGerado flag if derived from contrato_data
+      if ((p.contratoData || p.contratoHtml) && !p.contratoGerado) p.contratoGerado = true;
 
       // Progresso geral
       const etapas = [etapa1Ok,etapa2Ok,etapa3Ok,etapa4Ok,etapa5Ok];
@@ -4679,9 +4682,9 @@ function renderProjetos(filter='') {
         ? `<button class="btn" style="flex:1;border-color:var(--blue);color:var(--blue);opacity:0.6;cursor:not-allowed" disabled>🏭 Em produção</button>`
         : p.propostaAceita
           ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${isAdmin()?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'  }" title="${isAdmin()?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${isAdmin()?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
-          : proposalPronta
-            ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
-            : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
+          : propostaGerada
+            ? `<button class="btn btn-primary" style="flex:1;background:var(--gold);border-color:var(--gold);color:#0d0d0d;font-weight:600" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
+            : `<button class="btn" style="flex:1;opacity:0.25;cursor:not-allowed;background:transparent;border-color:var(--border);color:var(--text3)" disabled>✅ Aceitar proposta</button>`;
       const btnContrato = p.contratoAprovado
         ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green)" onclick="event.stopPropagation();abrirContrato('${p.id}')">✓ Ver contrato</button>`
         : p.propostaAceita
@@ -8060,7 +8063,7 @@ function editarPagamentoPrazo(projetoId, campo) {
 function aceitarProposta(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  const propostaReal = p.contratoGerado && (p.contratoHtml || localStorage.getItem('contrato_html_'+projetoId));
+  const propostaReal = p.contratoGerado || p.contratoData || p.contratoHtml || localStorage.getItem('contrato_html_'+projetoId);
   if (!propostaReal) {
     toast('⚠️ Gere a proposta primeiro antes de aceitar.');
     return;
