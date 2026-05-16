@@ -4717,6 +4717,16 @@ function renderProjetos(filter='') {
                 const etapasC = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[{label:'Entrada',pct:20},{label:'Medição',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
                 const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
                 return '<div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:'+tipoBg+';color:'+tipoCor+';margin-bottom:6px;border:1px solid '+tipoBrd+'">'+tipoLabel+'</div>'
+                  +(()=>{
+                    const valorProposto = ambientes.reduce((s,a)=>{
+                      const vXML = a.xmlDados?.valorTotalNum||parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,''))||0;
+                      const custoP = vXML*(1-(p.finDesconto||0)/100)*(1+(p.finTaxa||0)/100);
+                      const pb = custoP*(p.finMultiplicador||3);
+                      return s + (a.finValorManual>0 ? a.finValorManual : pb*(1-(p.finDescontoCliente||0)/100));
+                    },0);
+                    if (!valorProposto) return '';
+                    return '<div style="margin-bottom:4px"><div style="font-size:9px;color:var(--text3)">Valor proposto</div><div style="font-size:12px;font-weight:600;color:var(--text2);font-family:DM Mono,monospace">'+fmtV(valorProposto)+'</div></div>';
+                  })()
                   +(precoFinal>0?'<div style="margin-bottom:6px"><div style="font-size:9px;color:var(--text3)">Preço negociado</div><div style="font-size:14px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">'+fmtV(precoFinal)+'</div></div>':'')
                   +(tipo==='parcelado'?'<div>'+etapasC.map(e=>'<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:9px;color:var(--text3)">'+e.label+' ('+e.pct+'%)</span><span style="font-size:9px;color:var(--text2);font-family:DM Mono,monospace">'+fmtV((precoFinal||precoBase)*(e.pct/100))+'</span></div>').join('')+'</div>':'')
                   +(tipo==='financiado'?(()=>{
@@ -4904,10 +4914,10 @@ function renderProjetos(filter='') {
         </div>
 
         <!-- 4 PAINÉIS -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 16px 16px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 16px 16px;align-items:stretch">
 
           <!-- BRIEFING DO AMBIENTE -->
-          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:10px;padding:12px;cursor:pointer" onclick="event.stopPropagation();abrirBriefing('${p.leadId}','${a.nome||a.tipo}')">
+          <div style="background:#1a1506;border:1px solid rgba(212,148,74,0.25);border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column" onclick="event.stopPropagation();abrirBriefing('${p.leadId}','${a.nome||a.tipo}')">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
               <span style="font-size:15px">📋</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">Briefing</span>
@@ -4935,11 +4945,11 @@ function renderProjetos(filter='') {
               ?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px">Observações</div>
                <div style="font-size:10px;color:var(--text2);line-height:1.6">${a.obs}</div>`
               :'<div style="font-size:10px;color:var(--text3);opacity:0.5;margin-top:4px">Sem observações</div>'}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:10px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">📋 Ver detalhes</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:10px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">📋 Ver detalhes</button>
           </div>
 
           <!-- XML -->
-          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirXMLDireto('${p.id}','${a.nome||a.tipo}')`}">
+          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirXMLDireto('${p.id}','${a.nome||a.tipo}')`}">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📐</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">XML Promob</span>
@@ -4964,11 +4974,11 @@ function renderProjetos(filter='') {
                 <div style="font-size:11px;color:var(--text3)">Nenhum XML importado</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(92,184,130,0.3);color:${travado?'var(--text3)':'var(--green)'}" ${travado?'disabled':''} onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'📐'} ${temXml?'Atualizar XML':'Importar XML'}</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:8px;border-color:rgba(92,184,130,0.3);color:${travado?'var(--text3)':'var(--green)'}" ${travado?'disabled':''} onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'📐'} ${temXml?'Atualizar XML':'Importar XML'}</button>
           </div>
 
           <!-- FOTOS -->
-          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirFotosDireto('${p.id}','${a.nome||a.tipo}')`}">
+          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirFotosDireto('${p.id}','${a.nome||a.tipo}')`}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:15px">🖼</span>
@@ -4988,11 +4998,11 @@ function renderProjetos(filter='') {
                 <div style="font-size:10px;color:var(--text3);margin-top:3px">Adicione renders ou fotos do projeto</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:6px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="abrirFotosDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'🖼'} ${temFotos?'Adicionar fotos':'Enviar fotos'}</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:6px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="abrirFotosDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'🖼'} ${temFotos?'Adicionar fotos':'Enviar fotos'}</button>
           </div>
 
           <!-- FINANCEIRO -->
-          <div style="background:#180d20;border:1px solid rgba(176,144,224,0.25);border-radius:10px;padding:12px">
+          <div style="background:#180d20;border:1px solid rgba(176,144,224,0.25);border-radius:10px;padding:12px;display:flex;flex-direction:column">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📊</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">Formação preço de venda</span>
@@ -5020,7 +5030,7 @@ function renderProjetos(filter='') {
                   </div>
                 </div>
               `:'<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Sem dados</div>'}
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro completo</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro completo</button>
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();abrirMiniFinanceiro('${p.id}','${a.nome||a.tipo}')">📈 Resumo do ambiente</button>
             `:`
               <div style="text-align:center;padding:16px 0">
