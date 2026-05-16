@@ -4440,53 +4440,38 @@ function filterProjetosByStatus(status) {
   renderProjetos();
 }
 let projetosView = 'cliente';
-let filtroProj = ''; // '' = todos, 'projetando' = not producao, 'producao' = only producao
-
-function _updatePillStyles() {
-  ['todos','projetando','producao'].forEach(k => {
-    const el = document.getElementById('fpj-'+k);
-    if (!el) return;
-    const on = (filtroProj||'todos') === k;
-    el.style.background = on ? 'var(--gold-dim)' : 'transparent';
-    el.style.borderColor = on ? 'var(--gold)' : 'var(--border2)';
-    el.style.color = on ? 'var(--gold2)' : 'var(--text2)';
-  });
-}
-
-function _updateViewBtns() {
-  ['cliente','ambiente'].forEach(v => {
-    const el = document.getElementById('btn-view-'+v);
-    if (!el) return;
-    const on = projetosView === v;
-    el.style.background = on ? 'var(--gold-dim)' : '';
-    el.style.borderColor = on ? 'var(--gold)' : '';
-    el.style.color = on ? 'var(--gold2)' : '';
-    el.style.borderRadius = '99px';
-  });
-}
-
-function setFiltroProj(val) {
-  filtroProj = val;
-  _updatePillStyles();
-  // Just re-render — no view change, no _filtroProjetoId change
-  renderProjetos();
-}
-
 let _filtroProjetoId = null;
+let filtroProj = '';
 
-function verAmbientesCliente(projetoId, ev) {
-  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+function verAmbientesCliente(projetoId) {
   _filtroProjetoId = projetoId;
-  projetosView = 'ambiente';
-  _updateViewBtns();
-  _updatePillStyles();
-  renderProjetos();
+  setProjetosView('ambiente');
 }
 
 function setProjetosView(view) {
   projetosView = view;
   if (view !== 'ambiente') _filtroProjetoId = null;
-  _updateViewBtns();
+  document.getElementById('btn-view-cliente').style.background = view==='cliente' ? 'var(--gold-dim)' : '';
+  document.getElementById('btn-view-cliente').style.borderColor = view==='cliente' ? 'var(--gold)' : '';
+  document.getElementById('btn-view-cliente').style.color = view==='cliente' ? 'var(--gold2)' : '';
+  document.getElementById('btn-view-cliente').style.borderRadius = '99px';
+  document.getElementById('btn-view-ambiente').style.background = view==='ambiente' ? 'var(--gold-dim)' : '';
+  document.getElementById('btn-view-ambiente').style.borderColor = view==='ambiente' ? 'var(--gold)' : '';
+  document.getElementById('btn-view-ambiente').style.color = view==='ambiente' ? 'var(--gold2)' : '';
+  document.getElementById('btn-view-ambiente').style.borderRadius = '99px';
+  renderProjetos();
+}
+
+function setFiltroProj(val) {
+  filtroProj = val;
+  ['todos','projetando','producao'].forEach(k => {
+    const el = document.getElementById('fpj-'+k);
+    if (!el) return;
+    const on = (val||'todos') === k;
+    el.style.background = on ? 'var(--gold-dim)' : 'transparent';
+    el.style.borderColor = on ? 'var(--gold)' : 'var(--border2)';
+    el.style.color = on ? 'var(--gold2)' : 'var(--text2)';
+  });
   renderProjetos();
 }
 
@@ -4506,16 +4491,15 @@ function statusProjBadge(s) {
 
 function renderProjetos(filter='') {
   const f = (filter||filterTexts.projetos).toLowerCase();
-  // filtroProj: '' = todos, 'projetando' = só não-producao, 'producao' = só producao
   let items = DB.projetos.filter(p => {
     const matchText = !f || p.nome.toLowerCase().includes(f);
     const matchStatus = !activeProjetoStatus || p.status === activeProjetoStatus;
     if (filtroProj === 'producao') return matchText && p.status === 'producao';
     if (filtroProj === 'projetando') return matchText && matchStatus && p.status !== 'producao';
-    return matchText && matchStatus; // todos
+    return matchText && matchStatus;
   });
-  const itemsProd = filtroProj !== 'projetando' ? items.filter(p => p.status === 'producao') : [];
   const itemsAtivos = items.filter(p => p.status !== 'producao');
+  const itemsProd = items.filter(p => p.status === 'producao');
   const el = document.getElementById('list-projetos');
   if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
@@ -4831,8 +4815,7 @@ function renderProjetos(filter='') {
   } else {
     // Por ambiente
     const rows = [];
-    const allItems = DB.projetos.filter(p => !f || p.nome.toLowerCase().includes(f));
-    const itemsFiltrados = _filtroProjetoId ? allItems.filter(p=>p.id===_filtroProjetoId) : items;
+    const itemsFiltrados = _filtroProjetoId ? DB.projetos.filter(p=>p.id===_filtroProjetoId) : items;
     itemsFiltrados.forEach(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n,tipo:n})) || [];
