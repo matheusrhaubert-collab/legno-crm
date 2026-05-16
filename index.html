@@ -4506,49 +4506,14 @@ function renderProjetos(filter='') {
   const itemsProd = items.filter(p => p.status === 'producao' || idsEmProducao.has(p.id));
   const el = document.getElementById('list-projetos');
 
-  // ── Filtro "Em produção" na view "Por cliente": render próprio, sai cedo ──
-  if (filtroProj === 'producao' && projetosView === 'cliente') {
-    if (!itemsProd.length) {
-      el.innerHTML = `<div class="empty"><span class="empty-icon">🏭</span><p>Nenhum projeto em produção.</p></div>`;
-      return;
-    }
-    el.innerHTML = `<div>
-      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
-        <span style="width:6px;height:6px;border-radius:50%;background:var(--blue);display:inline-block"></span>
-        Enviados para Produção (${itemsProd.length})
-      </div>
-      ${itemsProd.map(p => {
-        const lead2 = DB.leads.find(l => l.id === p.leadId);
-        const ambs2 = lead2?.ambientesBriefing || [];
-        const pz2 = p.prazos || {};
-        return `<div style="background:var(--bg2);border:0.5px solid rgba(96,144,208,0.2);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;opacity:0.8">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <div>
-              <div style="font-size:14px;font-weight:500;color:var(--text)">${p.nome}</div>
-              <div style="font-size:12px;color:var(--text3);margin-top:2px">
-                🏭 Enviado: ${formatDate(p.dataEnvioProducao)}
-                ${pz2.producao ? ' · Fábrica: '+formatDate(pz2.producao) : ''}
-                ${pz2.entrega ? ' · Entrega: '+formatDate(pz2.entrega) : ''}
-                · ${ambs2.length} ambiente${ambs2.length !== 1 ? 's' : ''}
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:11px;padding:3px 10px;border-radius:99px;background:var(--blue-dim);color:var(--blue);white-space:nowrap">🏭 Em produção</span>
-              <span style="font-size:11px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,0.04);color:var(--text3);border:0.5px solid var(--border)">🔒 Travado</span>
-            </div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-    return;
-  }
-
   // Se há filtro de projeto específico (Ver ambientes), não retornar cedo — vai direto pro bloco de ambientes
   if (!items.length && !_filtroProjetoId) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
   if (projetosView === 'cliente') {
     el.innerHTML = '';
-    if (itemsAtivos.length) el.innerHTML = itemsAtivos.map(p => {
+    // Quando filtro é producao, mostra todos os items (incluindo producao) no card completo
+    const itemsParaRender = filtroProj === 'producao' ? items : itemsAtivos;
+    if (itemsParaRender.length) el.innerHTML = itemsParaRender.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
 
@@ -5070,8 +5035,8 @@ function renderProjetos(filter='') {
       </div>`;
     }).join('');
 
-    // Append 'Enviados para Produção' section
-    if (itemsProd.length) {
+    // Append 'Enviados para Produção' section (only when not already filtered to producao)
+    if (itemsProd.length && filtroProj !== 'producao') {
       const sep = itemsAtivos.length > 0 ? 'margin-top:32px;padding-top:20px;border-top:0.5px solid var(--border)' : '';
       el.innerHTML += `<div style="${sep}">
         <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
