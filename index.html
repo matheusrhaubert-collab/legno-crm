@@ -4509,10 +4509,10 @@ function renderProjetos(filter='') {
     const notProd = p.status !== 'producao';
     return matchText && matchStatus && notProd && showProjetando;
   });
-  const itemsProd = DB.projetos.filter(p => {
+  const itemsProd = showProducao ? DB.projetos.filter(p => {
     const matchText = !f || p.nome.toLowerCase().includes(f);
-    return matchText && p.status === 'producao' && showProducao;
-  });
+    return matchText && p.status === 'producao';
+  }) : [];
   const el = document.getElementById('list-projetos');
   if (!items.length && !itemsProd.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
@@ -4828,7 +4828,8 @@ function renderProjetos(filter='') {
   } else {
     // Por ambiente
     const rows = [];
-    const itemsFiltrados = _filtroProjetoId ? items.filter(p=>p.id===_filtroProjetoId) : items;
+    const allItems = DB.projetos.filter(p => !f || p.nome.toLowerCase().includes(f));
+    const itemsFiltrados = _filtroProjetoId ? allItems.filter(p=>p.id===_filtroProjetoId) : items;
     itemsFiltrados.forEach(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n,tipo:n})) || [];
