@@ -1050,7 +1050,7 @@ function _prepararAmbContext(projetoId, nomeAmb) {
 function abrirXMLDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   const _pLock = DB.projetos.find(x=>x.id===projetoId);
-  if (_pLock?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') { toast('🔒 Projeto travado — proposta já aprovada'); return; }
+  if (_pLock?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   _prepararAmbContext(projetoId, nomeAmb);
   // Recria o input para garantir que onchange dispara mesmo com o mesmo arquivo
   const old = document.getElementById('xml-direto-input');
@@ -1064,7 +1064,7 @@ function abrirXMLDireto(projetoId, nomeAmb) {
 function abrirFotosDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   const _pLock = DB.projetos.find(x=>x.id===projetoId);
-  if (_pLock?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') { toast('🔒 Projeto travado — proposta já aprovada'); return; }
+  if (_pLock?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   _prepararAmbContext(projetoId, nomeAmb);
   const old = document.getElementById('fotos-direto-input');
   const novo = old.cloneNode(true);
@@ -1076,7 +1076,7 @@ function abrirFotosDireto(projetoId, nomeAmb) {
 
 function abrirAmbiente(projetoId, nomeAmb) {
   const _pAmb = DB.projetos.find(x=>x.id===projetoId);
-  if (_pAmb?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (_pAmb?.propostaTravada && !isAdmin()) {
     toast('🔒 Ambientes travados após aprovação da proposta');
     return;
   }
@@ -1819,7 +1819,7 @@ async function gerarDescricaoIA() {
 
 async function salvarAmbienteDetalhe() {
   const _projLockA = DB.projetos.find(p=>p.id===_ambProjetoId);
-  if (_projLockA?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (_projLockA?.propostaTravada && !isAdmin()) {
     toast('🔒 Projeto travado — proposta já aprovada'); return;
   }
   // Visual feedback on button
@@ -2233,6 +2233,10 @@ async function uploadImagemSupabase(file, clienteNome, ambienteNome) {
 }
 
 let usuarioAtual = null;
+function isAdmin(u) {
+  const p = ((u !== undefined ? u : usuarioAtual) || {}).perfil || '';
+  return p === 'administrativo' || p === 'admin';
+}
 
 async function fazerLogin() {
   const nome = document.getElementById('login-user').value.trim();
@@ -2245,7 +2249,7 @@ async function fazerLogin() {
     const rows = await sbFetch(`usuarios?nome=ilike.${encodeURIComponent(nome)}&senha=eq.${encodeURIComponent(senha)}&select=nome,perfil`);
     if (rows && rows.length > 0) {
       const u = rows[0];
-      usuarioAtual = { nome: u.nome, perfil: u.perfil || 'admin' };
+      usuarioAtual = { nome: u.nome, perfil: u.perfil || 'administrativo' };
       localStorage.setItem('studioUser', JSON.stringify(usuarioAtual));
       aplicarPermissoes();
       document.getElementById('login-screen').style.display = 'none';
@@ -4467,7 +4471,7 @@ function renderProjetos(filter='') {
       const todos2 = ambientes;
       const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
       const btnProposta = p.propostaAceita
-        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${usuarioAtual?.perfil==='administrativo'?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'}" title="${usuarioAtual?.perfil==='administrativo'?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${usuarioAtual?.perfil==='administrativo'?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
+        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${isAdmin()?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'}" title="${isAdmin()?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${isAdmin()?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
         : proposalPronta
           ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>✅ Proposta aceita</button>`;
@@ -4754,7 +4758,7 @@ function renderProjetos(filter='') {
       const aMargem= aVenda - aCusto;
       const aMargPct= aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
-      const travado = !!(p.propostaTravada && usuarioAtual?.perfil !== 'administrativo');
+      const travado = !!(p.propostaTravada && !isAdmin());
       return `
       <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden">
 
@@ -4846,7 +4850,7 @@ function renderProjetos(filter='') {
               <span style="font-size:15px">📊</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">Financeiro</span>
             </div>
-            ${usuarioAtual?.perfil==='administrativo'?`
+            ${isAdmin()?`
               <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${aFinOk?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${aFinOk?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${aFinOk?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${aFinOk?'Atualizado':'Pendente'}</div>
               ${aFinOk?`
                 <div style="margin-bottom:6px">
@@ -4880,7 +4884,7 @@ function renderProjetos(filter='') {
 function gerarProposalCliente(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (p.propostaTravada && !isAdmin()) {
     toast('🔒 Proposta travada após aprovação. Apenas admin pode desbloquear.');
     return;
   }
@@ -5910,7 +5914,7 @@ function isProjetoBloqueado(leadId) {
 function abrirBriefing(id) {
   if (isProjetoBloqueado(id)) {
     const proj = DB.projetos.find(p=>p.leadId===id);
-    if (usuarioAtual?.perfil !== 'administrativo') {
+    if (!isAdmin()) {
       toast('🔒 Briefing travado após aprovação da proposta');
       return;
     }
@@ -5920,7 +5924,7 @@ function abrirBriefing(id) {
   if (!l) return;
   // Show/hide save button based on lock status
   const _bl = DB.projetos.find(pp=>pp.leadId===id);
-  const _locked = _bl?.propostaTravada && usuarioAtual?.perfil !== 'administrativo';
+  const _locked = _bl?.propostaTravada && !isAdmin();
   // Update save button state after modal opens
   setTimeout(()=>{
     const _btn = document.getElementById('btn-salvar-briefing');
@@ -6059,7 +6063,7 @@ function removerAmbienteBriefing(i) {
 async function salvarBriefing() {
   // Lock check
   const _projLock = DB.projetos.find(p=>p.leadId===_briefingLeadId);
-  if (_projLock?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (_projLock?.propostaTravada && !isAdmin()) {
     toast('🔒 Projeto travado — proposta já aprovada'); return;
   }
   const nome = document.getElementById('bf-nome').value.trim();
@@ -6424,7 +6428,7 @@ function handleFiles(files) {
   const _clienteSel = document.getElementById('imgCliente')?.value;
   if (_clienteSel) {
     const _pImg = DB.projetos.find(x=>x.leadId===_clienteSel||x.id===_clienteSel);
-    if (_pImg?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+    if (_pImg?.propostaTravada && !isAdmin()) {
       toast('🔒 Projeto travado — não é possível enviar imagens'); return;
     }
   }
@@ -6640,7 +6644,7 @@ let _finProjetoId = null;
 function abrirFinanceiro(projetoId) {
   _finProjetoId = projetoId;
   const p = DB.projetos.find(x=>x.id===projetoId);
-  if (p?.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (p?.propostaTravada && !isAdmin()) {
     toast('🔒 Financeiro travado após aprovação da proposta');
     return;
   }
@@ -6897,7 +6901,7 @@ async function salvarFinanceiro() {
 async function toggleAprovacaoAmbiente(projetoId, nomeAmb, status) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (p.propostaTravada && !isAdmin()) {
     toast('🔒 Projeto travado — proposta já aprovada'); return;
   }
   const lead = DB.leads.find(l=>l.id===p.leadId);
@@ -7076,7 +7080,7 @@ function abrirChecklistEntrega(projetoId) {
 function abrirPrazos(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') { toast('🔒 Projeto travado — proposta já aprovada'); return; }
+  if (p.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   const pz = p.prazos||{};
   const diasInst = p.diasInstalacao||7;
 
@@ -7211,7 +7215,7 @@ async function onEntradaRecebida(projetoId) {
 function abrirCondicoes(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (p.propostaTravada && !isAdmin()) {
     toast('🔒 Condições travadas — proposta já aprovada'); return;
   }
   const precoBase = p.finPrecoFinal || 0;
@@ -7386,7 +7390,7 @@ function abrirCondicoes(projetoId) {
 function editarPagamentoPrazo(projetoId, campo) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  if (p.propostaTravada && usuarioAtual?.perfil !== 'administrativo') {
+  if (p.propostaTravada && !isAdmin()) {
     toast('🔒 Projeto travado — proposta já aprovada'); return;
   }
   const titulo = campo === 'pagamento' ? '💳 Condição de Pagamento' : '📅 Prazo de Entrega';
@@ -7456,7 +7460,7 @@ async function _confirmarAceitarProposta(projetoId) {
 }
 
 function desbloquearProposta(projetoId) {
-  if (usuarioAtual?.perfil !== 'administrativo') {
+  if (!isAdmin()) {
     toast('⛔ Apenas usuários administrativos podem desbloquear');
     return;
   }
