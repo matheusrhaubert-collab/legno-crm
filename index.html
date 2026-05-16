@@ -4477,8 +4477,8 @@ function setFiltroProj(val) {
 
 let _filtroProjetoId = null;
 
-function verAmbientesCliente(projetoId) {
-  if (window.event) window.event.stopPropagation();
+function verAmbientesCliente(projetoId, ev) {
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
   _filtroProjetoId = projetoId;
   filtroProj = '';
   projetosView = 'ambiente';
@@ -4486,8 +4486,7 @@ function verAmbientesCliente(projetoId) {
   _updatePillStyles();
   const elC = document.getElementById('content');
   if (elC) elC.scrollTop = 0;
-  // Small delay to avoid being overridden by parent event handlers
-  setTimeout(() => renderProjetos(), 10);
+  renderProjetos();
 }
 
 function setProjetosView(view) {
@@ -4653,7 +4652,7 @@ function renderProjetos(filter='') {
         <!-- ── HEADER ── -->
         <div style="padding:0 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
           <div>
-            <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="verAmbientesCliente('${p.id}')">${p.nome}</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="verAmbientesCliente('${p.id}',event)">${p.nome}</div>
             <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap">
               <span style="font-size:12px;color:var(--text3)">📅 Início: <span style="color:var(--text2)">${formatDate(p.data)}</span></span>
               ${lead?.updatedAt ? `<span style="font-size:12px;color:var(--text3)">🕐 Atualizado: <span style="color:var(--text2)">${formatDate(lead.updatedAt.slice(0,10))}</span></span>` : ''}
@@ -4710,7 +4709,7 @@ function renderProjetos(filter='') {
               <div style="font-size:9px;color:var(--text3);margin-top:4px">✅ XML+foto &nbsp; 📐 só XML &nbsp; 🖼 só foto</div>
             </div>
             <div style="margin-top:10px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green);${bloqueioAmb?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioAmb?'disabled':''} onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green);${bloqueioAmb?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioAmb?'disabled':''} onclick="verAmbientesCliente('${p.id}',event)">🪵 Ver ambientes</button>
             </div>
           </div>
 
