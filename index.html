@@ -6893,6 +6893,7 @@ function calcFinanceiro() {
   document.getElementById('fin-res-desconto').textContent = desconto > 0 ? fmtNeg(descontoVal) : '—';
   document.getElementById('fin-lbl-taxa').textContent = '+ Taxa ('+taxa+'%)';
   document.getElementById('fin-res-taxa').textContent = taxa > 0 ? '+ $ '+taxaVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  document.getElementById('fin-res-taxa').style.color = '#f0a500';
   document.getElementById('fin-res-custo').textContent = fmt(custoPromob);
   document.getElementById('fin-lbl-multiplicador').textContent = '× Multiplicador '+multiplicador;
   document.getElementById('fin-res-cliente').textContent = fmt(precoBase);
@@ -8839,7 +8840,7 @@ checkSession();
         <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2)">
           <div style="display:flex;justify-content:space-between"><span>Tabela Promob</span><span id="fin-res-promob" style="color:var(--text)">—</span></div>
           <div style="display:flex;justify-content:space-between"><span id="fin-lbl-desconto">− Desconto fábrica</span><span id="fin-res-desconto" style="color:var(--red)">—</span></div>
-          <div style="display:flex;justify-content:space-between"><span id="fin-lbl-taxa">+ Taxa</span><span id="fin-res-taxa" style="color:var(--amber)">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span id="fin-lbl-taxa">+ Taxa</span><span id="fin-res-taxa" style="color:#f0a500">—</span></div>
           <div style="display:flex;justify-content:space-between;color:var(--text3)"><span>Custo Promob</span><span id="fin-res-custo">—</span></div>
           <div style="display:flex;justify-content:space-between;color:var(--text3)"><span id="fin-lbl-multiplicador">× Multiplicador</span><span id="fin-res-cliente">—</span></div>
           <div style="display:flex;justify-content:space-between"><span id="fin-lbl-desc-cliente">− Desconto cliente</span><span id="fin-res-desconto-cliente" style="color:var(--red)">—</span></div>
