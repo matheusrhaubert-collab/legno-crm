@@ -4467,11 +4467,8 @@ function _updateViewBtns() {
 
 function setFiltroProj(val) {
   filtroProj = val;
-  // filtros só funcionam em vista cliente
-  projetosView = 'cliente';
-  _filtroProjetoId = null;
-  _updateViewBtns();
   _updatePillStyles();
+  // Just re-render — no view change, no _filtroProjetoId change
   renderProjetos();
 }
 
@@ -4480,12 +4477,9 @@ let _filtroProjetoId = null;
 function verAmbientesCliente(projetoId, ev) {
   if (ev) { ev.stopPropagation(); ev.preventDefault(); }
   _filtroProjetoId = projetoId;
-  filtroProj = '';
   projetosView = 'ambiente';
   _updateViewBtns();
   _updatePillStyles();
-  const elC = document.getElementById('content');
-  if (elC) elC.scrollTop = 0;
   renderProjetos();
 }
 
@@ -4512,24 +4506,22 @@ function statusProjBadge(s) {
 
 function renderProjetos(filter='') {
   const f = (filter||filterTexts.projetos).toLowerCase();
-  const showProjetando = filtroProj !== 'producao';
-  const showProducao   = filtroProj !== 'projetando';
+  // filtroProj: '' = todos, 'projetando' = só não-producao, 'producao' = só producao
   let items = DB.projetos.filter(p => {
     const matchText = !f || p.nome.toLowerCase().includes(f);
     const matchStatus = !activeProjetoStatus || p.status === activeProjetoStatus;
-    const notProd = p.status !== 'producao';
-    return matchText && matchStatus && notProd && showProjetando;
+    if (filtroProj === 'producao') return matchText && p.status === 'producao';
+    if (filtroProj === 'projetando') return matchText && matchStatus && p.status !== 'producao';
+    return matchText && matchStatus; // todos
   });
-  const itemsProd = showProducao ? DB.projetos.filter(p => {
-    const matchText = !f || p.nome.toLowerCase().includes(f);
-    return matchText && p.status === 'producao';
-  }) : [];
+  const itemsProd = filtroProj !== 'projetando' ? items.filter(p => p.status === 'producao') : [];
+  const itemsAtivos = items.filter(p => p.status !== 'producao');
   const el = document.getElementById('list-projetos');
-  if (!items.length && !itemsProd.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
+  if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">◈</span><p>Nenhum projeto encontrado.</p></div>`; return; }
 
   if (projetosView === 'cliente') {
     el.innerHTML = '';
-    if (items.length) { el.innerHTML = items.map(p => {
+    if (itemsAtivos.length) { el.innerHTML = itemsAtivos.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
 
