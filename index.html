@@ -4506,8 +4506,8 @@ function renderProjetos(filter='') {
   const itemsProd = items.filter(p => p.status === 'producao' || idsEmProducao.has(p.id));
   const el = document.getElementById('list-projetos');
 
-  // ── Filtro "Em produção": render próprio, sai cedo ──
-  if (filtroProj === 'producao') {
+  // ── Filtro "Em produção" na view "Por cliente": render próprio, sai cedo ──
+  if (filtroProj === 'producao' && projetosView === 'cliente') {
     if (!itemsProd.length) {
       el.innerHTML = `<div class="empty"><span class="empty-icon">🏭</span><p>Nenhum projeto em produção.</p></div>`;
       return;
