@@ -4647,8 +4647,8 @@ function renderProjetos(filter='') {
         : p.propostaAceita
           ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();abrirContrato('${p.id}')">📋 Gerar contrato</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📋 Gerar contrato</button>`;
-      const podeEnviar = p.contratoAprovado && !emProducao;
-      const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : 'Aprove o contrato primeiro';
+      const podeEnviar = (p.propostaAceita || p.contratoAprovado) && !emProducao;
+      const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : '';
       const btnProd = emProducao
         ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue);opacity:0.5;cursor:not-allowed" disabled>✓ Enviado pra produção</button>`
         : podeEnviar
@@ -7453,7 +7453,7 @@ let _confirmarProducaoId = null;
 function enviarProducao(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  if (!p.contratoAprovado) { toast('⚠️ Contrato não aprovado. Aprove o contrato primeiro.'); return; }
+  if (!p.propostaAceita && !p.contratoAprovado) { toast('⚠️ Aceite a proposta antes de enviar para produção.'); return; }
   const lead = DB.leads.find(l=>l.id===p.leadId);
   const ambientes = lead?.ambientesBriefing || [];
   if (!ambientes.length) { toast('⚠️ Nenhum ambiente encontrado no projeto.'); return; }
