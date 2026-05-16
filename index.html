@@ -4444,6 +4444,11 @@ let filtroProj = ''; // '' = todos, 'projetando' = not producao, 'producao' = on
 
 function setFiltroProj(val) {
   filtroProj = val;
+  // Producao filter only makes sense in cliente view
+  if (val === 'producao' && projetosView !== 'cliente') {
+    setProjetosView('cliente');
+    return; // setProjetosView calls renderProjetos
+  }
   ['todos','projetando','producao'].forEach(k => {
     const el = document.getElementById('fpj-'+k);
     if (!el) return;
