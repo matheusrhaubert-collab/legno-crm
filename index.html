@@ -4506,7 +4506,7 @@ function renderProjetos(filter='') {
 
   if (projetosView === 'cliente') {
     el.innerHTML = '';
-    if (itemsAtivos.length) { el.innerHTML = itemsAtivos.map(p => {
+    if (itemsAtivos.length) el.innerHTML = itemsAtivos.map(p => {
       const lead = DB.leads.find(l => l.id === p.leadId);
       const ambientes = lead?.ambientesBriefing || p.ambientes?.map(n=>({nome:n})) || [];
 
@@ -5026,7 +5026,7 @@ function renderProjetos(filter='') {
 
         </div>
       </div>`;
-    }).join(''); }
+    }).join('');
 
     // Append 'Enviados para Produção' section
     if (itemsProd.length) {
