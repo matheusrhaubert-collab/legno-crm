@@ -8060,7 +8060,8 @@ function editarPagamentoPrazo(projetoId, campo) {
 function aceitarProposta(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  if (!p.contratoGerado) {
+  const propostaReal = p.contratoGerado && (p.contratoHtml || localStorage.getItem('contrato_html_'+projetoId));
+  if (!propostaReal) {
     toast('⚠️ Gere a proposta primeiro antes de aceitar.');
     return;
   }
@@ -8134,10 +8135,12 @@ async function _confirmarDesbloquear(projetoId) {
   p.propostaTravadaPor = '';
   p.contratoAprovado = false;
   p.contratoGerado = false;
+  p.contratoHtml = null;
+  localStorage.removeItem('contrato_html_'+projetoId);
   try {
     await pushProjeto(p);
     renderProjetos();
-    toast('🔓 Projeto desbloqueado — proposta precisa ser gerada novamente.');
+    toast('🔓 Projeto desbloqueado — gere a proposta novamente.');
   } catch(e) { toast('Erro: ' + e.message); }
 }
 async function aprovarContratoProjeto(projetoId) {
