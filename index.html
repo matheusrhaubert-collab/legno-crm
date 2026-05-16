@@ -4853,9 +4853,12 @@ function renderProjetos(filter='') {
             ${isAdmin()?`
               <div style="font-size:10px;padding:2px 8px;border-radius:99px;display:inline-block;background:${aFinOk?'rgba(92,184,130,0.15)':'rgba(255,255,255,0.05)'};color:${aFinOk?'var(--green)':'var(--text3)'};margin-bottom:10px;border:1px solid ${aFinOk?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.1)'}">${aFinOk?'Atualizado':'Pendente'}</div>
               ${aFinOk?`
-                <div style="margin-bottom:6px">
-                  <div style="font-size:10px;color:var(--text3)">Valor de venda</div>
-                  <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+                  <div>
+                    <div style="font-size:10px;color:var(--text3)">Valor de venda${a.finValorManual>0?' <span style="color:var(--amber);font-size:9px">✎ manual</span>':''}</div>
+                    <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
+                  </div>
+                  ${!travado?`<button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>`:''}
                 </div>
                 ${valorPromobAmb>0?`
                 <div style="margin-bottom:6px">
@@ -4870,7 +4873,8 @@ function renderProjetos(filter='') {
                   </div>
                 </div>
               `:'<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Sem dados</div>'}
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro completo</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();abrirMiniFinanceiro('${p.id}')">📈 Resumo do projeto</button>
             `:`
               <div style="text-align:center;padding:16px 0">
                 <div style="font-size:28px;margin-bottom:8px">🔒</div>
@@ -6646,6 +6650,139 @@ function toast(msg, dur=3500) {
 // ══════════════════════════════════════════
 // ── FINANCEIRO ──
 let _finProjetoId = null;
+function editarValorVendaAmb(projetoId, nomeAmb) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (p?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado'); return; }
+  _prepararAmbContext(projetoId, nomeAmb);
+  const atual = _ambObj.finValorManual || _ambObj.finPrecoFinal || '';
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:#1a1a2e;border:1px solid rgba(176,144,224,0.3);border-radius:14px;padding:24px;max-width:340px;width:100%">
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">💵 Valor de venda</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:16px">${nomeAmb}</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px">Valor calculado: <span style="color:var(--gold)">$ ${(atual||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>
+      <input id="fin-manual-input" type="number" step="0.01" placeholder="0.00" value="${_ambObj.finValorManual||''}"
+        style="width:100%;background:#111;border:1px solid rgba(176,144,224,0.4);border-radius:8px;color:var(--text);font-size:18px;font-family:DM Mono,monospace;padding:10px 14px;outline:none;margin-bottom:8px;box-sizing:border-box">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:16px">Deixe em branco para usar o valor calculado automaticamente.</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:10px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>
+        <button id="fin-manual-limpar" style="padding:10px 14px;background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.3);border-radius:8px;color:#ff6060;font-size:12px;cursor:pointer">Limpar</button>
+        <button id="fin-manual-salvar" style="flex:2;padding:10px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">✓ Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target===ov) ov.remove(); });
+  document.getElementById('fin-manual-limpar').onclick = async () => {
+    delete _ambObj.finValorManual;
+    await _salvarAmbObjDireto(projetoId, nomeAmb);
+    renderProjetos(); ov.remove(); toast('Valor manual removido');
+  };
+  document.getElementById('fin-manual-salvar').onclick = async () => {
+    const v = parseFloat(document.getElementById('fin-manual-input').value);
+    if (isNaN(v) || v <= 0) { toast('Valor inválido'); return; }
+    _ambObj.finValorManual = v;
+    _ambObj.finPrecoFinal = v;
+    await _salvarAmbObjDireto(projetoId, nomeAmb);
+    renderProjetos(); ov.remove(); toast('✓ Valor salvo!');
+  };
+}
+
+async function _salvarAmbObjDireto(projetoId, nomeAmb) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  const lead = DB.leads.find(l=>l.id===p?.leadId);
+  if (!lead?.ambientesBriefing) return;
+  const idx = (_ambIdx >= 0) ? _ambIdx : lead.ambientesBriefing.findIndex(a=>
+    (a.nome||a.tipo||'').trim().toLowerCase()===(nomeAmb||'').trim().toLowerCase()
+  );
+  if (idx >= 0) {
+    lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
+    await pushLead(lead);
+  }
+}
+
+function abrirMiniFinanceiro(projetoId) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const lead = DB.leads.find(l=>l.id===p.leadId);
+  const ambs = lead?.ambientesBriefing || [];
+  const fmt = v => '$ ' + Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtNeg = v => '− $ ' + Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  // Recalculate totals using saved per-ambiente values
+  let totalVenda=0, totalComissao=0, totalMontagem=0, totalProdutos=0;
+  ambs.forEach(a => {
+    const vXML = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
+    const desc = p.finDesconto||0, taxa = p.finTaxa||0, mult = p.finMultiplicador||3;
+    const custoPromob = vXML * (1 - desc/100) * (1 + taxa/100);
+    const precoBase = custoPromob * mult;
+    const descCli = precoBase * ((p.finDescontoCliente||0)/100);
+    const precoFinal = a.finValorManual > 0 ? a.finValorManual : (precoBase - descCli);
+    const comissao = p.finComissaoTipo==='percent' ? precoFinal*(p.finComissao||0)/100 : (p.finComissao||0)/ambs.length;
+    const comissaoExt = p.finComissaoExtTipo==='percent' ? precoFinal*(p.finComissaoExt||0)/100 : (p.finComissaoExt||0)/ambs.length;
+    const montagem = precoFinal * ((p.finMontagem||0)/100);
+    totalVenda += precoFinal;
+    totalComissao += comissao + comissaoExt;
+    totalMontagem += montagem;
+    totalProdutos += custoPromob + (p.finFrete||0)/ambs.length + (p.finCustoExtra||0)/ambs.length;
+  });
+  const totalMargem = totalVenda - totalComissao - totalMontagem - totalProdutos;
+  const margemPct = totalVenda > 0 ? (totalMargem/totalVenda*100) : 0;
+  const cor = totalMargem >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const rows = [
+    ['💵 Valor de venda total', fmt(totalVenda), 'var(--text)', true],
+    ['📉 Comissões', fmtNeg(totalComissao), 'var(--red)', false],
+    ['🔧 Montagem', fmtNeg(totalMontagem), 'var(--amber)', false],
+    ['📦 Custo produtos', fmtNeg(totalProdutos), 'var(--red)', false],
+  ];
+  ov.innerHTML = `
+    <div style="background:#141414;border:1px solid rgba(201,169,110,0.3);border-radius:16px;padding:28px;max-width:400px;width:100%">
+      <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">📊 Resumo Financeiro</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:20px">${p.nome}</div>
+      ${rows.map(([label,val,cor,bold])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)">
+          <span style="font-size:12px;color:var(--text2);${bold?'font-weight:600':''};">${label}</span>
+          <span style="font-size:13px;font-weight:700;font-family:DM Mono,monospace;color:${cor}">${val}</span>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 4px">
+        <span style="font-size:14px;font-weight:700;color:var(--text)">Margem</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px;font-weight:700;font-family:DM Mono,monospace;color:${cor}">${fmt(totalMargem)}</span>
+          <span style="font-size:11px;padding:2px 8px;border-radius:99px;background:${margemPct>=30?'rgba(92,184,130,0.15)':'rgba(255,80,80,0.1)'};color:${cor};font-weight:700">${margemPct.toFixed(1)}%</span>
+        </div>
+      </div>
+      ${ambs.length > 1 ? `
+      <div style="margin-top:16px;border-top:0.5px solid rgba(255,255,255,0.08);padding-top:14px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Por ambiente</div>
+        ${ambs.map(a=>{
+          const vXML = a.xmlDados?.valorTotalNum||0;
+          const custoP = vXML*(1-(p.finDesconto||0)/100)*(1+(p.finTaxa||0)/100);
+          const pb = custoP*(p.finMultiplicador||3);
+          const pf = a.finValorManual>0 ? a.finValorManual : pb*(1-(p.finDescontoCliente||0)/100);
+          const cm = p.finComissaoTipo==='percent'?pf*(p.finComissao||0)/100:(p.finComissao||0)/ambs.length;
+          const mt = pf*((p.finMontagem||0)/100);
+          const mg = pf - cm - mt - custoP;
+          const mgPct = pf>0?(mg/pf*100):0;
+          const c2 = mg>=0?'var(--green)':'var(--red)';
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)">
+            <span style="font-size:11px;color:var(--text2)">${a.nome||a.tipo}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              ${a.finValorManual>0?'<span style="font-size:9px;color:var(--amber)">✎ manual</span>':''}
+              <span style="font-size:12px;font-family:DM Mono,monospace;color:var(--text)">$ ${pf.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+              <span style="font-size:9px;padding:1px 5px;border-radius:99px;background:${mgPct>=30?'rgba(92,184,130,0.12)':'rgba(255,80,80,0.1)'};color:${c2}">${mgPct.toFixed(1)}%</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`:'' }
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;margin-top:18px;padding:11px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Fechar</button>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if(e.target===ov) ov.remove(); });
+}
+
 function abrirFinanceiro(projetoId) {
   _finProjetoId = projetoId;
   const p = DB.projetos.find(x=>x.id===projetoId);
@@ -6823,7 +6960,9 @@ async function salvarFinanceiro() {
     const custoPromobV = vXML - descontoV + taxaV;
     const precoBaseV = custoPromobV * multiplicador;
     const descontoClienteV = precoBaseV * (descontoClientePct/100);
-    const precoFinalV = precoBaseV - descontoClienteV;
+    // Use valor manual se definido
+    const precoFinalVCalc = precoBaseV - descontoClienteV;
+    const precoFinalV = a.finValorManual > 0 ? a.finValorManual : precoFinalVCalc;
     const montagemV = precoFinalV * (montagemPct/100);
     const comissaoFinalV = comissaoTipo === 'percent' ? precoFinalV * (comissaoVal/100) : comissaoVal * proporcao;
     const comissaoExtFinalV = comissaoExtTipo === 'percent' ? precoFinalV * (comissaoExtVal/100) : comissaoExtVal * proporcao;
