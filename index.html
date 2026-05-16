@@ -6710,7 +6710,7 @@ function calcFinanceiro() {
   // ── Custos de venda ──
   const comissaoFinal = comissaoTipo === 'percent' ? precoFinal * (comissaoVal / 100) : comissaoVal;
   const comissaoExtFinal = comissaoExtTipo === 'percent' ? precoFinal * (comissaoExtVal / 100) : comissaoExtVal;
-  const totalCustosVenda = comissaoFinal + comissaoExtFinal + descontoClienteVal;
+  const totalCustosVenda = comissaoFinal + comissaoExtFinal;
 
   // ── Custos de montagem ──
   const montagemVal = precoFinal * (montagemPct / 100);
@@ -6829,7 +6829,7 @@ async function salvarFinanceiro() {
     const comissaoExtFinalV = comissaoExtTipo === 'percent' ? precoFinalV * (comissaoExtVal/100) : comissaoExtVal * proporcao;
     const freteV = frete * proporcao;
     const custoExtraV = custoExtra * proporcao;
-    const totalCustosV = (comissaoFinalV + comissaoExtFinalV + descontoClienteV) + montagemV + (custoPromobV + freteV + custoExtraV);
+    const totalCustosV = (comissaoFinalV + comissaoExtFinalV) + montagemV + (custoPromobV + freteV + custoExtraV);
     const sobraV = precoFinalV - totalCustosV;
     const sobraPctV = precoFinalV > 0 ? (sobraV / precoFinalV * 100) : 0;
     // Save to ambiente object
