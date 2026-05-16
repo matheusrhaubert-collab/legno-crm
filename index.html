@@ -3776,49 +3776,6 @@ function salvarAssinatura(projId){
   }).then(()=>{alert('${lang==='en'?'Contract signed and saved!':lang==='pt'?'Contrato assinado e salvo!':'Contrato firmado y guardado!'}');}).catch(()=>{});
 }
 <\/script>
-<!-- MODAL CONFIRMAR PRODUÇÃO -->
-<div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
-  <div class="modal" style="max-width:560px">
-    <div class="modal-handle"></div>
-    <div class="modal-header">
-      <span class="modal-title">🏭 Confirmar Envio para Produção</span>
-      <div class="icon-btn" onclick="closeModal('confirmarProducao')">✕</div>
-    </div>
-    <div class="modal-body">
-      <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
-        ⚠️ Após confirmar, o projeto será travado. Um email com os XMLs será enviado para orders@legnocabinets.com.
-      </div>
-      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
-      <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:0.5px solid var(--border)">
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">📎 Ambientes / XMLs a enviar</div>
-        <div id="cp-xml-lista" style="font-size:13px;color:var(--text2);line-height:2"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">📅 Data entrada na fábrica *</label>
-          <input class="form-input" id="cp-data-fabrica" type="date">
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="color:var(--gold2);font-weight:600">🎯 Data de entrega ao cliente *</label>
-          <input class="form-input" id="cp-data-entrega" type="date" style="border-color:var(--gold);background:var(--gold-dim)">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">🔧 Data instalação (opcional)</label>
-        <input class="form-input" id="cp-data-instalacao" type="date">
-      </div>
-      <div class="form-group">
-        <label class="form-label">💬 Mensagem para a fábrica (será incluída no email)</label>
-        <textarea class="form-textarea" id="cp-obs" placeholder="Ex: Atenção ao acabamento da porta da cozinha. Cliente exigente com detalhes..." style="min-height:100px"></textarea>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
-      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">📧 Confirmar e enviar XMLs</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>`;
 
@@ -10197,7 +10154,47 @@ checkSession();
 </div>
 
 <!-- MODAL CONFIRMAR PRODUÇÃO -->
-
+<div class="overlay" id="modal-confirmarProducao" onclick="closeModalOutside(event,'confirmarProducao')">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🏭 Confirmar Envio para Produção</span>
+      <div class="icon-btn" onclick="closeModal('confirmarProducao')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--amber)">
+        ⚠️ Após confirmar, o projeto será travado. Um email com os XMLs será enviado para orders@legnocabinets.com.
+      </div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px" id="cp-nome-cliente"></div>
+      <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:0.5px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">📎 Ambientes / XMLs a enviar</div>
+        <div id="cp-xml-lista" style="font-size:13px;color:var(--text2);line-height:2"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">📅 Data entrada na fábrica *</label>
+          <input class="form-input" id="cp-data-fabrica" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="color:var(--gold2);font-weight:600">🎯 Data de entrega ao cliente *</label>
+          <input class="form-input" id="cp-data-entrega" type="date" style="border-color:var(--gold);background:var(--gold-dim)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔧 Data instalação (opcional)</label>
+        <input class="form-input" id="cp-data-instalacao" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">💬 Mensagem para a fábrica (será incluída no email)</label>
+        <textarea class="form-textarea" id="cp-obs" placeholder="Ex: Atenção ao acabamento da porta da cozinha. Cliente exigente com detalhes..." style="min-height:100px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('confirmarProducao')">Cancelar</button>
+      <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">📧 Confirmar e enviar XMLs</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
