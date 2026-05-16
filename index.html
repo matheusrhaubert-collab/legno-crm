@@ -4274,14 +4274,19 @@ function goPage(page) {
   document.getElementById('topbarTitle').textContent = pageTitles[page] || page;
   document.getElementById('addBtn').style.display = addBtnPages[page] ? 'flex' : 'none';
   closeSidebar();
-  if (page === 'projetos') renderProjetos();
-  if (page === 'agenda') renderAgenda();
-  if (page === 'producao') renderProducao();
-  if (page === 'entrega') renderEntrega();
-  if (page === 'instalacao') renderInstalacao();
-  if (page === 'config') carregarUsuarios();
-  if (page === 'financeiro') renderFinanceiro();
-  if (page === 'marketing') renderMarketing();
+  try {
+    if (page === 'projetos') renderProjetos();
+    if (page === 'agenda') renderAgenda();
+    if (page === 'producao') renderProducao();
+    if (page === 'entrega') renderEntrega();
+    if (page === 'instalacao') renderInstalacao();
+    if (page === 'config') carregarUsuarios();
+    if (page === 'financeiro') renderFinanceiro();
+    if (page === 'marketing') renderMarketing();
+  } catch(e) {
+    console.error('goPage render error ['+page+']:', e);
+    toast('Erro ao carregar ' + page + ': ' + e.message);
+  }
 }
 
 function toggleSidebar() {
@@ -4512,6 +4517,7 @@ function statusProjBadge(s) {
 }
 
 function renderProjetos(filter='') {
+  try {
   const f = (filter||filterTexts.projetos).toLowerCase();
   const idsEmProducao = new Set((DB.producao||[]).map(x => x.projetoId).filter(Boolean));
   const idsEmInstalacao = new Set((DB.instalacoes||[]).filter(i=>!i.concluida).map(i=>i.clienteNome).filter(Boolean));
@@ -5102,6 +5108,11 @@ function renderProjetos(filter='') {
         }).join('')}
       </div>`;
     }
+  }
+  } catch(e) {
+    console.error('renderProjetos error:', e);
+    const el = document.getElementById('list-projetos');
+    if (el) el.innerHTML = `<div class="empty"><span class="empty-icon">⚠</span><p style="color:var(--red)">Erro ao carregar projetos:<br>${e.message}</p></div>`;
   }
 }
 
@@ -9756,4 +9767,3 @@ checkSession();
 
 </body>
 </html>
-
