@@ -43,7 +43,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   display:flex;align-items:center;gap:10px;padding:9px 20px;
   font-size:13px;color:var(--text2);cursor:pointer;
   transition:all 0.15s;border-left:2px solid transparent;
-  margin:1px 0;
+  margin:1px 0;width:100%;background:none;border-top:none;border-right:none;border-bottom:none;
+  text-align:left;font-family:inherit;
 }
 .nav-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active{color:var(--gold2);background:var(--gold-dim);border-left-color:var(--gold)}
@@ -329,52 +330,52 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     </div>
     <nav class="nav">
       <div class="nav-section">Clientes</div>
-      <div class="nav-item active" onclick="goPage('leads')" data-page="leads">
+      <button class="nav-item active" onclick="goPage('leads')" data-page="leads">
         <span class="nav-icon">◎</span> Clients
         <span class="nav-badge" id="badge-leads">0</span>
-      </div>
-      <div class="nav-item" onclick="goPage('projetos')" data-page="projetos">
+      </button>
+      <button class="nav-item" onclick="goPage('projetos')" data-page="projetos">
         <span class="nav-icon">◈</span> Projetos
         <span class="nav-badge" id="badge-projetos">0</span>
-      </div>
-      <div class="nav-item" onclick="goPage('agenda')" data-page="agenda">
+      </button>
+      <button class="nav-item" onclick="goPage('agenda')" data-page="agenda">
         <span class="nav-icon">📅</span> Agenda
         <span class="nav-badge" id="badge-agenda">0</span>
-      </div>
-      <div class="nav-item nav-admin" onclick="goPage('producao')" data-page="producao">
+      </button>
+      <button class="nav-item nav-admin" onclick="goPage('producao')" data-page="producao">
         <span class="nav-icon">🏭</span> Produção
         <span class="nav-badge" id="badge-producao">0</span>
-      </div>
-      <div class="nav-item" onclick="goPage('entrega')" data-page="entrega">
+      </button>
+      <button class="nav-item" onclick="goPage('entrega')" data-page="entrega">
         <span class="nav-icon">🚚</span> Entrega
         <span class="nav-badge" id="badge-entrega"></span>
-      </div>
-      <div class="nav-item" onclick="goPage('instalacao')" data-page="instalacao">
+      </button>
+      <button class="nav-item" onclick="goPage('instalacao')" data-page="instalacao">
         <span class="nav-icon">🔧</span> Instalação
         <span class="nav-badge" id="badge-instalacao"></span>
-      </div>
-      <div class="nav-item" onclick="goPage('perdidos')" data-page="perdidos">
+      </button>
+      <button class="nav-item" onclick="goPage('perdidos')" data-page="perdidos">
         <span class="nav-icon">○</span> Perdidos
-      </div>
-      <div class="nav-item" onclick="goPage('concluidos')" data-page="concluidos">
+      </button>
+      <button class="nav-item" onclick="goPage('concluidos')" data-page="concluidos">
         <span class="nav-icon">✓</span> Concluídos
         <span class="nav-badge" id="badge-concluidos" style="display:none"></span>
-      </div>
+      </button>
       <div class="nav-section">Marketing</div>
-      <div class="nav-item nav-admin" onclick="goPage('marketing')" data-page="marketing">
+      <button class="nav-item nav-admin" onclick="goPage('marketing')" data-page="marketing">
         <span class="nav-icon">✦</span> Marketing
-      </div>
+      </button>
       <div class="nav-section">Financeiro</div>
-      <div class="nav-item nav-admin" onclick="goPage('financeiro')" data-page="financeiro">
+      <button class="nav-item nav-admin" onclick="goPage('financeiro')" data-page="financeiro">
         <span class="nav-icon">💰</span> Financeiro
-      </div>
+      </button>
       <div class="nav-section">Ferramentas</div>
-      <div class="nav-item" onclick="goPage('imagens')" data-page="imagens">
+      <button class="nav-item" onclick="goPage('imagens')" data-page="imagens">
         <span class="nav-icon">⊞</span> Imagens
-      </div>
-      <div class="nav-item nav-admin" onclick="goPage('config')" data-page="config">
+      </button>
+      <button class="nav-item nav-admin" onclick="goPage('config')" data-page="config">
         <span class="nav-icon">⊙</span> Configurações
-      </div>
+      </button>
     </nav>
     <div class="sidebar-bottom" style="padding:0">
       <div class="user-badge">
