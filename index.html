@@ -8316,39 +8316,34 @@ function renderChecklistLista() {
   }
 
   lista.innerHTML = items.map((item, idx) => {
-    const cor = item.concluido ? 'var(--green)' : 'var(--border2)';
-    const bgCard = item.concluido ? 'rgba(92,184,130,0.06)' : 'var(--bg2)';
+    const isLast = idx === items.length - 1;
+    const checkCor = item.concluido ? 'var(--green)' : 'var(--border3)';
     return `
-    <div style="background:${bgCard};border:0.5px solid ${cor};border-radius:14px;padding:16px;margin-bottom:12px">
-      <!-- Header item -->
-      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
-        <button onclick="toggleItemChecklist(${idx})" style="width:32px;height:32px;flex-shrink:0;border-radius:8px;border:2px solid ${item.concluido?'var(--green)':'var(--border3)'};background:${item.concluido?'var(--green)':'transparent'};color:${item.concluido?'#0d0d0d':'transparent'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:2px">✓</button>
-        <div style="flex:1">
-          <textarea id="cl-desc-${idx}" style="width:100%;background:transparent;border:none;color:${item.concluido?'var(--text3)':'var(--text)'};font-size:15px;font-family:inherit;resize:none;outline:none;line-height:1.4;${item.concluido?'text-decoration:line-through':''}" rows="2" placeholder="Descreva o item..." oninput="updateItemChecklist(${idx},'descricao',this.value)">${item.descricao||''}</textarea>
+    <div>
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 4px;-webkit-tap-highlight-color:transparent">
+        <!-- Check grande — clica e abre câmera direto -->
+        <button onclick="concluirItemComFoto(${idx})" style="width:52px;height:52px;flex-shrink:0;border-radius:50%;border:2.5px solid ${checkCor};background:${item.concluido?'var(--green)':'transparent'};color:${item.concluido?'#0d0d0d':'transparent'};font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s">✓</button>
+        <!-- Conteúdo -->
+        <div style="flex:1;min-width:0">
+          ${item.concluido ? `
+            <div style="font-size:15px;font-weight:500;color:var(--text3);text-decoration:line-through;margin-bottom:3px">${item.descricao||'—'}</div>
+            <div style="font-size:11px;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap">
+              ${item.responsavel?`<span>👤 ${item.responsavel}</span>`:''}
+              ${item.dataConclusao?`<span style="color:var(--green)">✓ ${item.dataConclusao}</span>`:''}
+            </div>
+            ${item.foto?`<img src="${item.foto}" style="margin-top:8px;max-width:100px;max-height:75px;object-fit:cover;border-radius:8px;border:1px solid var(--green)">`:''}
+          ` : `
+            <input value="${item.descricao||''}" placeholder="Descreva o item..." oninput="updateItemChecklist(${idx},'descricao',this.value)"
+              style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:15px;font-weight:500;font-family:inherit;padding:2px 0 6px;outline:none;margin-bottom:8px">
+            <input value="${item.responsavel||''}" placeholder="Responsável..." oninput="updateItemChecklist(${idx},'responsavel',this.value)"
+              style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;color:var(--text2);font-size:13px;font-family:inherit;padding:7px 10px;outline:none">
+          `}
         </div>
-        <button onclick="removerItemChecklist(${idx})" style="width:30px;height:30px;flex-shrink:0;background:transparent;border:none;color:var(--text3);font-size:16px;cursor:pointer">✕</button>
+        <!-- Remover -->
+        <button onclick="removerItemChecklist(${idx})" style="width:32px;height:32px;flex-shrink:0;background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;opacity:0.4">✕</button>
       </div>
-      <!-- Responsável -->
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Responsável</div>
-        <input value="${item.responsavel||''}" placeholder="Nome do responsável..." oninput="updateItemChecklist(${idx},'responsavel',this.value)"
-          style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px 12px;outline:none">
-      </div>
-      <!-- Foto -->
-      <div>
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Foto</div>
-        ${item.foto ? `
-          <div style="position:relative;display:inline-block">
-            <img src="${item.foto}" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;border:0.5px solid var(--border)">
-            <button onclick="removerFotoItem(${idx})" style="position:absolute;top:6px;right:6px;width:28px;height:28px;background:rgba(0,0,0,0.7);border:none;border-radius:50%;color:white;font-size:12px;cursor:pointer">✕</button>
-          </div>
-        ` : `
-          <button onclick="tirarFotoItem(${idx})" style="width:100%;height:56px;background:var(--bg3);border:1.5px dashed var(--border2);border-radius:10px;color:var(--text3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-            <span style="font-size:20px">📷</span> Adicionar foto
-          </button>
-        `}
-        <input type="file" id="foto-input-${idx}" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoItem(${idx},this)">
-      </div>
+      ${!isLast ? `<div style="height:0.5px;background:var(--border);margin:0 4px"></div>` : ''}
+      <input type="file" id="foto-input-${idx}" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoItem(${idx},this)">
     </div>`;
   }).join('');
 }
@@ -8388,6 +8383,21 @@ function removerItemChecklist(idx) {
 }
 
 function tirarFotoItem(idx) {
+  const input = document.getElementById('foto-input-'+idx);
+  if (input) input.click();
+}
+
+function concluirItemComFoto(idx) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst || !inst.checklist[idx]) return;
+  // Se já concluído, desfaz
+  if (inst.checklist[idx].concluido) {
+    inst.checklist[idx].concluido = false;
+    inst.checklist[idx].dataConclusao = null;
+    renderChecklistLista();
+    return;
+  }
+  // Abre câmera — foto obrigatória para concluir
   const input = document.getElementById('foto-input-'+idx);
   if (input) input.click();
 }
@@ -8435,6 +8445,9 @@ async function uploadFotoItem(idx, input) {
     toast('✓ Foto carregada!');
     return;
   }
+  // Mark as concluded after photo upload
+  inst.checklist[idx].concluido = true;
+  inst.checklist[idx].dataConclusao = new Date().toISOString().slice(0,10);
   renderChecklistLista();
   input.value = '';
 }
