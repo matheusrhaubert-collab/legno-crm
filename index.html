@@ -1435,9 +1435,33 @@ function carregarXML(event) {
           body: JSON.stringify(payload)
         }).catch(()=>{});
       }
-      // ── Auto-save XML to Supabase ──
+      // ── Upload XML to Supabase Storage ──
       const _pSave = DB.projetos.find(x=>x.id===_ambProjetoId);
       const _lSave = DB.leads.find(l=>l.id===_pSave?.leadId);
+      try {
+        const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
+        const xmlPath = `${clean(_lSave?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
+        const xmlBlob = new Blob([_ambObj.xmlRaw], {type:'application/xml'});
+        const uploadResp = await fetch(`${SB_URL}/storage/v1/object/xmls/${xmlPath}`, {
+          method: 'POST',
+          headers: {
+            'apikey': SB_KEY_SERVICE,
+            'Authorization': 'Bearer ' + SB_KEY_SERVICE,
+            'Content-Type': 'application/xml',
+            'x-upsert': 'true'
+          },
+          body: xmlBlob
+        });
+        if (uploadResp.ok) {
+          _ambObj.xmlStorageUrl = `${SB_URL}/storage/v1/object/public/xmls/${xmlPath}`;
+          _ambObj.xmlStoragePath = xmlPath;
+        } else {
+          console.warn('XML Storage upload failed:', await uploadResp.text());
+        }
+      } catch(e) {
+        console.warn('XML Storage upload error:', e.message);
+      }
+
       if (_lSave?.ambientesBriefing) {
         let idx = (_ambIdx >= 0) ? _ambIdx : _lSave.ambientesBriefing.findIndex(a=>
           (a.nome||a.tipo)===_ambNome || a.nome===_ambNome || a.tipo===_ambNome ||
@@ -8237,13 +8261,17 @@ async function reenviarEmailXMLs(prodId) {
 
 async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel) {
   const fmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
-  const valorTotal = ambientes.reduce((s,a)=>s+(parseFloat(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0)),0);
-  const xmlAmbs = ambientes.filter(a=>a.xmlNome);
 
   // Busca desconto e taxa do projeto
   const proj = DB.projetos.find(x=>x.id===p.id) || DB.projetos.find(x=>x.nome===p.nome);
   const descFab = proj?.finDesconto ?? CFG.finDesconto ?? 0;
   const taxa    = proj?.finTaxa    ?? CFG.finTaxa    ?? 7;
+
+  const xmlAmbs = ambientes.filter(a=>a.xmlNome);
+  const valorTotal = ambientes.reduce((s,a)=>{
+    const promob = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
+    return s + (promob > 0 ? promob * (1 - descFab/100) : parseFloat(a.finPrecoFinal||0));
+  }, 0);
 
   const linhasAmb = ambientes.map(a => {
     const promob = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
@@ -8253,8 +8281,9 @@ async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInsta
     const taxVal   = custoLiq * (taxa / 100);
     const total    = custoLiq + taxVal;
     const fmt = v => '$ ' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const xmlLink = a.xmlStorageUrl ? `\n    Download XML: ${a.xmlStorageUrl}` : '';
     return [
-      `  • ${a.nome||a.tipo}${a.xmlNome?' — '+a.xmlNome:''}`,
+      `  • ${a.nome||a.tipo}${a.xmlNome?' — '+a.xmlNome:''}${xmlLink}`,
       `    Tabela Promob:   ${fmt(promob)}`,
       `    Desc. fábrica:  -${fmt(descVal)} (${descFab}%)`,
       `    Total c/ desconto: ${fmt(custoLiq)}`,
