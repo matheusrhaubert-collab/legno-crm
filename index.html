@@ -1442,7 +1442,7 @@ function carregarXML(event) {
         const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
         const xmlPath = `${clean(_lSave?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
         const xmlBlob = new Blob([_ambObj.xmlRaw], {type:'application/xml'});
-        const uploadResp = await fetch(`${SB_URL}/storage/v1/object/xmls/${xmlPath}`, {
+        const uploadResp = await fetch(`${SB_URL}/storage/v1/object/XML/${xmlPath}`, {
           method: 'POST',
           headers: {
             'apikey': SB_KEY_SERVICE,
@@ -1453,7 +1453,7 @@ function carregarXML(event) {
           body: xmlBlob
         });
         if (uploadResp.ok) {
-          _ambObj.xmlStorageUrl = `${SB_URL}/storage/v1/object/public/xmls/${xmlPath}`;
+          _ambObj.xmlStorageUrl = `${SB_URL}/storage/v1/object/public/XML/${xmlPath}`;
           _ambObj.xmlStoragePath = xmlPath;
         } else {
           console.warn('XML Storage upload failed:', await uploadResp.text());
@@ -4741,7 +4741,8 @@ function renderAll() {
 
 function updateBadges() {
   const leads = DB.leads.filter(l => l.status !== 'desqualificado');
-  document.getElementById('badge-leads').textContent = leads.length;
+  const semBriefing = leads.filter(l => !l.ambientesBriefing || l.ambientesBriefing.length === 0);
+  document.getElementById('badge-leads').textContent = semBriefing.length;
   document.getElementById('badge-projetos').textContent = DB.projetos.filter(p=>p.status!=='producao').length;
   // stats leads
   document.getElementById('sl-total').textContent = DB.leads.length;
@@ -5609,8 +5610,8 @@ function gerarProposalCliente(projetoId) {
 
   // 5. Prazos
   const pz = p.prazos||{};
-  const prazosFaltando = ['medicao','producao','entrega','instalacao'].filter(k=>!pz[k]);
-  if(prazosFaltando.length>0) erros.push({icon:'📅', campo:'Prazos', detalhe:'Prazos pendentes: '+prazosFaltando.map(k=>({medicao:'Medição',producao:'Produção',entrega:'Entrega',instalacao:'Instalação'}[k])).join(', ')});
+  const prazosFaltando = ['medicao','producao','entrega','instalacao','finalizacao'].filter(k=>!pz[k]);
+  if(prazosFaltando.length>0) erros.push({icon:'📅', campo:'Prazos', detalhe:'Prazos pendentes: '+prazosFaltando.map(k=>({medicao:'Medição',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',finalizacao:'Finalização'}[k])).join(', ')});
 
   // Show validation errors if any
   if(erros.length>0) {
@@ -8415,7 +8416,8 @@ function abrirPrazos(projetoId) {
       medicao: add(base, 7),
       producao: add(base, 14),
       entrega:  add(base, 29),
-      instalacao: add(base, 32),
+      instalacao: add(base, 30),
+      finalizacao: add(base, 30 + dias),
     };
   }
 
@@ -8429,7 +8431,8 @@ function abrirPrazos(projetoId) {
     {key:'medicao',   icon:'📐', label:'Conferência de medidas + fábrica', cor:'var(--amber)',  auto:true,  desc:'7 dias após a entrada. Ajuste conforme agendamento.'},
     {key:'producao',  icon:'🏭', label:'Produção',                         cor:'var(--blue)',   auto:true,  desc:'7 dias após conferência. Produção leva ~15 dias.'},
     {key:'entrega',   icon:'🚚', label:'Entrega',                          cor:'#b090e0',       auto:true,  desc:'3 dias após produção concluída.'},
-    {key:'instalacao',icon:'🔧', label:'Instalação',                       cor:'var(--gold)',   auto:true,  desc:'1 dia após entrega. Duração: '+diasInst+' dias.'},
+    {key:'instalacao',  icon:'🔧', label:'Instalação',    cor:'var(--gold)',   auto:true,  desc:'1 dia após entrega. Duração: '+diasInst+' dias.'},
+    {key:'finalizacao', icon:'✅', label:'Finalização',   cor:'var(--green)',  auto:true,  desc:'Após conclusão da instalação ('+diasInst+' dias).'},
   ];
 
   function buildHTML() {
@@ -8466,7 +8469,8 @@ function abrirPrazos(projetoId) {
     div.querySelector('#pz-recalc').onclick = () => {
       const ent = div.querySelector('#pz-entrada')?.value;
       if (!ent) { toast('Defina a data da entrada primeiro'); return; }
-      const sug = calcDatas(ent, parseInt(div.querySelector('#pz-dias')?.value||7));
+      const diasV = parseInt(div.querySelector('#pz-dias')?.value||7);
+      const sug = calcDatas(ent, diasV);
       Object.entries(sug).forEach(([k,v]) => { const el = div.querySelector('#pz-'+k); if(el) el.value = v; });
     };
     div.querySelector('#pz-save').onclick = async () => {
@@ -8523,10 +8527,11 @@ async function onEntradaRecebida(projetoId) {
     p.prazos.entrada = hoje;
     // Auto-calculate remaining dates
     const add = (d,n)=>{ const r=new Date(d+'T12:00:00'); r.setDate(r.getDate()+n); return r.toISOString().slice(0,10); };
-    if (!p.prazos.medicao)    p.prazos.medicao    = add(hoje,7);
-    if (!p.prazos.producao)   p.prazos.producao   = add(hoje,14);
-    if (!p.prazos.entrega)    p.prazos.entrega     = add(hoje,29);
-    if (!p.prazos.instalacao) p.prazos.instalacao  = add(hoje,32);
+    if (!p.prazos.medicao)     p.prazos.medicao     = add(hoje,7);
+    if (!p.prazos.producao)    p.prazos.producao    = add(hoje,14);
+    if (!p.prazos.entrega)     p.prazos.entrega      = add(hoje,29);
+    if (!p.prazos.instalacao)  p.prazos.instalacao   = add(hoje,30);
+    if (!p.prazos.finalizacao) p.prazos.finalizacao  = add(hoje,30+(p.diasInstalacao||7));
     await pushProjeto(p);
     renderProjetos();
     criarTarefasPrazo(p);
