@@ -368,11 +368,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     </div>
     <nav class="nav">
       <div class="nav-section">Clientes</div>
-      <button class="nav-item active" onclick="goPage('leads')" data-page="leads">
+      <button class="nav-item" onclick="goPage('leads')" data-page="leads">
         <span class="nav-icon">◎</span> Clients
         <span class="nav-badge" id="badge-leads">0</span>
       </button>
-      <button class="nav-item" onclick="goPage('projetos')" data-page="projetos">
+      <button class="nav-item active" onclick="goPage('projetos')" data-page="projetos">
         <span class="nav-icon">◈</span> Projetos
         <span class="nav-badge" id="badge-projetos">0</span>
       </button>
@@ -441,7 +441,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div class="content" id="content">
 
       <!-- ══ LEADS ══ -->
-      <div class="page active" id="page-leads">
+      <div class="page" id="page-leads">
         <div class="stats-row">
           <div class="stat stat-clickable" id="stat-lead-todos" onclick="filterLeadsByStatus('')"><div class="stat-label">Total leads</div><div class="stat-val gold" id="sl-total">0</div></div>
           <div class="stat stat-clickable" id="stat-lead-aguardando" onclick="filterLeadsByStatus('aguardando')"><div class="stat-label">Novo cliente</div><div class="stat-val blue" id="sl-aguard">0</div></div>
@@ -460,7 +460,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       </div>
 
       <!-- ══ PROJETOS ══ -->
-      <div class="page" id="page-projetos">
+      <div class="page active" id="page-projetos">
 
         <!-- STATS -->
         <div class="stats-row">
@@ -762,25 +762,48 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 <!-- ══ MODAL NOVO LEAD ══ -->
 <div class="overlay" id="modal-novoLead" onclick="closeModalOutside(event,'novoLead')">
-  <div class="modal">
+  <div class="modal" style="max-width:520px">
     <div class="modal-handle"></div>
     <div class="modal-header">
-      <div class="modal-title">Novo Lead</div>
+      <div class="modal-title">◈ Novo Projeto</div>
       <div class="icon-btn" onclick="closeModal('novoLead')">✕</div>
     </div>
     <div class="modal-body">
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Nome completo</label><input class="form-input" id="nl-nome" placeholder="Ana Lima"></div>
-        <div class="form-group"><label class="form-label">Telefone / WhatsApp</label><input class="form-input" id="nl-tel" placeholder="(11) 99999-9999"></div>
+      <!-- Nome do projeto -->
+      <div class="form-group">
+        <label class="form-label" style="color:var(--gold2);font-weight:600">Nome do projeto *</label>
+        <input class="form-input" id="nl-projeto-nome" placeholder="Ex: Cozinha + Living, Casa Completa, Escritório...">
       </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="nl-email" type="email" placeholder="ana@email.com"></div>
-        <div class="form-group"><label class="form-label">Origem</label>
-          <select class="form-select" id="nl-origem">
-            <option>Instagram</option><option>Indicação</option><option>Site</option><option>WhatsApp</option><option>Outro</option>
-          </select>
+      <!-- Cliente -->
+      <div class="form-group">
+        <label class="form-label">Cliente *</label>
+        <input class="form-input" id="nl-cliente-busca" placeholder="Buscar cliente existente ou digitar novo..."
+          oninput="_buscarClienteNovoProjeto(this.value)" autocomplete="off">
+        <div id="nl-cliente-sugestoes" style="margin-top:4px;display:none;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;max-height:180px;overflow-y:auto"></div>
+        <div id="nl-cliente-selecionado" style="display:none;margin-top:6px;padding:8px 12px;background:var(--green-dim);border:0.5px solid rgba(92,184,130,0.4);border-radius:var(--radius-sm);font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">
+          <span>✓</span><span id="nl-cliente-selecionado-nome"></span>
+          <button onclick="_limparClienteSelecionado()" style="margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px">✕</button>
         </div>
       </div>
+      <!-- Campos do cliente (visíveis só se novo) -->
+      <div id="nl-campos-novo-cliente" style="display:none">
+        <div style="padding:10px 12px;background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);font-size:12px;color:var(--amber);margin-bottom:12px">
+          ✦ Cliente novo — preencha os dados básicos
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Telefone / WhatsApp</label><input class="form-input" id="nl-tel" placeholder="(11) 99999-9999"></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="nl-email" type="email" placeholder="email@..."></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Origem</label>
+            <select class="form-select" id="nl-origem">
+              <option>Instagram</option><option>Indicação</option><option>Site</option><option>WhatsApp</option><option>Outro</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Vendedor externo</label><input class="form-input" id="nl-vendedor-externo" placeholder="Nome..."></div>
+        </div>
+      </div>
+      <!-- Campos sempre visíveis -->
       <div class="form-row">
         <div class="form-group"><label class="form-label">Tipo de projeto</label>
           <select class="form-select" id="nl-tipo">
@@ -791,12 +814,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <select class="form-select" id="nl-responsavel"><option value="">Selecionar...</option></select>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Vendedor Externo</label><input class="form-input" id="nl-vendedor-externo" placeholder="Nome do vendedor externo..."></div>
-      <div class="form-group"><label class="form-label">Observações iniciais</label><textarea class="form-textarea" id="nl-obs" placeholder="Briefing inicial, referências, estilo..."></textarea></div>
+      <div class="form-group"><label class="form-label">Observações iniciais</label>
+        <textarea class="form-textarea" id="nl-obs" placeholder="Briefing inicial, referências, estilo..." style="min-height:60px"></textarea>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('novoLead')">Cancelar</button>
-      <button class="btn btn-primary" onclick="criarLead()">Criar lead</button>
+      <button class="btn btn-primary" onclick="criarProjeto()">◈ Criar projeto</button>
     </div>
   </div>
 </div>
@@ -3906,9 +3930,8 @@ function init() {
   renderAmbienteEditor();
   updateClienteSelect();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
-  // Load from Supabase and update mobile UI after data loads
+  goPage('projetos');
   const p = loadFromSupabase().then(() => { if (isMobile()) mobGoHome(); });
-  // Auto-sync every 60 seconds
   setInterval(() => loadFromSupabase().then(() => { if (isMobile() && mobCurrentPage==='home') mobGoHome(); }), 60000);
   return p;
 }
@@ -4001,7 +4024,8 @@ async function pushLead(l) {
     especificador: l.especificador||'', previsao_instalacao: l.previsaoInstalacao||'',
     vendedor_externo: l.vendedorExterno||'',
     motivo_desq: l.motivoDesq||'', novo: l.novo||false,
-    ambientes_briefing: ambientesSemRaw
+    ambientes_briefing: ambientesSemRaw,
+    projeto_nome: l.projetoNome||''
   };
   const _extrasL = { responsavel: l.responsavel||'' };
   try {
@@ -4151,7 +4175,8 @@ function mapLead(l) {
     valor: l.valor||'', valorTotal: l.valor_total||'',
     especificador: l.especificador||'', previsaoInstalacao: l.previsao_instalacao||'',
     motivoDesq: l.motivo_desq||'', novo: l.novo||false,
-    ambientesBriefing: l.ambientes_briefing||[]
+    ambientesBriefing: l.ambientes_briefing||[],
+    projetoNome: l.projeto_nome||''
   };
 }
 function mapProjeto(p) {
@@ -4273,7 +4298,7 @@ function parseCSV(text) {
 // NAVIGATION
 // ══════════════════════════════════════════
 const pageTitles = {leads:'Clients',projetos:'Projetos',marketing:'Marketing',financeiro:'Financeiro',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',concluidos:'Concluídos',imagens:'Imagens',config:'Configurações'};
-const addBtnPages = {leads:true, projetos:false, agenda:false, producao:false, entrega:false, instalacao:false, perdidos:false, imagens:false, config:false};
+const addBtnPages = {leads:false, projetos:true, agenda:false, producao:false, entrega:false, instalacao:false, perdidos:false, imagens:false, config:false};
 
 function goPage(page) {
   console.log('goPage called:', page);
@@ -4688,7 +4713,8 @@ function renderProjetos(filter='') {
         <!-- ── HEADER ── -->
         <div style="padding:0 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
           <div>
-            <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">${p.nome}</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">${lead?.projetoNome || p.nome}</div>
+            ${lead?.projetoNome ? `<div style="font-size:12px;color:var(--gold2);margin-top:2px;font-weight:500">👤 ${p.nome}</div>` : ''}
             <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap">
               <span style="font-size:12px;color:var(--text3)">📅 Início: <span style="color:var(--text2)">${formatDate(p.data)}</span></span>
               ${lead?.updatedAt ? `<span style="font-size:12px;color:var(--text3)">🕐 Atualizado: <span style="color:var(--text2)">${formatDate(lead.updatedAt.slice(0,10))}</span></span>` : ''}
@@ -6152,6 +6178,147 @@ async function criarTarefaAutomatica(leadId, leadNome, tipo) {
     renderAgenda();
   } catch(e) {
     console.warn('Erro ao criar tarefa automática:', e.message);
+  }
+}
+
+// ══════════════════════════════════════════
+// NOVO PROJETO — fluxo projeto-first
+// ══════════════════════════════════════════
+let _clienteSelecionadoId = null; // null = novo cliente
+
+function _buscarClienteNovoProjeto(q) {
+  const sugestoesEl = document.getElementById('nl-cliente-sugestoes');
+  const camposNovo = document.getElementById('nl-campos-novo-cliente');
+  if (!q.trim()) { sugestoesEl.style.display='none'; return; }
+  const matches = DB.leads.filter(l => l.nome.toLowerCase().includes(q.toLowerCase()))
+    .reduce((acc, l) => { // deduplicate by nome
+      if (!acc.find(x=>x.nome===l.nome)) acc.push(l);
+      return acc;
+    }, []).slice(0,6);
+  if (matches.length) {
+    sugestoesEl.style.display = 'block';
+    sugestoesEl.innerHTML = matches.map(l => `
+      <div onclick="_selecionarCliente('${l.id}','${l.nome.replace(/'/g,"\\'")}')"
+        style="padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text);border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px"
+        onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">
+        <span style="font-size:16px">👤</span>
+        <div><div style="font-weight:500">${l.nome}</div><div style="font-size:11px;color:var(--text3)">${l.tipo||''} · ${l.tel||''}</div></div>
+      </div>`).join('') +
+      `<div onclick="_usarNovoCliente()"
+        style="padding:10px 14px;cursor:pointer;font-size:13px;color:var(--gold2);border-top:0.5px solid var(--border);display:flex;align-items:center;gap:10px"
+        onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">
+        <span>✦</span> Criar novo cliente "<strong>${q}</strong>"
+      </div>`;
+  } else {
+    sugestoesEl.style.display = 'block';
+    sugestoesEl.innerHTML = `
+      <div onclick="_usarNovoCliente()"
+        style="padding:10px 14px;cursor:pointer;font-size:13px;color:var(--gold2);display:flex;align-items:center;gap:10px"
+        onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">
+        <span>✦</span> Criar novo cliente "<strong>${q}</strong>"
+      </div>`;
+  }
+  camposNovo.style.display = 'none';
+  _clienteSelecionadoId = null;
+}
+
+function _selecionarCliente(id, nome) {
+  _clienteSelecionadoId = id;
+  document.getElementById('nl-cliente-busca').value = nome;
+  document.getElementById('nl-cliente-sugestoes').style.display = 'none';
+  const sel = document.getElementById('nl-cliente-selecionado');
+  sel.style.display = 'flex';
+  document.getElementById('nl-cliente-selecionado-nome').textContent = nome;
+  document.getElementById('nl-campos-novo-cliente').style.display = 'none';
+}
+
+function _usarNovoCliente() {
+  _clienteSelecionadoId = null;
+  document.getElementById('nl-cliente-sugestoes').style.display = 'none';
+  document.getElementById('nl-campos-novo-cliente').style.display = 'block';
+  document.getElementById('nl-cliente-selecionado').style.display = 'none';
+}
+
+function _limparClienteSelecionado() {
+  _clienteSelecionadoId = null;
+  document.getElementById('nl-cliente-busca').value = '';
+  document.getElementById('nl-cliente-selecionado').style.display = 'none';
+  document.getElementById('nl-campos-novo-cliente').style.display = 'none';
+}
+
+// Limpar modal ao abrir
+const _origOpenModal = window.openModal;
+window.openModal = function(id) {
+  if (id === 'novoLead') {
+    _clienteSelecionadoId = null;
+    setTimeout(() => {
+      const f = document.getElementById('nl-projeto-nome'); if (f) f.value='';
+      const b = document.getElementById('nl-cliente-busca'); if (b) b.value='';
+      const s = document.getElementById('nl-cliente-sugestoes'); if (s) s.style.display='none';
+      const sel = document.getElementById('nl-cliente-selecionado'); if (sel) sel.style.display='none';
+      const nc = document.getElementById('nl-campos-novo-cliente'); if (nc) nc.style.display='none';
+      const obs = document.getElementById('nl-obs'); if (obs) obs.value='';
+    }, 50);
+  }
+  _origOpenModal(id);
+};
+
+async function criarProjeto() {
+  const projNome = (document.getElementById('nl-projeto-nome')?.value||'').trim();
+  const clienteBusca = (document.getElementById('nl-cliente-busca')?.value||'').trim();
+  if (!projNome) { toast('⚠️ Informe o nome do projeto'); return; }
+  if (!clienteBusca) { toast('⚠️ Informe o cliente'); return; }
+
+  const tipo = document.getElementById('nl-tipo').value;
+  const responsavel = document.getElementById('nl-responsavel').value;
+  const obs = document.getElementById('nl-obs').value;
+
+  let lead;
+  if (_clienteSelecionadoId) {
+    // Cliente existente — cria novo lead com mesmo nome mas ID novo
+    const existing = DB.leads.find(l=>l.id===_clienteSelecionadoId);
+    lead = {
+      id: 'L'+Date.now(),
+      nome: existing.nome,
+      tel: existing.tel||'',
+      email: existing.email||'',
+      origem: existing.origem||'Indicação',
+      tipo, obs, responsavel,
+      vendedorExterno: existing.vendedorExterno||'',
+      status: 'aguardando',
+      data: new Date().toISOString().slice(0,10),
+      updatedAt: new Date().toISOString(),
+      projetoNome: projNome
+    };
+  } else {
+    // Cliente novo
+    lead = {
+      id: 'L'+Date.now(),
+      nome: clienteBusca,
+      tel: document.getElementById('nl-tel')?.value||'',
+      email: document.getElementById('nl-email')?.value||'',
+      origem: document.getElementById('nl-origem')?.value||'Outro',
+      tipo, obs, responsavel,
+      vendedorExterno: document.getElementById('nl-vendedor-externo')?.value||'',
+      status: 'aguardando',
+      data: new Date().toISOString().slice(0,10),
+      updatedAt: new Date().toISOString(),
+      projetoNome: projNome
+    };
+  }
+
+  try {
+    await pushLead(lead);
+    DB.leads.unshift(lead);
+    closeModal('novoLead');
+    renderAll();
+    toast(`◈ Projeto "${projNome}" criado!`);
+    registrarLog(lead.id, lead.nome, `Projeto criado: ${projNome}`);
+    criarTarefaAutomatica(lead.id, lead.nome, 'briefing');
+    // Ir direto para projetos
+    goPage('projetos');
+  } catch(e) {
+    toast('Erro ao criar projeto: ' + e.message);
   }
 }
 
