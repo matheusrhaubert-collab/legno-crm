@@ -8218,18 +8218,21 @@ async function confirmarEnvioProducao() {
   } catch(e) { toast('Erro ao enviar para produção: ' + e.message); }
 }
 
-async function reenviarEmailXMLs(projetoId) {
-  const p = DB.projetos.find(x=>x.id===projetoId);
-  if (!p) return;
-  const lead = DB.leads.find(l=>l.id===p.leadId);
-  const ambientes = lead?.ambientesBriefing || [];
-  const dataFabrica = p.prazos?.producao || '';
-  const dataEntrega = p.prazos?.entrega || '';
-  const dataInstalacao = p.prazos?.instalacao || '';
-  const obs = p.quadros?.xmlEnviado?.obs || '';
-  const responsavel = usuarioAtual?.nome || '';
+async function reenviarEmailXMLs(prodId) {
+  const prod = DB.producao.find(x=>x.id===prodId);
+  if (!prod) { toast('⚠️ Produção não encontrada'); return; }
+  const proj = DB.projetos.find(x=>x.id===prod.projetoId);
+  const lead = DB.leads.find(l=>l.id===proj?.leadId);
+  const ambientes = lead?.ambientesBriefing || prod.ambientes || [];
+  const dataFabrica = proj?.prazos?.producao || '';
+  const dataEntrega = prod.dataEntrega || proj?.prazos?.entrega || '';
+  const dataInstalacao = prod.dataInstalacao || proj?.prazos?.instalacao || '';
+  const obs = prod.quadros?.xmlEnviado?.obs || prod.obs || '';
+  const responsavel = usuarioAtual?.nome || prod.responsavelFabricacao || '';
+  // Use prod as proxy with nome for email
+  const pProxy = { nome: prod.clienteNome, tipo: prod.tipo || '' };
   toast('📧 Reenviando email...');
-  await enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel);
+  await enviarEmailXMLs(pProxy, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel);
 }
 
 async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel) {
