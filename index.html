@@ -5572,12 +5572,16 @@ function gerarProposalCliente(projetoId) {
   const semXml = ambientes.filter(a=>!a.xmlNome);
   if(semXml.length>0) erros.push({icon:'📐', campo:'XML Promob', detalhe:semXml.length+' ambiente(s) sem XML: '+semXml.map(a=>a.nome||a.tipo).join(', ')});
 
-  // 3. Valor financeiro em todos os ambientes
-  const ambSemValor = ambientes.filter(a => !a.finPrecoFinal || a.finPrecoFinal === 0);
+  // 3. Valor financeiro em todos os ambientes (aceita XML como substituto)
+  const ambSemValor = ambientes.filter(a => {
+    const v = a.finPrecoFinal || a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
+    return v === 0;
+  });
   if(ambSemValor.length>0) erros.push({icon:'💰', campo:'Financeiro', detalhe:ambSemValor.length+' ambiente(s) sem valor de venda'});
 
   // 4. Condição de pagamento
-  if(!p.condicaoPrecoFinal && !p.finPrecoFinal) erros.push({icon:'🤝', campo:'Condições', detalhe:'Condição de pagamento não definida'});
+  const precoBaseXMLTotal = ambientes.reduce((s,a) => s + (a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0), 0);
+  if(!p.condicaoPrecoFinal && !p.finPrecoFinal && !precoBaseXMLTotal) erros.push({icon:'🤝', campo:'Condições', detalhe:'Condição de pagamento não definida'});
 
   // 5. Prazos
   const pz = p.prazos||{};
