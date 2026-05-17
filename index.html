@@ -3282,7 +3282,11 @@ function abrirContrato(projetoId) {
   const div = document.createElement('div');
   div.style.cssText = 'background:#141414;border:0.5px solid #2a2a2a;border-radius:16px;padding:28px;max-width:460px;width:100%';
 
-  const precoFinal = p.condicaoPrecoFinal||p.finPrecoFinal||0;
+  // Valor do contrato = mesmo da proposta aceita
+  // Prioridade: condicaoPrecoFinal (se já tem desconto aplicado corretamente) > finPrecoFinal > 0
+  const precoFinal = (p.condicaoPrecoFinal && p.condicaoPrecoFinal < (p.finPrecoFinal||Infinity))
+    ? p.condicaoPrecoFinal
+    : p.finPrecoFinal || p.condicaoPrecoFinal || 0;
   const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   div.innerHTML = '<div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">📋 Gerar Contrato</div>'
@@ -4837,6 +4841,13 @@ function renderProjetos(filter='') {
       const prontos = ambientes.filter(a=>(a.imagens||[]).length>0 && a.xmlNome);
       const proposalPronta = ambientes.length > 0 && prontos.length === ambientes.length;
 
+      // Trava global após aceite da proposta
+      const travadoCard = !!(p.propostaAceita || p.propostaTravada) && !isAdmin();
+      const travadoStyle = travadoCard ? 'opacity:0.45;cursor:not-allowed;filter:grayscale(0.4)' : '';
+      const travadoBtn = (label) => travadoCard
+        ? `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.35;cursor:not-allowed;color:var(--text3);border-color:var(--border)" disabled>🔒 ${label}</button>`
+        : null;
+
       // Etapa 1: Briefing
       const etapa1Ok = briefingOk >= briefingSteps.length;
       // Etapa 2: Ambientes (todos com XML + min 1 foto)
@@ -4936,6 +4947,11 @@ function renderProjetos(filter='') {
         </div>
 
         <!-- ── HEADER ── -->
+        ${travadoCard ? `<div style="padding:6px 18px;background:rgba(255,255,255,0.03);border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px">🔒</span>
+          <span style="font-size:11px;color:var(--text3)">Proposta aceita — projeto travado para edição</span>
+          ${isAdmin()?`<button onclick="event.stopPropagation();desbloquearProposta('${p.id}')" style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:99px;border:1px solid rgba(224,96,96,0.3);color:var(--red);background:transparent;cursor:pointer">Desbloquear</button>`:''}
+        </div>` : ''}
         <div style="padding:0 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
           <div>
             <div style="font-size:16px;font-weight:600;color:var(--text);cursor:pointer" onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">${lead?.projetoNome || p.nome}</div>
@@ -4966,7 +4982,7 @@ function renderProjetos(filter='') {
               ${['Dados do cliente','Ambientes','Valor previsto','Detalhes extras'].map((s,i)=>'<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px"><span style="width:12px;height:12px;border-radius:50%;background:'+(i<briefingOk?'var(--green)':'transparent')+';border:1.5px solid '+(i<briefingOk?'var(--green)':'rgba(255,255,255,0.15)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:7px;color:#0d0d0d;font-weight:700">'+(i<briefingOk?'✓':'')+'</span><span style="font-size:10px;color:'+(i<briefingOk?'var(--text)':'var(--text3)')+'">'+s+'</span></div>').join('')}
             </div>
             <div style="margin-top:10px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">📋 Ver briefing</button>
+              ${travadoBtn('Briefing travado') || `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(212,148,74,0.3);color:var(--amber)" onclick="event.stopPropagation();abrirBriefing('${p.leadId}')">📋 Ver briefing</button>`}
             </div>
           </div>
 
@@ -4996,7 +5012,7 @@ function renderProjetos(filter='') {
               <div style="font-size:9px;color:var(--text3);margin-top:4px">✅ XML+foto &nbsp; 📐 só XML &nbsp; 🖼 só foto</div>
             </div>
             <div style="margin-top:10px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green);${bloqueioAmb?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioAmb?'disabled':''} onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>
+              ${travadoBtn('Ambientes travados') || `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(92,184,130,0.3);color:var(--green);${bloqueioAmb?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioAmb?'disabled':''} onclick="event.stopPropagation();verAmbientesCliente('${p.id}')">🪵 Ver ambientes</button>`}
             </div>
           </div>
 
@@ -5041,7 +5057,7 @@ function renderProjetos(filter='') {
               })()}
             </div>
             <div style="margin-top:10px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0;${bloqueioCond?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioCond?'disabled':''} onclick="event.stopPropagation();abrirCondicoes('${p.id}')">🤝 Negociar</button>
+              ${travadoBtn('Condições travadas') || `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(176,144,224,0.3);color:#b090e0;${bloqueioCond?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioCond?'disabled':''} onclick="event.stopPropagation();abrirCondicoes('${p.id}')">🤝 Negociar</button>`}
             </div>
           </div>
 
@@ -5073,7 +5089,7 @@ function renderProjetos(filter='') {
               }).join('')+'</div>';
             })()}
             <div style="margin-top:10px">
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.25);color:var(--blue);${bloqueioPrazos?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioPrazos?'disabled':''} onclick="event.stopPropagation();abrirPrazos('${p.id}')">📅 Gerenciar prazos</button>
+              ${travadoBtn('Prazos travados') || `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;border-color:rgba(96,144,208,0.25);color:var(--blue);${bloqueioPrazos?'opacity:0.4;cursor:not-allowed':''}" ${bloqueioPrazos?'disabled':''} onclick="event.stopPropagation();abrirPrazos('${p.id}')">📅 Gerenciar prazos</button>`}
             </div>
           </div>
 
@@ -5115,9 +5131,11 @@ function renderProjetos(filter='') {
               </div>`:''}
             </div>
             <div style="margin-top:10px">
-              ${!bloqueioProposta
-                ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
-                : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.4;cursor:not-allowed" disabled>📄 Bloqueado</button>`
+              ${travadoCard
+                ? `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.35;cursor:not-allowed;color:var(--text3);border-color:var(--border)" disabled>🔒 Proposta travada</button>`
+                : !bloqueioProposta
+                  ? `<button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;font-size:11px" onclick="event.stopPropagation();gerarProposalCliente('${p.id}')">📄 Gerar proposta</button>`
+                  : `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.4;cursor:not-allowed" disabled>📄 Bloqueado</button>`
               }
             </div>
           </div>
@@ -8417,7 +8435,11 @@ function abrirCondicoes(projetoId) {
       const downPctFinal = parseFloat(div.querySelector('#cond-down')?.value||'20')||20;
       let precoFinalSave = precoBase;
       if (tipoFinal==='avista') precoFinalSave = precoBase*(1-descFinal/100);
-      if (tipoFinal==='financiado') precoFinalSave = precoBase*Math.pow(1+jurosFinal/100,parcelasFinal);
+      else if (tipoFinal==='financiado') precoFinalSave = precoBase*Math.pow(1+jurosFinal/100,parcelasFinal);
+      else {
+        // parcelado — usar finPrecoFinal (já tem desconto cliente aplicado pelo financeiro)
+        precoFinalSave = p.finPrecoFinal||precoBase;
+      }
 
       // Collect etapas if parcelado
       let etapasSave = etapasPadrao;
