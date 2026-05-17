@@ -8240,10 +8240,27 @@ async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInsta
   const valorTotal = ambientes.reduce((s,a)=>s+(parseFloat(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0)),0);
   const xmlAmbs = ambientes.filter(a=>a.xmlNome);
 
+  // Busca desconto e taxa do projeto
+  const proj = DB.projetos.find(x=>x.id===p.id) || DB.projetos.find(x=>x.nome===p.nome);
+  const descFab = proj?.finDesconto ?? CFG.finDesconto ?? 0;
+  const taxa    = proj?.finTaxa    ?? CFG.finTaxa    ?? 7;
+
   const linhasAmb = ambientes.map(a => {
-    const v = parseFloat(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0);
-    return `  • ${a.nome||a.tipo}${a.xmlNome?' — XML: '+a.xmlNome:' — ⚠ SEM XML'}${v?' — $ '+v.toLocaleString('en-US',{minimumFractionDigits:2}):''}`;
-  }).join('\n');
+    const promob = a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0;
+    if (!promob) return `  • ${a.nome||a.tipo} — ⚠ SEM XML`;
+    const descVal  = promob * (descFab / 100);
+    const custoLiq = promob - descVal;
+    const taxVal   = custoLiq * (taxa / 100);
+    const total    = custoLiq + taxVal;
+    const fmt = v => '$ ' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return [
+      `  • ${a.nome||a.tipo}${a.xmlNome?' — '+a.xmlNome:''}`,
+      `    Tabela Promob:   ${fmt(promob)}`,
+      `    Desc. fábrica:  -${fmt(descVal)} (${descFab}%)`,
+      `    Total c/ desconto: ${fmt(custoLiq)}`,
+      `    Tax (${taxa}%):    +${fmt(taxVal)}`,
+    ].join('\n');
+  }).join('\n\n');
 
   const corpo = [
     '═══════════════════════════════════════',
