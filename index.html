@@ -3271,6 +3271,29 @@ function mktAtualizarHistorico() {
 // CONTRATO
 // ══════════════════════════════════════════
 
+async function verUltimoContrato(projetoId) {
+  // Try localStorage first (fastest)
+  let html = localStorage.getItem('contrato_html_'+projetoId);
+  // Fallback to Supabase
+  if (!html) {
+    toast('⏳ Carregando contrato...');
+    try {
+      const r = await fetch(SB_URL+'/rest/v1/projetos?id=eq.'+projetoId+'&select=contrato_html', {
+        headers: {'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE}
+      });
+      const data = await r.json();
+      html = data?.[0]?.contrato_html || null;
+      if (html) { try { localStorage.setItem('contrato_html_'+projetoId, html); } catch(e){} }
+    } catch(e) {}
+  }
+  if (!html) { toast('Nenhum contrato salvo. Gere um contrato primeiro.'); return; }
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) toast('Permita pop-ups para visualizar o contrato');
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+}
+
 function abrirContrato(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
@@ -3826,8 +3849,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
 
   <!-- HEADER -->
   <div class="header">
-    <div class="logo">Legno</div>
-    <div class="logo-sub">Home Cabinets</div>
+    <img src="${LOGO_LEGNO||''}" style="height:80px;object-fit:contain;margin-bottom:10px" onerror="this.style.display='none'">
     <div class="contract-title">${t.title}</div>
     <div style="font-size:12px;color:#666;margin-top:8px">${fmtDate(dataContrato)}</div>
   </div>
@@ -4052,7 +4074,8 @@ function salvarAssinatura(projId){
 </body>
 </html>`;
 
-  // Save HTML to localStorage and Supabase
+  // Always regenerate - never use cache
+  try { localStorage.removeItem('contrato_html_'+projetoId); } catch(e){}
   try { localStorage.setItem('contrato_html_'+projetoId, html); } catch(e){}
   try {
     await fetch(SB_URL+'/rest/v1/projetos?id=eq.'+projetoId, {
@@ -4925,11 +4948,13 @@ function renderProjetos(filter='') {
           : propostaGerada
             ? `<button class="btn btn-primary" style="flex:1;background:var(--gold);border-color:var(--gold);color:#0d0d0d;font-weight:600" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
             : `<button class="btn" style="flex:1;opacity:0.25;cursor:not-allowed;background:transparent;border-color:var(--border);color:var(--text3)" disabled>✅ Aceitar proposta</button>`;
-      const btnContrato = p.contratoAprovado
-        ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green)" onclick="event.stopPropagation();abrirContrato('${p.id}')">✓ Ver contrato</button>`
-        : p.propostaAceita
-          ? `<button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();abrirContrato('${p.id}')">📋 Gerar contrato</button>`
-          : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📋 Gerar contrato</button>`;
+      const temContratoGerado = !!(p.contratoGerado || p.contratoData || localStorage.getItem('contrato_html_'+p.id));
+      const btnContrato = p.propostaAceita
+        ? `<div style="display:flex;gap:6px;flex:1">
+            <button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();abrirContrato('${p.id}')">📋 ${temContratoGerado ? 'Novo contrato' : 'Gerar contrato'}</button>
+            ${temContratoGerado ? `<button class="btn" style="border-color:var(--green);color:var(--green);white-space:nowrap" onclick="event.stopPropagation();verUltimoContrato('${p.id}')">📄 Ver último</button>` : ''}
+           </div>`
+        : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📋 Gerar contrato</button>`;
       const podeEnviar = (p.propostaAceita || p.contratoAprovado) && !emProducao;
       const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : '';
       const btnProd = emProducao
@@ -5049,8 +5074,10 @@ function renderProjetos(filter='') {
             <div style="flex:1">
               ${(()=>{
                 const tipo = p.condicaoTipo||'parcelado';
-                const precoBase = p.finPrecoFinal||0;
-                const precoFinal = p.condicaoPrecoFinal||precoBase;
+                // Valor real = soma dos ambientes (editados manualmente)
+                const somaAmbientes = ambientes.reduce((s,a)=>s+(a.finValorManual||a.finPrecoFinal||0),0);
+                const precoBase = somaAmbientes || p.finPrecoFinal || 0;
+                const precoFinal = precoBase;
                 const tipoCor = tipo==='avista'?'var(--green)':tipo==='financiado'?'var(--blue)':'var(--amber)';
                 const tipoLabel = tipo==='avista'?'À vista':tipo==='financiado'?'Financiado':'Parcelado';
                 const tipoBg = tipo==='avista'?'rgba(92,184,130,0.15)':tipo==='financiado'?'rgba(96,144,208,0.15)':'rgba(212,148,74,0.15)';
@@ -5127,24 +5154,12 @@ function renderProjetos(filter='') {
             <div style="flex:1">
               ${!bloqueioProposta&&ambientes.length>0?`
                 <div style="font-size:9px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px">Ambientes</div>
-                ${ambientes.map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;color:var(--text2)">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
+                ${ambientes.map(a=>'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;color:var(--text2)">'+(a.nome||a.tipo)+'</span><span style="font-size:10px;color:var(--gold);font-family:DM Mono,monospace">$ '+(a.finValorManual||a.finPrecoFinal||a.xmlDados?.valorTotalNum||0).toLocaleString('en-US',{minimumFractionDigits:2})+'</span></div>').join('')}
                 <div style="border-top:0.5px solid rgba(255,255,255,0.06);margin-top:6px;padding-top:6px">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                    <span style="font-size:9px;color:var(--text3)">Total sem desconto</span>
-                    <span style="font-size:11px;color:var(--text2);font-family:DM Mono,monospace">$ ${precoBase.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:10px;color:var(--text);font-weight:600">Total</span>
+                    <span style="font-size:13px;font-weight:700;color:var(--gold2);font-family:DM Mono,monospace">$ ${(ambientes.reduce((s,a)=>s+(a.finValorManual||a.finPrecoFinal||0),0)).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                   </div>
-                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                    <span style="font-size:9px;color:var(--text3);flex-shrink:0">Desconto %</span>
-                    <input type="number" min="0" max="${descontoMaximo}" step="0.5" value="${descProjPct}" id="desc-proj-${p.id}"
-                      style="width:50px;background:#1a1a1a;border:1px solid rgba(201,169,110,0.3);border-radius:4px;color:var(--gold2);font-size:11px;padding:3px 6px;outline:none;text-align:center"
-                      onclick="event.stopPropagation()"
-                      onchange="event.stopPropagation();aplicarDescontoProjeto('${p.id}',this.value,${descontoMaximo})">
-                    <span style="font-size:9px;color:var(--text3)">máx ${descontoMaximo}%</span>
-                  </div>
-                  ${descProjPct>0?`<div style="display:flex;justify-content:space-between;align-items:center">
-                    <span style="font-size:10px;color:var(--text)">Com desconto</span>
-                    <span style="font-size:12px;font-weight:700;color:var(--gold2);font-family:DM Mono,monospace">$ ${precoComDesc.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
-                  </div><div style="font-size:9px;color:${margemComDesc>=30?'var(--green)':'var(--red)'};margin-top:2px">Margem: ${margemComDesc.toFixed(1)}%</div>`:''}
                 </div>
               `:''}
               ${p.pdfProposta?`<div onclick="event.stopPropagation();verPropostaPDF('${p.id}')" style="margin-top:6px;padding:6px 8px;background:rgba(201,169,110,0.07);border:1px solid rgba(201,169,110,0.2);border-radius:7px;display:flex;align-items:center;gap:6px;cursor:pointer">
