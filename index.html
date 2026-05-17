@@ -8246,12 +8246,15 @@ async function confirmarEnvioProducao() {
 // CHECKLIST DE INSTALAÇÃO
 // ══════════════════════════════════════════
 let _checklistInstId = null;
+let _checklistItems = []; // local working copy
 
 function abrirChecklist(instId) {
   _checklistInstId = instId;
   const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
   if (!inst) return;
   if (!inst.checklist) inst.checklist = [];
+  // Work on a deep copy — never lose edits due to background sync
+  _checklistItems = JSON.parse(JSON.stringify(inst.checklist));
 
   const ov = document.createElement('div');
   ov.id = 'checklist-overlay';
@@ -8289,7 +8292,7 @@ function renderChecklistLista() {
   const prog = document.getElementById('checklist-progresso');
   if (!lista) return;
 
-  const items = inst.checklist||[];
+  const items = _checklistItems;
   const total = items.length;
   const feitos = items.filter(c=>c.concluido).length;
 
@@ -8349,10 +8352,7 @@ function renderChecklistLista() {
 }
 
 function adicionarItemChecklist() {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
-  if (!inst) return;
-  if (!inst.checklist) inst.checklist = [];
-  inst.checklist.push({descricao:'', responsavel:'', foto:null, concluido:false, dataConclusao:null});
+  _checklistItems.push({descricao:'', responsavel:'', foto:null, concluido:false, dataConclusao:null});
   renderChecklistLista();
   // Scroll to bottom
   setTimeout(() => {
@@ -8362,23 +8362,19 @@ function adicionarItemChecklist() {
 }
 
 function toggleItemChecklist(idx) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
-  if (!inst || !inst.checklist[idx]) return;
-  inst.checklist[idx].concluido = !inst.checklist[idx].concluido;
-  inst.checklist[idx].dataConclusao = inst.checklist[idx].concluido ? new Date().toISOString().slice(0,10) : null;
+  if (!_checklistItems[idx]) return;
+  _checklistItems[idx].concluido = !_checklistItems[idx].concluido;
+  _checklistItems[idx].dataConclusao = _checklistItems[idx].concluido ? new Date().toISOString().slice(0,10) : null;
   renderChecklistLista();
 }
 
 function updateItemChecklist(idx, campo, valor) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
-  if (!inst || !inst.checklist[idx]) return;
-  inst.checklist[idx][campo] = valor;
+  if (!_checklistItems[idx]) return;
+  _checklistItems[idx][campo] = valor;
 }
 
 function removerItemChecklist(idx) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
-  if (!inst) return;
-  inst.checklist.splice(idx, 1);
+  _checklistItems.splice(idx, 1);
   renderChecklistLista();
 }
 
@@ -8388,12 +8384,11 @@ function tirarFotoItem(idx) {
 }
 
 function concluirItemComFoto(idx) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
-  if (!inst || !inst.checklist[idx]) return;
+  if (!_checklistItems[idx]) return;
   // Se já concluído, desfaz
-  if (inst.checklist[idx].concluido) {
-    inst.checklist[idx].concluido = false;
-    inst.checklist[idx].dataConclusao = null;
+  if (_checklistItems[idx].concluido) {
+    _checklistItems[idx].concluido = false;
+    _checklistItems[idx].dataConclusao = null;
     renderChecklistLista();
     return;
   }
@@ -8403,9 +8398,8 @@ function concluirItemComFoto(idx) {
 }
 
 function removerFotoItem(idx) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
-  if (!inst || !inst.checklist[idx]) return;
-  inst.checklist[idx].foto = null;
+  if (!_checklistItems[idx]) return;
+  _checklistItems[idx].foto = null;
   renderChecklistLista();
 }
 
@@ -8427,12 +8421,12 @@ async function uploadFotoItem(idx, input) {
       body: ab
     });
     if (resp.ok) {
-      inst.checklist[idx].foto = `${SB_URL}/storage/v1/object/public/imagens/${path}`;
+      _checklistItems[idx].foto = `${SB_URL}/storage/v1/object/public/imagens/${path}`;
       toast('✓ Foto salva!');
     } else {
       // Fallback: base64
       const reader = new FileReader();
-      reader.onload = e => { inst.checklist[idx].foto = e.target.result; renderChecklistLista(); };
+      reader.onload = e => { _checklistItems[idx].foto = e.target.result; renderChecklistLista(); };
       reader.readAsDataURL(file);
       toast('✓ Foto carregada!');
       return;
@@ -8440,14 +8434,14 @@ async function uploadFotoItem(idx, input) {
   } catch(e) {
     // Fallback: base64
     const reader = new FileReader();
-    reader.onload = e => { inst.checklist[idx].foto = e.target.result; renderChecklistLista(); };
+    reader.onload = e => { _checklistItems[idx].foto = e.target.result; renderChecklistLista(); };
     reader.readAsDataURL(file);
     toast('✓ Foto carregada!');
     return;
   }
   // Mark as concluded after photo upload
-  inst.checklist[idx].concluido = true;
-  inst.checklist[idx].dataConclusao = new Date().toISOString().slice(0,10);
+  _checklistItems[idx].concluido = true;
+  _checklistItems[idx].dataConclusao = new Date().toISOString().slice(0,10);
   renderChecklistLista();
   input.value = '';
 }
@@ -8457,9 +8451,11 @@ async function salvarChecklist() {
   if (!inst) return;
   const btn = document.querySelector('#checklist-overlay button:last-child');
   if (btn) { btn.disabled=true; btn.textContent='⏳ Salvando...'; }
+  // Sync local copy back to DB object
+  inst.checklist = JSON.parse(JSON.stringify(_checklistItems));
   try {
     // Save checklist to instalacoes table
-    const checklistParaSalvar = (inst.checklist||[]).map(c => ({
+    const checklistParaSalvar = (_checklistItems||[]).map(c => ({
       descricao: c.descricao,
       responsavel: c.responsavel,
       concluido: c.concluido,
