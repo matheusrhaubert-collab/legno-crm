@@ -8251,11 +8251,10 @@ async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInsta
   ].filter(l=>l!==undefined).join('\n');
 
   try {
-    const res = await fetch(SB_URL+'/functions/v1/send-email', {
+    const res = await fetch('https://hook.us2.make.com/krok6qyqrbru4ru7s1qnvunnkpjznabs', {
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY_SERVICE},
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        to: 'orders@legnocabinets.com',
         subject: `[PEDIDO] ${p.nome} — Entrega: ${fmt(dataEntrega)} — Studio Legno`,
         text: corpo
       })
@@ -8266,7 +8265,7 @@ async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInsta
       throw new Error('Status '+res.status);
     }
   } catch(e) {
-    toast('⚠️ Email não enviado — verifique a função no Supabase');
+    toast('⚠️ Email não enviado — verifique o cenário no Make');
     console.warn('Email error:', e);
   }
 }
