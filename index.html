@@ -1920,6 +1920,17 @@ async function gerarDescricaoDoXML() {
   if (d.coresBox?.length) partes.push(`Caixas: ${d.coresBox.join(', ')}`);
   if (d.coresFrontais?.length) partes.push(`Frontais: ${d.coresFrontais.join(', ')}`);
 
+  // Hardware
+  if (d.hardwareDetalhado?.length) {
+    const hwLinhas = [];
+    d.hardwareDetalhado.forEach(h => {
+      const qty = Math.round(h.qty * 100) / 100;
+      const unit = h.label.includes('(m)') ? 'm' : 'un';
+      hwLinhas.push(`${qty}${unit} ${h.label.replace(/\s*\(m\)/,'')}`);
+    });
+    if (hwLinhas.length) partes.push(`Hardware: ${hwLinhas.join(', ')}`);
+  }
+
   const descricao = partes.join('\n');
   _ambObj.descricao = descricao;
 
