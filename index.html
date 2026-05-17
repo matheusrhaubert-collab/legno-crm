@@ -9077,6 +9077,18 @@ function _selectUsuarios(prodId, quadro, campo, valorAtual) {
     onchange="_setProdQ('${prodId}','${quadro}','${campo}',this.value)">${opts}</select>`;
 }
 
+function _selectUsuariosFiltrado(prodId, quadro, campo, valorAtual) {
+  const users = (DB.usuarios||[]).filter(u => {
+    const p = (u.perfil||'').toLowerCase();
+    return p === 'administrativo' || p === 'admin' || p === 'producao' || p === 'produção';
+  }).map(u=>u.nome).filter(Boolean);
+  const opts = ['', ...users].map(n =>
+    `<option value="${n}" ${n===valorAtual?'selected':''}>${n||'Selecionar...'}</option>`
+  ).join('');
+  return `<select class="form-input" style="height:30px;font-size:12px;padding:4px 8px"
+    onchange="_setProdQ('${prodId}','${quadro}','${campo}',this.value)">${opts}</select>`;
+}
+
 function renderCardProducao(p) {
   const proj = DB.projetos.find(x => x.id === p.projetoId);
   const lead = proj ? DB.leads.find(l => l.id === proj.leadId) : null;
@@ -9204,16 +9216,16 @@ function renderCardProducao(p) {
           ${q2ok && !q2alertaAtivo ? '<span style="font-size:16px">✅</span>' : ''}
           ${q2alertaAtivo ? '<span style="font-size:14px;color:var(--amber)">⚠️ Alerta</span>' : ''}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <div>
-            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
-            ${_selectUsuarios(p.id,'recebidoFabrica','responsavel',q.recebidoFabrica?.responsavel||'')}
-          </div>
-          <div>
-            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data recebimento</div>
-            <input type="date" class="form-input" style="height:30px;font-size:12px;padding:4px 8px" value="${q.recebidoFabrica?.data||''}"
-              onchange="_setProdQ('${p.id}','recebidoFabrica','data',this.value)">
-          </div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável (Admin / Produção)</div>
+          ${_selectUsuariosFiltrado(p.id,'recebidoFabrica','responsavel',q.recebidoFabrica?.responsavel||'')}
+        </div>
+        ${q.recebidoFabrica?.data ? `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">📅 Recebido em: <strong style="color:var(--text)">${formatDate(q.recebidoFabrica.data)}</strong></div>` : ''}
+        <!-- Observação -->
+        <div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Observação</div>
+          <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Observação (opcional)..." value="${q.recebidoFabrica?.obs||''}"
+            oninput="_setProdQ('${p.id}','recebidoFabrica','obs',this.value)">
         </div>
         <!-- Alerta / Problema -->
         <div style="margin-bottom:8px">
@@ -9376,8 +9388,13 @@ async function confirmarQuadro(prodId, quadro) {
   if (!p) return;
   if (!p.quadros) p.quadros = {};
   if (!p.quadros[quadro]) p.quadros[quadro] = {};
-  p.quadros[quadro].confirmedAt = new Date().toISOString().slice(0,10);
+  const hoje = new Date().toISOString().slice(0,10);
+  p.quadros[quadro].confirmedAt = hoje;
   p.quadros[quadro].confirmedBy = usuarioAtual?.nome || 'Sistema';
+  // Auto-set data for recebidoFabrica
+  if (quadro === 'recebidoFabrica' && !p.quadros[quadro].data) {
+    p.quadros[quadro].data = hoje;
+  }
   // Marcar como "ok" — o campo confirmedAt serve de flag
   // Também atualiza etapa geral do prod
   const etapaMap = {xmlEnviado:'xml_enviado', recebidoFabrica:'recebido_fabrica', invoice:'invoice', comprasEspeciais:'compras', saidaFabrica:'pronto'};
