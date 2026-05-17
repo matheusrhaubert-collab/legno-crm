@@ -4533,6 +4533,7 @@ async function loadFromSupabase() {
       responsavel: i.responsavel||'', hora: i.hora||'',
       ambientes: i.ambientes||'', dias: i.dias||'', equipe: i.equipe||'',
       obs: i.obs||'', data: i.data||'', concluida: i.concluida||false
+      checklist: i.checklist || [],
     }));
 
     renderAll();
@@ -6478,6 +6479,7 @@ function renderInstalacao(filter='') {
       <div class="card-footer">
         <div class="card-actions">
           ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:var(--blue-dim);text-decoration:none">🗺 Rota</a>` : ''}
+          <button class="btn btn-sm" style="color:var(--amber);border-color:rgba(212,148,74,0.3)" onclick="event.stopPropagation();abrirChecklist('${i.id}')">☑ Checklist${i.checklist&&i.checklist.length?` (${i.checklist.filter(c=>c.concluido).length}/${i.checklist.length})`:''}</button>
           ${!i.concluida ? `<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();concluirInstalacao('${i.id}')">✓ Concluir</button>` : ''}
           <button class="btn btn-sm" style="color:var(--text3);border-color:transparent;margin-left:auto" onclick="event.stopPropagation();deletarInstalacao('${i.id}')">🗑</button>
         </div>
@@ -8237,6 +8239,228 @@ async function confirmarEnvioProducao() {
     criarTarefasPrazo(p);
     goPage('producao');
   } catch(e) { toast('Erro ao enviar para produção: ' + e.message); }
+}
+
+
+// ══════════════════════════════════════════
+// CHECKLIST DE INSTALAÇÃO
+// ══════════════════════════════════════════
+let _checklistInstId = null;
+
+function abrirChecklist(instId) {
+  _checklistInstId = instId;
+  const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
+  if (!inst) return;
+  if (!inst.checklist) inst.checklist = [];
+
+  const ov = document.createElement('div');
+  ov.id = 'checklist-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+
+  ov.innerHTML = `
+    <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
+      <button onclick="fecharChecklist()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">☑ Checklist</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.cliente}</div>
+      </div>
+      <button onclick="adicionarItemChecklist()" style="height:40px;padding:0 16px;background:var(--gold);color:#0d0d0d;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0">+ Item</button>
+    </div>
+    <div id="checklist-lista" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
+    <div style="padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0">
+      <div id="checklist-progresso" style="margin-bottom:12px"></div>
+      <button onclick="salvarChecklist()" style="width:100%;height:52px;background:var(--gold);color:#0d0d0d;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.3px">💾 Salvar checklist</button>
+    </div>
+  `;
+
+  document.body.appendChild(ov);
+  renderChecklistLista();
+}
+
+function fecharChecklist() {
+  const ov = document.getElementById('checklist-overlay');
+  if (ov) document.body.removeChild(ov);
+}
+
+function renderChecklistLista() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst) return;
+  const lista = document.getElementById('checklist-lista');
+  const prog = document.getElementById('checklist-progresso');
+  if (!lista) return;
+
+  const items = inst.checklist||[];
+  const total = items.length;
+  const feitos = items.filter(c=>c.concluido).length;
+
+  if (prog) {
+    const pct = total > 0 ? Math.round(feitos/total*100) : 0;
+    const cor = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--text3)';
+    prog.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--text3)">${feitos} de ${total} itens concluídos</span>
+        <span style="font-size:13px;font-weight:600;color:${cor}">${pct}%</span>
+      </div>
+      <div style="height:6px;background:var(--bg3);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${cor};border-radius:99px;transition:width 0.3s"></div>
+      </div>`;
+  }
+
+  if (!items.length) {
+    lista.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text3)">
+      <div style="font-size:48px;margin-bottom:12px">☑</div>
+      <div style="font-size:14px;margin-bottom:8px">Nenhum item ainda</div>
+      <div style="font-size:12px">Toque em "+ Item" para adicionar</div>
+    </div>`;
+    return;
+  }
+
+  lista.innerHTML = items.map((item, idx) => {
+    const cor = item.concluido ? 'var(--green)' : 'var(--border2)';
+    const bgCard = item.concluido ? 'rgba(92,184,130,0.06)' : 'var(--bg2)';
+    return `
+    <div style="background:${bgCard};border:0.5px solid ${cor};border-radius:14px;padding:16px;margin-bottom:12px">
+      <!-- Header item -->
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
+        <button onclick="toggleItemChecklist(${idx})" style="width:32px;height:32px;flex-shrink:0;border-radius:8px;border:2px solid ${item.concluido?'var(--green)':'var(--border3)'};background:${item.concluido?'var(--green)':'transparent'};color:${item.concluido?'#0d0d0d':'transparent'};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:2px">✓</button>
+        <div style="flex:1">
+          <textarea id="cl-desc-${idx}" style="width:100%;background:transparent;border:none;color:${item.concluido?'var(--text3)':'var(--text)'};font-size:15px;font-family:inherit;resize:none;outline:none;line-height:1.4;${item.concluido?'text-decoration:line-through':''}" rows="2" placeholder="Descreva o item..." oninput="updateItemChecklist(${idx},'descricao',this.value)">${item.descricao||''}</textarea>
+        </div>
+        <button onclick="removerItemChecklist(${idx})" style="width:30px;height:30px;flex-shrink:0;background:transparent;border:none;color:var(--text3);font-size:16px;cursor:pointer">✕</button>
+      </div>
+      <!-- Responsável -->
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Responsável</div>
+        <input value="${item.responsavel||''}" placeholder="Nome do responsável..." oninput="updateItemChecklist(${idx},'responsavel',this.value)"
+          style="width:100%;background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px 12px;outline:none">
+      </div>
+      <!-- Foto -->
+      <div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Foto</div>
+        ${item.foto ? `
+          <div style="position:relative;display:inline-block">
+            <img src="${item.foto}" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;border:0.5px solid var(--border)">
+            <button onclick="removerFotoItem(${idx})" style="position:absolute;top:6px;right:6px;width:28px;height:28px;background:rgba(0,0,0,0.7);border:none;border-radius:50%;color:white;font-size:12px;cursor:pointer">✕</button>
+          </div>
+        ` : `
+          <button onclick="tirarFotoItem(${idx})" style="width:100%;height:56px;background:var(--bg3);border:1.5px dashed var(--border2);border-radius:10px;color:var(--text3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span style="font-size:20px">📷</span> Adicionar foto
+          </button>
+        `}
+        <input type="file" id="foto-input-${idx}" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoItem(${idx},this)">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function adicionarItemChecklist() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst) return;
+  if (!inst.checklist) inst.checklist = [];
+  inst.checklist.push({descricao:'', responsavel:'', foto:null, concluido:false, dataConclusao:null});
+  renderChecklistLista();
+  // Scroll to bottom
+  setTimeout(() => {
+    const lista = document.getElementById('checklist-lista');
+    if (lista) lista.scrollTop = lista.scrollHeight;
+  }, 100);
+}
+
+function toggleItemChecklist(idx) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst || !inst.checklist[idx]) return;
+  inst.checklist[idx].concluido = !inst.checklist[idx].concluido;
+  inst.checklist[idx].dataConclusao = inst.checklist[idx].concluido ? new Date().toISOString().slice(0,10) : null;
+  renderChecklistLista();
+}
+
+function updateItemChecklist(idx, campo, valor) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst || !inst.checklist[idx]) return;
+  inst.checklist[idx][campo] = valor;
+}
+
+function removerItemChecklist(idx) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst) return;
+  inst.checklist.splice(idx, 1);
+  renderChecklistLista();
+}
+
+function tirarFotoItem(idx) {
+  const input = document.getElementById('foto-input-'+idx);
+  if (input) input.click();
+}
+
+function removerFotoItem(idx) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst || !inst.checklist[idx]) return;
+  inst.checklist[idx].foto = null;
+  renderChecklistLista();
+}
+
+async function uploadFotoItem(idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst) return;
+
+  toast('📷 Enviando foto...');
+  try {
+    const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
+    const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+    const path = `${clean(inst.cliente||'cliente')}/${clean(inst.id)}/${idx}_${Date.now()}.${ext}`;
+    const ab = await file.arrayBuffer();
+    const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
+      method:'POST',
+      headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':file.type||'image/jpeg','x-upsert':'true'},
+      body: ab
+    });
+    if (resp.ok) {
+      inst.checklist[idx].foto = `${SB_URL}/storage/v1/object/public/imagens/${path}`;
+      toast('✓ Foto salva!');
+    } else {
+      // Fallback: base64
+      const reader = new FileReader();
+      reader.onload = e => { inst.checklist[idx].foto = e.target.result; renderChecklistLista(); };
+      reader.readAsDataURL(file);
+      toast('✓ Foto carregada!');
+      return;
+    }
+  } catch(e) {
+    // Fallback: base64
+    const reader = new FileReader();
+    reader.onload = e => { inst.checklist[idx].foto = e.target.result; renderChecklistLista(); };
+    reader.readAsDataURL(file);
+    toast('✓ Foto carregada!');
+    return;
+  }
+  renderChecklistLista();
+  input.value = '';
+}
+
+async function salvarChecklist() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (!inst) return;
+  const btn = document.querySelector('#checklist-overlay button:last-child');
+  if (btn) { btn.disabled=true; btn.textContent='⏳ Salvando...'; }
+  try {
+    // Save checklist to instalacoes table
+    const checklistParaSalvar = (inst.checklist||[]).map(c => ({
+      descricao: c.descricao,
+      responsavel: c.responsavel,
+      concluido: c.concluido,
+      dataConclusao: c.dataConclusao,
+      foto: c.foto && c.foto.startsWith('http') ? c.foto : null // só salva URL, não base64 grande
+    }));
+    await sbFetch('instalacoes?id=eq.'+inst.id, 'PATCH', {checklist: checklistParaSalvar});
+    renderInstalacao();
+    toast('✓ Checklist salvo!');
+    fecharChecklist();
+  } catch(e) {
+    toast('Erro ao salvar: ' + e.message);
+    if (btn) { btn.disabled=false; btn.textContent='💾 Salvar checklist'; }
+  }
 }
 
 // ══════════════════════════════════════════
