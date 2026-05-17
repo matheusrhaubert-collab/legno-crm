@@ -8444,6 +8444,18 @@ async function uploadFotoItem(idx, input) {
   _checklistItems[idx].dataConclusao = new Date().toISOString().slice(0,10);
   renderChecklistLista();
   input.value = '';
+  // Auto-save to Supabase after photo
+  const _inst = (DB.instalacoes||[]).find(x=>x.id===_checklistInstId);
+  if (_inst) {
+    _inst.checklist = JSON.parse(JSON.stringify(_checklistItems));
+    const _checklistSave = _checklistItems.map(c => ({
+      descricao: c.descricao, responsavel: c.responsavel,
+      concluido: c.concluido, dataConclusao: c.dataConclusao, foto: c.foto||null
+    }));
+    sbFetch('instalacoes?id=eq.'+_inst.id, 'PATCH', {checklist: _checklistSave})
+      .then(()=>{ toast('✓ Salvo!'); renderInstalacao(); })
+      .catch(e=>{ toast('⚠ Erro ao salvar: '+e.message); });
+  }
 }
 
 async function salvarChecklist() {
@@ -8460,7 +8472,7 @@ async function salvarChecklist() {
       responsavel: c.responsavel,
       concluido: c.concluido,
       dataConclusao: c.dataConclusao,
-      foto: c.foto && c.foto.startsWith('http') ? c.foto : null // só salva URL, não base64 grande
+      foto: c.foto || null // salva URL ou base64
     }));
     await sbFetch('instalacoes?id=eq.'+inst.id, 'PATCH', {checklist: checklistParaSalvar});
     renderInstalacao();
