@@ -8473,7 +8473,10 @@ function abrirCondicoes(projetoId) {
   if (p.propostaTravada && !isAdmin()) {
     toast('🔒 Condições travadas — proposta já aprovada'); return;
   }
-  const precoBase = p.finPrecoFinal || 0;
+  const lead = DB.leads.find(l=>l.id===p.leadId);
+  const ambientes = lead?.ambientesBriefing || [];
+  const precoBaseXML = ambientes.reduce((s,a) => s + (a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0), 0);
+  const precoBase = precoBaseXML || p.finPrecoFinal || 0;
   const etapasPadrao = [{label:'Entrada',pct:20},{label:'Medição e conferência',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
   const etapasAtuais = p.condicaoEtapas&&p.condicaoEtapas.length ? p.condicaoEtapas : etapasPadrao;
   const tipoAtual = p.condicaoTipo||'parcelado';
