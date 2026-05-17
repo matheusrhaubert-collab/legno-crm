@@ -8253,10 +8253,10 @@ async function reenviarEmailXMLs(prodId) {
   const dataInstalacao = prod.dataInstalacao || proj?.prazos?.instalacao || '';
   const obs = prod.quadros?.xmlEnviado?.obs || prod.obs || '';
   const responsavel = usuarioAtual?.nome || prod.responsavelFabricacao || '';
-  // Use prod as proxy with nome for email
-  const pProxy = { nome: prod.clienteNome, tipo: prod.tipo || '' };
+  // Passa o projeto real para buscar desconto/taxa corretamente
+  const pEmail = proj || { nome: prod.clienteNome, tipo: prod.tipo || '' };
   toast('📧 Reenviando email...');
-  await enviarEmailXMLs(pProxy, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel);
+  await enviarEmailXMLs(pEmail, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel);
 }
 
 async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel) {
