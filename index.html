@@ -762,30 +762,44 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 <!-- ══ MODAL NOVO LEAD ══ -->
 <div class="overlay" id="modal-novoLead" onclick="closeModalOutside(event,'novoLead')">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:600px">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <div class="modal-title">◈ Novo Projeto</div>
       <div class="icon-btn" onclick="closeModal('novoLead')">✕</div>
     </div>
     <div class="modal-body">
-      <!-- Nome do projeto -->
+
+      <!-- ── PROJETO ── -->
+      <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600">Projeto</div>
       <div class="form-group">
         <label class="form-label" style="color:var(--gold2);font-weight:600">Nome do projeto *</label>
         <input class="form-input" id="nl-projeto-nome" placeholder="Ex: Cozinha + Living, Casa Completa, Escritório...">
       </div>
-      <!-- Cliente -->
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Tipo de projeto</label>
+          <select class="form-select" id="nl-tipo">
+            <option>Residencial</option><option>Comercial</option><option>Reforma</option><option>Projeto completo</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Responsável</label>
+          <select class="form-select" id="nl-responsavel"><option value="">Selecionar...</option></select>
+        </div>
+      </div>
+
+      <!-- ── CLIENTE ── -->
+      <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;font-weight:600">Cliente</div>
       <div class="form-group">
-        <label class="form-label">Cliente *</label>
+        <label class="form-label">Nome do cliente *</label>
         <input class="form-input" id="nl-cliente-busca" placeholder="Buscar cliente existente ou digitar novo..."
           oninput="_buscarClienteNovoProjeto(this.value)" autocomplete="off">
         <div id="nl-cliente-sugestoes" style="margin-top:4px;display:none;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;max-height:180px;overflow-y:auto"></div>
-        <div id="nl-cliente-selecionado" style="display:none;margin-top:6px;padding:8px 12px;background:var(--green-dim);border:0.5px solid rgba(92,184,130,0.4);border-radius:var(--radius-sm);font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px">
+        <div id="nl-cliente-selecionado" style="display:none;margin-top:6px;padding:8px 12px;background:var(--green-dim);border:0.5px solid rgba(92,184,130,0.4);border-radius:var(--radius-sm);font-size:13px;color:var(--green);align-items:center;gap:8px">
           <span>✓</span><span id="nl-cliente-selecionado-nome"></span>
           <button onclick="_limparClienteSelecionado()" style="margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px">✕</button>
         </div>
       </div>
-      <!-- Campos do cliente (visíveis só se novo) -->
+      <!-- Campos do cliente novo -->
       <div id="nl-campos-novo-cliente" style="display:none">
         <div style="padding:10px 12px;background:var(--amber-dim);border:0.5px solid var(--amber);border-radius:var(--radius-sm);font-size:12px;color:var(--amber);margin-bottom:12px">
           ✦ Cliente novo — preencha os dados básicos
@@ -803,24 +817,42 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <div class="form-group"><label class="form-label">Vendedor externo</label><input class="form-input" id="nl-vendedor-externo" placeholder="Nome..."></div>
         </div>
       </div>
-      <!-- Campos sempre visíveis -->
+
+      <!-- ── BRIEFING ── -->
+      <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;font-weight:600">Briefing</div>
+      <div class="form-group">
+        <label class="form-label">Endereço / Local da obra *</label>
+        <input class="form-input" id="nl-endereco" placeholder="Rua, número, cidade...">
+      </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Tipo de projeto</label>
-          <select class="form-select" id="nl-tipo">
-            <option>Residencial</option><option>Comercial</option><option>Reforma</option><option>Projeto completo</option>
+        <div class="form-group"><label class="form-label">Tipo de cliente</label>
+          <select class="form-select" id="nl-tipo-cliente">
+            <option value="Homeowner">Homeowner</option>
+            <option value="Builder">Builder</option>
+            <option value="Contractor">Contractor</option>
+            <option value="Designer">Designer</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">Responsável</label>
-          <select class="form-select" id="nl-responsavel"><option value="">Selecionar...</option></select>
+        <div class="form-group"><label class="form-label">Valor esperado (opcional)</label>
+          <input class="form-input" id="nl-valor-total" placeholder="$ 0">
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Observações iniciais</label>
-        <textarea class="form-textarea" id="nl-obs" placeholder="Briefing inicial, referências, estilo..." style="min-height:60px"></textarea>
+      <div class="form-group"><label class="form-label">Previsão de instalação</label>
+        <input class="form-input" id="nl-previsao" type="date">
+      </div>
+
+      <!-- Ambientes -->
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:500">Ambientes *</div>
+      <div id="nl-ambientes-list"></div>
+      <button class="btn btn-sm" onclick="_adicionarAmbienteNovoProjeto()" style="margin-top:6px;margin-bottom:4px">＋ Adicionar ambiente</button>
+
+      <div class="form-group" style="margin-top:12px"><label class="form-label">Observações</label>
+        <textarea class="form-textarea" id="nl-obs" placeholder="Referências, estilo, detalhes importantes..." style="min-height:60px"></textarea>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('novoLead')">Cancelar</button>
-      <button class="btn btn-primary" onclick="criarProjeto()">◈ Criar projeto</button>
+      <button class="btn btn-primary" onclick="criarProjeto()">◈ Criar projeto com briefing</button>
     </div>
   </div>
 </div>
@@ -6246,11 +6278,64 @@ function _limparClienteSelecionado() {
   document.getElementById('nl-campos-novo-cliente').style.display = 'none';
 }
 
-// Limpar modal ao abrir
+// ── Ambientes no modal Novo Projeto ──
+let _nlAmbientes = [{tipo:'', nome:'', obs:'', prioridade:'Média', valor:''}];
+
+function _renderAmbientesNovoProjeto() {
+  const el = document.getElementById('nl-ambientes-list');
+  if (!el) return;
+  el.innerHTML = _nlAmbientes.map((a, i) => `
+    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--gold)">Ambiente ${i+1}</span>
+        ${_nlAmbientes.length > 1 ? `<span onclick="_removerAmbienteNP(${i})" style="cursor:pointer;color:var(--text3);font-size:11px">✕ remover</span>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+        <div>
+          <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Tipo *</label>
+          <select class="form-input" style="height:34px;font-size:13px" onchange="_nlAmbientes[${i}].tipo=this.value;_nlAmbientes[${i}].nome=_nlAmbientes[${i}].nome||this.value;_renderAmbientesNovoProjeto()">
+            <option value="">Selecione...</option>
+            ${['Bathroom','Kitchen','Hall / Entrada','Office','Bedroom','Dining Room','Wine Room','Living Room','Bar','Pantry','Laundry','Master Suite','Closet','Varanda','Área de Serviço','Outro'].map(t=>`<option value="${t}" ${a.tipo===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Nome personalizado</label>
+          <input class="form-input" style="height:34px;font-size:13px" value="${a.nome||''}" placeholder="Ex: Suite do casal..." oninput="_nlAmbientes[${i}].nome=this.value">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Prioridade</label>
+          <select class="form-input" style="height:34px;font-size:13px" onchange="_nlAmbientes[${i}].prioridade=this.value">
+            <option ${a.prioridade==='Alta'?'selected':''}>Alta</option>
+            <option ${!a.prioridade||a.prioridade==='Média'?'selected':''}>Média</option>
+            <option ${a.prioridade==='Baixa'?'selected':''}>Baixa</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3);display:block;margin-bottom:3px">Observação</label>
+          <input class="form-input" style="height:34px;font-size:13px" value="${a.obs||''}" placeholder="Detalhes..." oninput="_nlAmbientes[${i}].obs=this.value">
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function _adicionarAmbienteNovoProjeto() {
+  _nlAmbientes.push({tipo:'', nome:'', obs:'', prioridade:'Média', valor:''});
+  _renderAmbientesNovoProjeto();
+}
+
+function _removerAmbienteNP(i) {
+  _nlAmbientes.splice(i, 1);
+  _renderAmbientesNovoProjeto();
+}
+
+// ── Limpar modal ao abrir (override existente) ──
 const _origOpenModal = window.openModal;
 window.openModal = function(id) {
   if (id === 'novoLead') {
     _clienteSelecionadoId = null;
+    _nlAmbientes = [{tipo:'', nome:'', obs:'', prioridade:'Média', valor:''}];
     setTimeout(() => {
       const f = document.getElementById('nl-projeto-nome'); if (f) f.value='';
       const b = document.getElementById('nl-cliente-busca'); if (b) b.value='';
@@ -6258,6 +6343,10 @@ window.openModal = function(id) {
       const sel = document.getElementById('nl-cliente-selecionado'); if (sel) sel.style.display='none';
       const nc = document.getElementById('nl-campos-novo-cliente'); if (nc) nc.style.display='none';
       const obs = document.getElementById('nl-obs'); if (obs) obs.value='';
+      const end = document.getElementById('nl-endereco'); if (end) end.value='';
+      const vt = document.getElementById('nl-valor-total'); if (vt) vt.value='';
+      const pv = document.getElementById('nl-previsao'); if (pv) pv.value='';
+      _renderAmbientesNovoProjeto();
     }, 50);
   }
   _origOpenModal(id);
@@ -6270,12 +6359,44 @@ async function criarProjeto() {
   if (!clienteBusca) { toast('⚠️ Informe o cliente'); return; }
 
   const tipo = document.getElementById('nl-tipo').value;
+  const tipoCliente = document.getElementById('nl-tipo-cliente')?.value || 'Homeowner';
   const responsavel = document.getElementById('nl-responsavel').value;
-  const obs = document.getElementById('nl-obs').value;
+  const obs = document.getElementById('nl-obs')?.value || '';
+  const endereco = document.getElementById('nl-endereco')?.value?.trim() || '';
+  const valorTotal = document.getElementById('nl-valor-total')?.value?.trim() || '';
+  const previsao = document.getElementById('nl-previsao')?.value || '';
+
+  // Validar ambientes
+  const ambValidos = _nlAmbientes.filter(a => a.tipo || (a.nome||'').trim());
+  if (!ambValidos.length) { toast('⚠️ Adicione pelo menos um ambiente'); return; }
+
+  // Montar briefing completo
+  const ambientesBriefing = ambValidos.map(a => ({
+    tipo: a.tipo || a.nome,
+    nome: a.nome || a.tipo,
+    obs: a.obs || '',
+    prioridade: a.prioridade || 'Média',
+    valor: a.valor || '',
+    imagens: [],
+    cores: []
+  }));
 
   let lead;
+  const baseData = {
+    tipo: tipoCliente,
+    obs: endereco,
+    responsavel,
+    status: 'briefing',
+    data: new Date().toISOString().slice(0,10),
+    updatedAt: new Date().toISOString(),
+    projetoNome: projNome,
+    valorTotal,
+    previsaoInstalacao: previsao,
+    ambientesBriefing,
+    novo: false
+  };
+
   if (_clienteSelecionadoId) {
-    // Cliente existente — cria novo lead com mesmo nome mas ID novo
     const existing = DB.leads.find(l=>l.id===_clienteSelecionadoId);
     lead = {
       id: 'L'+Date.now(),
@@ -6283,39 +6404,42 @@ async function criarProjeto() {
       tel: existing.tel||'',
       email: existing.email||'',
       origem: existing.origem||'Indicação',
-      tipo, obs, responsavel,
       vendedorExterno: existing.vendedorExterno||'',
-      status: 'aguardando',
-      data: new Date().toISOString().slice(0,10),
-      updatedAt: new Date().toISOString(),
-      projetoNome: projNome
+      ...baseData
     };
   } else {
-    // Cliente novo
     lead = {
       id: 'L'+Date.now(),
       nome: clienteBusca,
       tel: document.getElementById('nl-tel')?.value||'',
       email: document.getElementById('nl-email')?.value||'',
       origem: document.getElementById('nl-origem')?.value||'Outro',
-      tipo, obs, responsavel,
       vendedorExterno: document.getElementById('nl-vendedor-externo')?.value||'',
-      status: 'aguardando',
-      data: new Date().toISOString().slice(0,10),
-      updatedAt: new Date().toISOString(),
-      projetoNome: projNome
+      ...baseData
     };
   }
+
+  // Criar projeto associado
+  const proj = {
+    id: 'P'+Date.now(),
+    nome: lead.nome,
+    tipo,
+    status: 'apresentacao',
+    data: lead.data,
+    estimate: valorTotal,
+    ambientes: ambientesBriefing.map(a=>a.nome||a.tipo),
+    leadId: lead.id
+  };
 
   try {
     await pushLead(lead);
     DB.leads.unshift(lead);
+    await pushProjeto(proj);
+    DB.projetos.unshift(proj);
     closeModal('novoLead');
     renderAll();
-    toast(`◈ Projeto "${projNome}" criado!`);
-    registrarLog(lead.id, lead.nome, `Projeto criado: ${projNome}`);
-    criarTarefaAutomatica(lead.id, lead.nome, 'briefing');
-    // Ir direto para projetos
+    toast(`◈ Projeto "${projNome}" criado com briefing!`);
+    registrarLog(lead.id, lead.nome, `Projeto criado: ${projNome} · ${ambientesBriefing.length} ambiente(s)`);
     goPage('projetos');
   } catch(e) {
     toast('Erro ao criar projeto: ' + e.message);
