@@ -8218,6 +8218,20 @@ async function confirmarEnvioProducao() {
   } catch(e) { toast('Erro ao enviar para produção: ' + e.message); }
 }
 
+async function reenviarEmailXMLs(projetoId) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const lead = DB.leads.find(l=>l.id===p.leadId);
+  const ambientes = lead?.ambientesBriefing || [];
+  const dataFabrica = p.prazos?.producao || '';
+  const dataEntrega = p.prazos?.entrega || '';
+  const dataInstalacao = p.prazos?.instalacao || '';
+  const obs = p.quadros?.xmlEnviado?.obs || '';
+  const responsavel = usuarioAtual?.nome || '';
+  toast('📧 Reenviando email...');
+  await enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel);
+}
+
 async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInstalacao, obs, responsavel) {
   const fmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
   const valorTotal = ambientes.reduce((s,a)=>s+(parseFloat(a.finPrecoFinal||a.xmlDados?.valorTotalNum||0)),0);
@@ -8928,7 +8942,7 @@ function renderCardProducao(p) {
           <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Detalhes do envio..." value="${q.xmlEnviado?.obs||''}"
             oninput="_setProdQ('${p.id}','xmlEnviado','obs',this.value)">
         </div>
-        ${!q1ok ? `<button class="btn btn-sm btn-primary" style="margin-top:10px;width:100%;justify-content:center" onclick="confirmarQuadro('${p.id}','xmlEnviado')">✓ Confirmar envio do XML</button>` : `<div style="margin-top:8px;font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.xmlEnviado?.confirmedAt||q.xmlEnviado?.data)}</div>`}
+        ${!q1ok ? `<button class="btn btn-sm btn-primary" style="margin-top:10px;width:100%;justify-content:center" onclick="confirmarQuadro('${p.id}','xmlEnviado')">✓ Confirmar envio do XML</button>` : `<div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.xmlEnviado?.confirmedAt||q.xmlEnviado?.data)}</div><button class="btn btn-sm" style="border-color:rgba(96,144,208,0.4);color:var(--blue);white-space:nowrap" onclick="reenviarEmailXMLs('${p.id}')">📧 Reenviar email</button></div>`}
       </div>
 
       <!-- QUADRO 2: RECEBIDO PELA FÁBRICA -->
