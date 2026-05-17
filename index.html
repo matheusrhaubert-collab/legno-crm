@@ -3282,11 +3282,10 @@ function abrirContrato(projetoId) {
   const div = document.createElement('div');
   div.style.cssText = 'background:#141414;border:0.5px solid #2a2a2a;border-radius:16px;padding:28px;max-width:460px;width:100%';
 
-  // Valor do contrato = mesmo da proposta aceita
-  // Prioridade: condicaoPrecoFinal (se já tem desconto aplicado corretamente) > finPrecoFinal > 0
-  const precoFinal = (p.condicaoPrecoFinal && p.condicaoPrecoFinal < (p.finPrecoFinal||Infinity))
-    ? p.condicaoPrecoFinal
-    : p.finPrecoFinal || p.condicaoPrecoFinal || 0;
+  // Valor do contrato = soma dos valores de venda por ambiente (editados manualmente)
+  const _ambsContrato = lead.ambientesBriefing || [];
+  const precoFinalAmb = _ambsContrato.reduce((s,a) => s + (a.finValorManual||a.finPrecoFinal||0), 0);
+  const precoFinal = precoFinalAmb || p.finPrecoFinal || p.condicaoPrecoFinal || 0;
   const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   div.innerHTML = '<div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">📋 Gerar Contrato</div>'
@@ -3344,7 +3343,9 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
   if (!lead) return;
   const ambientes = lead.ambientesBriefing||[];
   const prazos = p.prazos||{};
-  const precoFinal = p.condicaoPrecoFinal||p.finPrecoFinal||0;
+  // Valor do contrato = soma dos valores de venda por ambiente (editados manualmente)
+  const precoFinalAmb = ambientes.reduce((s,a) => s + (a.finValorManual||a.finPrecoFinal||0), 0);
+  const precoFinal = precoFinalAmb || p.finPrecoFinal || p.condicaoPrecoFinal || 0;
   const tipo = p.condicaoTipo||'parcelado';
   const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[
     {label:'Deposit',pct:20},{label:'Measurement & Approval',pct:30},{label:'Delivery',pct:30},{label:'Final / Installation',pct:20}
@@ -4841,8 +4842,8 @@ function renderProjetos(filter='') {
       const prontos = ambientes.filter(a=>(a.imagens||[]).length>0 && a.xmlNome);
       const proposalPronta = ambientes.length > 0 && prontos.length === ambientes.length;
 
-      // Trava global após aceite da proposta
-      const travadoCard = !!(p.propostaAceita || p.propostaTravada) && !isAdmin();
+      // Trava global após aceite da proposta — vale para todos incluindo admin
+      const travadoCard = !!(p.propostaAceita || p.propostaTravada);
       const travadoStyle = travadoCard ? 'opacity:0.45;cursor:not-allowed;filter:grayscale(0.4)' : '';
       const travadoBtn = (label) => travadoCard
         ? `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.35;cursor:not-allowed;color:var(--text3);border-color:var(--border)" disabled>🔒 ${label}</button>`
