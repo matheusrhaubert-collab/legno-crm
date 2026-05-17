@@ -4142,7 +4142,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
 
 <button class="print-btn" onclick="window.print()">${lang==='en'?'Print / Save PDF':lang==='pt'?'Imprimir / Salvar PDF':'Imprimir / Guardar PDF'}</button>
 
-<script>
+${'<scr'+'ipt>'}
 // ── Signature pad ──
 const canvas = document.getElementById('sig-canvas');
 const ctx = canvas.getContext('2d');
@@ -4174,7 +4174,7 @@ function salvarAssinatura(projId){
     body:JSON.stringify({contrato_aprovado:true,contrato_assinado_em:new Date().toISOString(),contrato_assinatura:sigData.slice(0,200)})
   }).then(()=>{alert('${lang==='en'?'Contract signed and saved!':lang==='pt'?'Contrato assinado e salvo!':'Contrato firmado y guardado!'}');}).catch(()=>{});
 }
-<\/script>
+${'</scr'+'ipt>'}
 </body>
 </html>`;
 
