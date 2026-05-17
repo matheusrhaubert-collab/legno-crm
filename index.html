@@ -10261,6 +10261,7 @@ function mobGoHome() {
   const producao = (DB.producao||[]).length;
   const tarefasHoje = (DB.tarefas||[]).filter(t=>!t.concluida && t.data===new Date().toISOString().slice(0,10)).length;
   const entregas = (DB.entregas||[]).filter(e=>!e.concluida).length;
+  const instalacoes = (DB.instalacoes||[]).filter(i=>!i.concluida).length;
 
   document.getElementById('mob-content').innerHTML = `
     <div style="margin-bottom:6px">
@@ -10298,10 +10299,16 @@ function mobGoHome() {
           <span class="mob-btn-sub">Agendadas</span>
           ${entregas?`<span class="mob-btn-badge">${entregas}</span>`:''}
         </button>
+        <button class="mob-btn" onclick="mobGoPage('instalacao')">
+          <span class="mob-btn-icon">🔧</span>
+          <span class="mob-btn-label">Instalação</span>
+          <span class="mob-btn-sub">Checklist e agendamentos</span>
+          ${instalacoes?`<span class="mob-btn-badge">${instalacoes}</span>`:''}
+        </button>
         <button class="mob-btn" onclick="mobGoPage('imagens')">
-          <span class="mob-btn-icon">📷</span>
-          <span class="mob-btn-label">Imagens</span>
-          <span class="mob-btn-sub">Upload por ambiente</span>
+          <span class="mob-btn-icon">🗄</span>
+          <span class="mob-btn-label">Banco de Dados</span>
+          <span class="mob-btn-sub">XMLs, imagens, documentos</span>
         </button>
       </div>
     </div>`;
@@ -10312,7 +10319,7 @@ function mobGoPage(page) {
   document.getElementById('mob-back-btn').style.display = 'flex';
   document.getElementById('mob-user-bar').style.display = 'none';
 
-  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', imagens:'Banco de Dados'};
+  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', instalacao:'Instalação', imagens:'Banco de Dados'};
   document.getElementById('mob-title').textContent = titles[page] || page;
 
   const content = document.getElementById('mob-content');
@@ -10323,6 +10330,7 @@ function mobGoPage(page) {
   if (page === 'agenda') mobRenderAgenda(content);
   if (page === 'producao') mobRenderProducao(content);
   if (page === 'entrega') mobRenderEntrega(content);
+  if (page === 'instalacao') mobRenderInstalacao(content);
   if (page === 'imagens') mobRenderImagens(content);
 }
 
@@ -10501,6 +10509,63 @@ function mobRenderEntrega(el) {
 }
 
 // ── IMAGENS ──
+function mobRenderInstalacao(el) {
+  const hoje = new Date().toISOString().slice(0,10);
+  const items = (DB.instalacoes||[]).sort((a,b) => {
+    if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
+    return (a.data||'').localeCompare(b.data||'');
+  });
+
+  let html = `<div style="padding:0 0 16px">
+    <button onclick="openModal('novaInstalacao')" style="width:100%;height:48px;background:var(--gold);color:#0d0d0d;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:16px">＋ Nova instalação</button>`;
+
+  if (!items.length) {
+    html += `<div style="text-align:center;padding:48px 20px;color:var(--text3)"><div style="font-size:36px;margin-bottom:8px">🔧</div><p>Nenhuma instalação agendada.</p></div>`;
+  } else {
+    items.forEach(i => {
+      const atrasada = !i.concluida && i.data && i.data < hoje;
+      const ehHoje = i.data === hoje;
+      const checklist = i.checklist||[];
+      const feitos = checklist.filter(c=>c.concluido).length;
+      const total = checklist.length;
+      const pct = total > 0 ? Math.round(feitos/total*100) : 0;
+      const corBorda = i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border)';
+      const mapsUrl = i.endereco ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(i.endereco)}` : '';
+
+      html += `<div style="background:var(--bg2);border:0.5px solid ${corBorda};border-radius:14px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:16px;font-weight:600;color:var(--text)">${i.cliente}</div>
+          <span style="font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid ${corBorda};color:${corBorda}">
+            ${i.concluida?'✓ Concluída':atrasada?'⚠ Atrasada':ehHoje?'• Hoje':'○ Pendente'}
+          </span>
+        </div>
+        ${i.endereco?`<div style="font-size:12px;color:var(--text3);margin-bottom:6px">📍 ${i.endereco}</div>`:''}
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap">
+          ${i.data?`<span>📅 ${formatDate(i.data)}${i.hora?' '+i.hora:''}</span>`:''}
+          ${i.responsavel?`<span>👤 ${i.responsavel}</span>`:''}
+        </div>
+        ${total > 0 ? `
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px">
+            <span>Checklist</span><span>${feitos}/${total} (${pct}%)</span>
+          </div>
+          <div style="height:4px;background:var(--bg3);border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${pct===100?'var(--green)':'var(--gold)'};border-radius:99px"></div>
+          </div>
+        </div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="abrirChecklist('${i.id}')" style="flex:1;height:44px;background:rgba(212,148,74,0.15);border:1px solid rgba(212,148,74,0.4);border-radius:10px;color:var(--amber);font-size:14px;font-weight:600;cursor:pointer">☑ Checklist${total?` (${feitos}/${total})`:''}</button>
+          ${mapsUrl?`<a href="${mapsUrl}" target="_blank" style="height:44px;padding:0 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;color:var(--blue);font-size:14px;display:flex;align-items:center;text-decoration:none">🗺</a>`:''}
+          ${!i.concluida?`<button onclick="concluirInstalacao('${i.id}');mobGoPage('instalacao')" style="height:44px;padding:0 14px;background:rgba(92,184,130,0.15);border:1px solid rgba(92,184,130,0.4);border-radius:10px;color:var(--green);font-size:14px;cursor:pointer">✓</button>`:''}
+        </div>
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 function mobRenderImagens(el) {
   const projetos = DB.projetos.filter(p=>p.status!=='concluido');
   el.innerHTML = `
