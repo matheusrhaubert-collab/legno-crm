@@ -8504,7 +8504,7 @@ function editarPagamentoPrazo(projetoId, campo) {
 function aceitarProposta(projetoId) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
-  const propostaReal = p.contratoGerado || p.contratoData || p.contratoHtml || localStorage.getItem('contrato_html_'+projetoId);
+  const propostaReal = p.pdfProposta || p.pdfPropostaData || p.temPropostaNobanco || localStorage.getItem('proposta_html_'+projetoId);
   if (!propostaReal) {
     toast('⚠️ Gere a proposta primeiro antes de aceitar.');
     return;
