@@ -1605,6 +1605,10 @@ function parsearXMLPromob(xmlStr) {
         metrosLED += qty; addHW('led','LED Strip (m)', qty);
       } else if (ref.startsWith('K09003') || desc.includes('aluminium door') || desc.includes('aluminum door') || desc.includes('glass door') || (desc.includes('alumin') && desc.includes('door'))) {
         addHW('alumdoor','🪟 Aluminium Door / Glass Door', qty);
+      } else if (ref.startsWith('K09001') || (desc.includes('aluminium profile') || desc.includes('aluminum profile') || (desc.includes('alumin') && desc.includes('profile')))) {
+        addHW('aluminium','Aluminium Profile', qty);
+      } else if (ref.startsWith('K08002') || ref.startsWith('K08') && desc.includes('glass')) {
+        addHW('glass','Glass Panel', qty);
       } else if (desc.includes('drawer slide') || desc.includes('undermount') || (desc.includes('slide') && (desc.includes('soft') || desc.includes('close') || desc.includes('30kg') || desc.includes('50kg')))) {
         addHW('slide','Drawer Slides / Soft Close', qty);
       } else if (desc.includes('soft close') || desc.includes('soft-close') || desc.includes('damper')) {
@@ -1699,6 +1703,14 @@ function verXML() {
     <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Valor Total do Orçamento</div>
     <div style="font-size:28px;font-weight:600;color:var(--gold2);font-family:'DM Mono',monospace">$ ${d.valorTotal||'—'}</div>
   </div>`;
+
+  // Descrição do ambiente
+  if (_ambObj.descricao) {
+    html += `<div style="margin-bottom:16px;padding:10px 14px;background:rgba(201,169,110,0.06);border:0.5px solid rgba(201,169,110,0.2);border-radius:8px">
+      <div style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Descrição</div>
+      <div style="font-size:12px;color:var(--text2);white-space:pre-line;line-height:1.7">${_ambObj.descricao}</div>
+    </div>`;
+  }
 
   // Contagem inteligente
   if (d.contagem) {
