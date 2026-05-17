@@ -3366,45 +3366,94 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       company: 'LEGNO HOME LLC, a Florida limited liability company with its principal place of business located at 12302 Roper Blvd Ste 103, Clermont, FL 34711, EIN 39-3331452 (the "Contractor"), and:',
       client: 'Client Information',
       firstName: 'First Name', lastName: 'Last Name', email: 'Email', address: 'Address',
-      licenseNote: 'Note on licensing: Florida law states that cabinet work and similar finishes do not require a state contractor license. Nevertheless, the contractor must include its license number on proposals, bids, contracts and advertisements where a license is required.',
+      licenseNote: 'Note on licensing: Florida law states that cabinet work and similar finishes do not require a state contractor license. The Contractor maintains all required business registrations and operates in full compliance with applicable Florida statutes.',
+
       s1: '1. Scope of Work',
-      s1p: 'The Contractor shall furnish all labor, materials, tools and equipment necessary to design, build, deliver and install the custom cabinetry and woodwork described in Exhibit A at the Client\'s property. The Work expressly includes only those services and materials listed in Exhibit A; any tasks or materials not so described are excluded.',
-      s1mat: 'Materials remain the property of the Contractor until the Contract Price is paid in full. Title transfers to the Client upon full payment.',
-      s1excl: 'Exclusions: The Contractor is not responsible for (a) moving or protecting personal property; (b) unforeseen structural or concealed conditions; (c) mold, moisture, or code deficiencies; or (d) work by others. Additional work requires a written change order.',
+      s1p: 'The Contractor shall furnish all labor, materials, tools and equipment necessary to design, build, deliver and install the custom cabinetry and woodwork described in Exhibit A at the Client\'s property (the "Work"). The Work expressly includes only those services and materials listed in Exhibit A; any tasks or materials not described therein are excluded.',
+      s1mat: 'Title to Materials: Materials remain the property of the Contractor until the Contract Price is paid in full. Title transfers to the Client upon receipt of full payment.',
+      s1excl: 'Exclusions: The Contractor is not responsible for (a) moving or protecting personal property; (b) unforeseen structural or concealed conditions; (c) mold, moisture, or code deficiencies pre-existing at the Property; or (d) work performed by others. Any additional work requires a written Change Order signed by both parties.',
+
+      s1ins: '1A. Insurance / Certificate of Insurance (COI)',
+      s1insp: 'The Contractor shall maintain, at its own expense, throughout the duration of the Work, the following insurance coverage: (a) General Liability Insurance with a minimum limit of $1,000,000 per occurrence and $2,000,000 aggregate; (b) Workers\' Compensation Insurance as required by Florida law. Upon request, the Contractor shall provide the Client with a Certificate of Insurance (COI) naming the Client as an additional insured for the duration of the project. The Contractor\'s obligation to maintain insurance is a material term of this Agreement.',
+
       s2: '2. Contract Price and Payment Terms',
       s2price: 'The Client agrees to pay a total contract price of',
       s2method: 'Payment shall be made as follows:',
+      s2down: 'The initial deposit ("Down Payment") is due immediately upon signing this Agreement, prior to any fabrication, ordering of materials, or commencement of Work. No Work will begin until the Down Payment is received in full.',
       s2note: 'All payments shall be made electronically through a secure payment link provided by the Contractor.',
+
       s3: '3. Schedule',
-      s3p: 'The Contractor will commence Work within 10 days after receipt of the deposit. Estimated completion dates are subject to delays beyond the Contractor\'s control.',
+      s3p: 'The Contractor will commence Work within ten (10) days after receipt of the required Down Payment. Estimated completion dates are subject to change due to circumstances beyond the Contractor\'s control.',
+      s3a: '3A. Delays Beyond Contractor\'s Control',
+      s3ap: 'The Contractor shall not be liable for delays caused by circumstances beyond its reasonable control, including but not limited to: material shortages, supplier delays, shipping or freight interruptions, backorders, acts of God, weather conditions, labor shortages, governmental actions, permit delays, utility interruptions, manufacturing issues, delays caused by other trades or contractors, lack of site readiness, restricted access to the Property, or changes requested by the Client. Any such delays shall automatically extend the estimated completion schedule without penalty or liability to the Contractor.',
+      s3b: '3B. Client-Caused Delays',
+      s3bp: 'If the Client delays measurements, approvals, scheduling, delivery, installation, site readiness, or otherwise prevents the Contractor from proceeding as scheduled, the Contractor may reschedule the Work based on availability without liability. Risk of loss for completed materials transfers to the Client once the Work is substantially completed or ready for delivery.',
+
       s4: '4. Client Responsibilities',
-      s4p: 'The Client shall provide unobstructed access during normal working hours, ensure the work area is free of hazards, and provide water and electricity at no cost to the Contractor.',
+      s4p: 'The Client shall: (a) provide unobstructed access to the Property during normal working hours (Monday–Friday, 8:00 AM – 5:00 PM, unless otherwise agreed in writing); (b) ensure the work area is free of hazards, excessive debris, pets, and personal belongings; (c) provide water and electricity at no cost to the Contractor; and (d) ensure that all pre-existing conditions required for installation (flooring, electrical, civil construction) are completed before the scheduled installation date.',
+      s4ready: 'Site Readiness Requirement: For installation to begin, the following must be completed: flooring installed, electrical work complete, all civil construction finalized, and clean unobstructed access available. If the site is not ready on the scheduled date, the installation date will be automatically postponed until conditions are met.',
+
       s5: '5. Changes or Extras',
-      s5p: 'No change to the Work, Contract Price, or schedule shall be binding unless set forth in a written change order signed by both parties.',
+      s5p: 'No change to the Work, Contract Price, or schedule shall be binding unless set forth in a written Change Order signed by both parties prior to commencement of the changed work.',
+      s5a: '5A. Final Approvals',
+      s5ap: 'The Client acknowledges that all approved drawings, renderings, dimensions, finishes, colors, hardware selections, layouts, and specifications become final upon written or electronic approval. Any modification requested after approval shall constitute a Change Order and may result in additional costs, schedule extensions, or redesign fees. Renderings and virtual designs are illustrative only and may vary slightly from the final manufactured product.',
+      s5b: '5B. Field Conditions / Installation Tolerances',
+      s5bp: 'The Client acknowledges that existing homes and structures may contain walls, floors, ceilings, and surfaces that are not level, square, straight, or plumb. Minor gaps, reveals, fillers, shimming adjustments, alignment tolerances, and installation variations consistent with industry standards shall not constitute defects or incomplete work. The Contractor shall not be responsible for correcting pre-existing structural or site conditions unless specifically included in this Agreement.',
+
       s6: '6. Limited Warranty',
-      s6p: 'The Contractor warrants that the Work will be performed in a good and workmanlike manner. This warranty covers defects in materials and workmanship that appear within two (2) years after substantial completion.',
-      s6disc: 'This warranty does not cover damage caused by abuse, misuse, neglect, improper maintenance, acts of God, or modifications by others. Natural wood characteristics (grain variation, color change, expansion) are not covered.',
+      s6p: 'The Contractor warrants that the Work will be performed in a good and workmanlike manner consistent with industry standards. This warranty covers defects in materials and workmanship that appear within two (2) years after substantial completion.',
+      s6disc: 'This warranty does not cover damage caused by abuse, misuse, neglect, improper maintenance, acts of God, or modifications made by parties other than the Contractor. Natural characteristics of wood (grain variation, color change, expansion, contraction) are not covered under this warranty.',
+      s6service: '6B. Warranty Service Calls & Minor Adjustments',
+      s6servicep: 'During the two (2) year warranty period, the Contractor will provide warranty service calls at no charge to the Client. Minor repairs and adjustments covered at no cost include: door and drawer alignment, hinge adjustments, soft-close mechanism regulation, handle tightening, and other minor functional adjustments inherent to the normal settling of custom cabinetry. If, upon inspection, the Contractor determines that the issue is the result of misuse, abuse, improper cleaning products, unauthorized modifications, physical damage, or conditions outside the Contractor\'s control, the repair may be performed at the Contractor\'s standard labor rate, which will be communicated to the Client prior to any work being performed.',
+      s6a: '6A. Substantial Completion',
+      s6ap: 'Substantial Completion shall occur when the Work is sufficiently complete for its intended use, notwithstanding minor punch-list items, cosmetic adjustments, touch-ups, or incomplete items that do not materially impair functionality. The existence of punch-list items shall not justify withholding payment otherwise due under this Agreement.',
+
       s7: '7. Limitation of Liability',
-      s7p: 'The Contractor\'s liability for any claim is limited to the amount of the Contract Price actually paid. Under no circumstances shall the Contractor be liable for consequential, incidental, special or punitive damages.',
+      s7p: 'The Contractor\'s liability for any claim arising out of or related to this Agreement is limited to the amount of the Contract Price actually paid by the Client at the time of the claim. Under no circumstances shall the Contractor be liable for consequential, incidental, special, or punitive damages.',
+      s7a: '7A. Non-Payment / Suspension of Work',
+      s7ap: 'If any payment is not received when due, the Contractor may immediately suspend fabrication, delivery, installation, and all related services until payment is received in full, without penalty or liability to the Contractor. Late payments shall accrue interest at the maximum rate permitted under Florida law (Florida Statute § 55.03). The Client shall be responsible for all reasonable collection costs, attorney\'s fees, court costs, lien costs, and expenses incurred by the Contractor in recovering unpaid amounts.',
+      s7b: '7B. Attorney\'s Fees',
+      s7bp: 'In any dispute arising out of or relating to this Agreement, the prevailing party shall be entitled to recover its reasonable attorney\'s fees, court costs, expert fees, and related legal expenses from the non-prevailing party.',
+
       s8: '8. Indemnification',
-      s8p: 'The Client agrees to indemnify and hold harmless the Contractor from any third-party claims arising from the Client\'s breach of this Agreement, negligence, or conditions at the Property outside the Contractor\'s control.',
+      s8p: 'The Client agrees to indemnify, defend, and hold harmless the Contractor, its members, managers, employees, subcontractors, and agents from any third-party claims, losses, damages, or expenses (including attorney\'s fees) arising from: (a) the Client\'s breach of this Agreement; (b) the Client\'s negligence or willful misconduct; or (c) conditions at the Property outside the Contractor\'s reasonable control.',
+
       s9: '9. Termination',
-      s9p: 'Either party may terminate upon written notice if the other materially breaches and fails to cure within ten (10) days. The Client may cancel without penalty within three (3) business days of signing (Florida Cooling-Off Rule).',
+      s9p: 'Either party may terminate this Agreement upon written notice if the other party materially breaches and fails to cure such breach within ten (10) days of written notice. Florida Cooling-Off Rule: The Client may cancel this Agreement without penalty within three (3) business days of signing. Upon termination after commencement of Work for any other reason, the Client shall pay for all Work performed, materials ordered or fabricated, and reasonable demobilization costs incurred through the date of termination.',
+
       s10: '10. Virtual Design Variations',
-      s10p: 'The Client acknowledges that slight variations in dimensions, color tones, or finishes may occur in the final product due to manufacturing tolerances and material characteristics. Such minor variations are acceptable and shall not constitute a defect.',
+      s10p: 'The Client acknowledges that slight variations in dimensions, color tones, or finishes may occur in the final product due to manufacturing tolerances, material characteristics, and the difference between digital renderings and physical products. Such minor variations are inherent to the custom manufacturing process, are acceptable, and shall not constitute a defect or breach of this Agreement.',
+
       s11: '11. Florida Construction Lien Law Notice',
-      s11p: 'FLORIDA\'S CONSTRUCTION LIEN LAW REQUIRES THIS NOTICE: ANY PERSON OR COMPANY SUPPLYING LABOR, SERVICES OR MATERIALS FOR THE IMPROVEMENT OF YOUR REAL PROPERTY WHO IS NOT PAID HAS A RIGHT TO CLAIM A LIEN ON THE PROPERTY EVEN IF YOU HAVE PAID THE CONTRACTOR IN FULL.',
+      s11p: 'FLORIDA\'S CONSTRUCTION LIEN LAW (CHAPTER 713, FLORIDA STATUTES) REQUIRES THIS NOTICE: ANY PERSON OR COMPANY SUPPLYING LABOR, SERVICES, OR MATERIALS FOR THE IMPROVEMENT OF YOUR REAL PROPERTY WHO IS NOT PAID HAS A RIGHT TO CLAIM A LIEN ON YOUR PROPERTY. EVEN IF YOU HAVE PAID YOUR CONTRACTOR IN FULL, IF YOUR CONTRACTOR DOES NOT PAY SUBCONTRACTORS OR MATERIAL SUPPLIERS, THOSE PEOPLE WHO ARE OWED MONEY MAY LOOK TO YOUR PROPERTY FOR PAYMENT UNDER FLORIDA LAW.',
+      s11a: '11A. Contractor\'s Lien Rights',
+      s11ap: 'The Contractor expressly reserves all rights available under Florida\'s Construction Lien Law, Chapter 713, Florida Statutes, including the right to record and enforce a Claim of Lien against the Property for unpaid labor, services, materials, change orders, interest, attorney\'s fees, and related costs.',
+
       s12: '12. Governing Law',
-      s12p: 'This Agreement shall be governed by the laws of the State of Florida. Any litigation shall be filed in the state courts of Lake County, Florida.',
+      s12p: 'This Agreement shall be governed by and construed in accordance with the laws of the State of Florida, without regard to its conflict of laws principles. Venue for any litigation shall be exclusively in the state courts of Lake County, Florida.',
+
       s13: '13. Electronic Signatures',
-      s13p: 'This Agreement may be executed in counterparts. Signatures transmitted electronically shall be binding and treated as original signatures.',
+      s13p: 'This Agreement may be executed in counterparts. Electronic signatures transmitted via email, PDF, or similar platforms shall be legally binding and treated as original wet-ink signatures pursuant to Florida\'s Electronic Signature Act (§ 668.50, Fla. Stat.).',
+
       s14: '14. Photography and Marketing',
-      s14p: 'Client grants Contractor permission to photograph and record the Property and Work for documentation, portfolio, and marketing purposes. Contractor will not disclose Client\'s personal information without written consent.',
+      s14a: '14A. Photography / Social Media',
+      s14p: 'The Client grants the Contractor a non-exclusive, royalty-free, perpetual license to photograph, record, and document the Property and the Work for portfolio, marketing, advertising, website, and social media purposes. The Contractor will not disclose the Client\'s personal information, address, or financial details without prior written consent.',
+
+      s15: '15. Mediation / Arbitration',
+      s15p: 'Prior to filing litigation (other than for collection of unpaid amounts, lien enforcement, or injunctive relief), the parties agree to first attempt to resolve any dispute through good-faith mediation in Lake County, Florida, with costs shared equally. If mediation is unsuccessful within thirty (30) days, the dispute may be submitted to binding arbitration under the Commercial Arbitration Rules of the American Arbitration Association (AAA), held in Lake County, Florida. The Contractor retains the right to pursue collection actions, lien enforcement, or injunctive relief in court at any time without prior mediation.',
+
+      s16: '16. Access / Site Conditions',
+      s16p: 'The Client shall ensure safe, continuous, and unobstructed access to the Property during scheduled working hours. If the Contractor\'s personnel are unable to work due to unsafe conditions, excessive debris, restricted access, unfinished work by other trades, pets, lack of utilities, or other site-related conditions outside the Contractor\'s control, the affected work days shall not count against the project schedule, and additional labor charges and schedule extensions may apply.',
+
+      s17: '17. Acceptance of Material Characteristics',
+      s17p: 'The Client acknowledges and accepts that wood, engineered wood products, MDF, MDP, laminates, veneers, painted finishes, and decorative materials may naturally exhibit variations in grain, texture, sheen, pattern, tone, color, expansion, and contraction over time due to environmental conditions. Such natural variations are inherent characteristics of the materials and shall not be considered defects.',
+
+      s18: '18. Entire Agreement',
+      s18p: 'This Agreement, together with all Exhibits, approved drawings, specifications, and written Change Orders executed by both parties, constitutes the entire agreement between the parties and supersedes all prior negotiations, discussions, representations, or understandings, whether oral or written. No verbal statements or promises shall modify this Agreement unless confirmed in a signed writing executed by both parties.',
+
       exhibitA: 'Exhibit A – Scope of Work',
-      project: 'Project',
-      materials: 'Materials',
-      exclusions: 'Exclusions',
-      excl1: 'This proposal does not include decoration items, mirrors, glass, loose furniture, stone materials, countertops, or related installations.',
+      project: 'Project', materials: 'Materials', exclusions: 'Exclusions',
+      excl1: 'This Agreement does not include decoration items, mirrors, loose glass, loose furniture, stone materials, countertops, plumbing, electrical, tile, flooring, painting, or civil construction, unless specifically listed above.',
       thankYou: 'Thank You!',
       thankMsg: 'On behalf of everyone at LEGNO HOME, we are truly grateful for the trust you have placed in us. We look forward to bringing your vision to life.',
       contractor: 'Contractor: LEGNO HOME LLC',
@@ -3416,7 +3465,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       delivery: 'Delivery', installation: 'Installation',
       paySchedule: 'Payment Schedule',
       amount: 'Amount', milestone: 'Milestone',
-      downPayment: 'Down Payment', monthly: 'Monthly installments', total: 'Total',
+      downPayment: 'Down Payment (due immediately upon signing)', monthly: 'Monthly installments', total: 'Total',
       interest: 'interest',
     },
     pt: {
@@ -3427,45 +3476,94 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       company: 'LEGNO HOME LLC, empresa de responsabilidade limitada do Estado da Flórida, com sede em 12302 Roper Blvd Ste 103, Clermont, FL 34711, EIN 39-3331452 (o "Contratado"), e:',
       client: 'Dados do Cliente',
       firstName: 'Nome', lastName: 'Sobrenome', email: 'E-mail', address: 'Endereço',
-      licenseNote: 'Nota sobre licenciamento: A lei da Flórida determina que trabalhos de marcenaria e acabamentos similares não exigem licença estadual de contratante.',
+      licenseNote: 'Nota sobre licenciamento: A lei da Flórida determina que trabalhos de marcenaria e acabamentos similares não exigem licença estadual de contratante. O Contratado mantém todos os registros comerciais exigidos e opera em plena conformidade com os estatutos aplicáveis do Estado da Flórida.',
+
       s1: '1. Escopo do Trabalho',
-      s1p: 'O Contratado fornecerá toda a mão de obra, materiais, ferramentas e equipamentos necessários para projetar, construir, entregar e instalar a marcenaria personalizada descrita no Anexo A na propriedade do Cliente.',
-      s1mat: 'Os materiais permanecem de propriedade do Contratado até o pagamento integral do Preço do Contrato.',
-      s1excl: 'Exclusões: O Contratado não se responsabiliza por (a) movimentação de bens pessoais; (b) condições estruturais imprevistas; (c) mofo ou deficiências de código; ou (d) trabalhos de terceiros.',
+      s1p: 'O Contratado fornecerá toda a mão de obra, materiais, ferramentas e equipamentos necessários para projetar, construir, entregar e instalar a marcenaria personalizada descrita no Anexo A na propriedade do Cliente (o "Trabalho"). O Trabalho inclui expressamente apenas os serviços e materiais listados no Anexo A; quaisquer tarefas ou materiais não descritos estão excluídos.',
+      s1mat: 'Titularidade dos Materiais: Os materiais permanecem de propriedade do Contratado até o pagamento integral do Preço do Contrato. A titularidade é transferida ao Cliente mediante o recebimento do pagamento integral.',
+      s1excl: 'Exclusões: O Contratado não se responsabiliza por: (a) movimentação ou proteção de bens pessoais; (b) condições estruturais imprevistas ou ocultas; (c) mofo, umidade ou deficiências de código pré-existentes; ou (d) trabalhos realizados por terceiros. Qualquer trabalho adicional requer uma Ordem de Mudança escrita assinada por ambas as partes.',
+
+      s1ins: '1A. Seguro / Certificado de Seguro (COI)',
+      s1insp: 'O Contratado manterá, às suas próprias expensas, durante toda a duração do Trabalho, as seguintes coberturas de seguro: (a) Seguro de Responsabilidade Civil Geral com limite mínimo de $1.000.000 por ocorrência e $2.000.000 agregado; (b) Seguro de Compensação de Trabalhadores conforme exigido pela lei da Flórida. Mediante solicitação, o Contratado fornecerá ao Cliente um Certificado de Seguro (COI) nomeando o Cliente como segurado adicional durante a duração do projeto. A obrigação do Contratado de manter seguro é uma condição material deste Contrato.',
+
       s2: '2. Preço do Contrato e Condições de Pagamento',
       s2price: 'O Cliente concorda em pagar o preço total do contrato de',
       s2method: 'O pagamento será efetuado da seguinte forma:',
+      s2down: 'O pagamento inicial ("Entrada") é devido imediatamente na assinatura deste Contrato, antes do início de qualquer fabricação, pedido de materiais ou início do Trabalho. Nenhum trabalho será iniciado até o recebimento integral da Entrada.',
       s2note: 'Todos os pagamentos serão realizados eletronicamente por meio de link seguro fornecido pelo Contratado.',
+
       s3: '3. Cronograma',
-      s3p: 'O Contratado iniciará os trabalhos em até 10 dias após o recebimento do sinal. As datas estimadas estão sujeitas a atrasos fora do controle do Contratado.',
+      s3p: 'O Contratado iniciará os trabalhos em até dez (10) dias após o recebimento da Entrada exigida. As datas estimadas estão sujeitas a alterações por circunstâncias fora do controle do Contratado.',
+      s3a: '3A. Atrasos Além do Controle do Contratado',
+      s3ap: 'O Contratado não será responsável por atrasos causados por circunstâncias além de seu controle razoável, incluindo: escassez de materiais, atrasos de fornecedores, interrupções de transporte, força maior, condições climáticas, escassez de mão de obra, ações governamentais, atrasos de alvarás, interrupções de serviços públicos, problemas de fabricação, atrasos causados por outros profissionais, falta de prontidão do local, acesso restrito à propriedade ou alterações solicitadas pelo Cliente. Tais atrasos prorrogarão automaticamente o cronograma estimado sem penalidade ou responsabilidade para o Contratado.',
+      s3b: '3B. Atrasos Causados pelo Cliente',
+      s3bp: 'Se o Cliente atrasar medições, aprovações, agendamento, entrega, instalação, prontidão do local, ou de qualquer forma impedir o Contratado de prosseguir conforme programado, o Contratado poderá reagendar o Trabalho com base na disponibilidade, sem responsabilidade. O risco de perda de materiais concluídos é transferido ao Cliente assim que o Trabalho estiver substancialmente concluído ou pronto para entrega.',
+
       s4: '4. Responsabilidades do Cliente',
-      s4p: 'O Cliente deverá fornecer acesso desobstruído durante o horário normal de trabalho e garantir que a área de trabalho esteja livre de obstruções.',
+      s4p: 'O Cliente deverá: (a) fornecer acesso desobstruído à propriedade durante o horário normal de trabalho (segunda a sexta, das 8h às 17h, salvo acordo escrito em contrário); (b) garantir que a área de trabalho esteja livre de riscos, entulho excessivo, animais de estimação e pertences pessoais; (c) fornecer água e eletricidade sem custo para o Contratado; e (d) garantir que todas as condições pré-existentes necessárias para a instalação (pisos, elétrica, obra civil) estejam concluídas antes da data de instalação agendada.',
+      s4ready: 'Requisito de Prontidão do Local: Para que a instalação seja iniciada, os seguintes itens devem estar concluídos: piso instalado, instalação elétrica completa, toda obra civil finalizada e acesso limpo e desobstruído disponível. Se o local não estiver pronto na data agendada, a instalação será automaticamente adiada até que as condições sejam atendidas.',
+
       s5: '5. Alterações ou Extras',
-      s5p: 'Nenhuma alteração será vinculante sem uma ordem de mudança escrita assinada por ambas as partes.',
+      s5p: 'Nenhuma alteração no Trabalho, no Preço do Contrato ou no cronograma será vinculante a menos que esteja prevista em uma Ordem de Mudança escrita assinada por ambas as partes antes do início do trabalho alterado.',
+      s5a: '5A. Aprovações Finais',
+      s5ap: 'O Cliente reconhece que todos os desenhos, renderizações, dimensões, acabamentos, cores, seleções de ferragens, layouts e especificações aprovados tornam-se finais mediante aprovação escrita ou eletrônica. Qualquer modificação solicitada após a aprovação constituirá uma Ordem de Mudança e poderá resultar em custos adicionais, extensões de prazo ou taxas de redesenho. Renderizações e projetos virtuais são apenas ilustrativos e podem variar ligeiramente do produto final fabricado.',
+      s5b: '5B. Condições de Campo / Tolerâncias de Instalação',
+      s5bp: 'O Cliente reconhece que residências e estruturas existentes podem conter paredes, pisos, tetos e superfícies que não estão nivelados, esquadrejados, retos ou a prumo. Pequenas frestas, filetes, calços, tolerâncias de alinhamento e variações de instalação consistentes com os padrões do setor não constituirão defeitos ou trabalho incompleto. O Contratado não será responsável pela correção de condições estruturais ou de local pré-existentes, a menos que especificamente incluído neste Contrato.',
+
       s6: '6. Garantia Limitada',
-      s6p: 'O Contratado garante que os trabalhos serão realizados de maneira profissional. Esta garantia cobre defeitos de materiais e mão de obra por dois (2) anos após a conclusão.',
-      s6disc: 'A garantia não cobre danos por mau uso, negligência ou características naturais da madeira.',
+      s6p: 'O Contratado garante que o Trabalho será executado de forma profissional e artesanal, consistente com os padrões do setor. Esta garantia cobre defeitos de materiais e mão de obra que apareçam dentro de dois (2) anos após a conclusão substancial.',
+      s6disc: 'Esta garantia não cobre danos causados por: abuso, mau uso, negligência, manutenção inadequada, força maior ou modificações realizadas por terceiros. Características naturais da madeira (variação de grão, mudança de cor, expansão, contração) não estão cobertas por esta garantia.',
+      s6service: '6B. Visitas Técnicas e Pequenos Reparos',
+      s6servicep: 'Durante o período de garantia de dois (2) anos, o Contratado realizará visitas técnicas de garantia sem custo para o Cliente. Pequenos reparos e ajustes cobertos sem custo incluem: alinhamento de portas e gavetas, regulagem de dobradiças, regulagem de mecanismo soft-close, fixação de puxadores e outros pequenos ajustes funcionais inerentes ao assentamento normal de marcenaria sob medida. Se, após inspeção, o Contratado determinar que o problema é resultado de mau uso, abuso, produtos de limpeza inadequados, modificações não autorizadas, danos físicos ou condições fora do controle do Contratado, o reparo poderá ser realizado pela taxa de mão de obra padrão do Contratado, que será comunicada ao Cliente antes de qualquer trabalho ser executado.',
+      s6a: '6A. Conclusão Substancial',
+      s6ap: 'A Conclusão Substancial ocorrerá quando o Trabalho estiver suficientemente completo para o uso pretendido, não obstante itens menores de lista de pendências, ajustes cosméticos, retoques ou itens incompletos que não prejudiquem materialmente a funcionalidade. A existência de itens de lista de pendências não justificará a retenção de pagamento devido nos termos deste Contrato.',
+
       s7: '7. Limitação de Responsabilidade',
-      s7p: 'A responsabilidade do Contratado está limitada ao valor efetivamente pago. Em nenhuma circunstância o Contratado será responsável por danos consequentes.',
+      s7p: 'A responsabilidade do Contratado por qualquer reclamação decorrente ou relacionada a este Contrato está limitada ao valor do Preço do Contrato efetivamente pago pelo Cliente no momento da reclamação. Em nenhuma circunstância o Contratado será responsável por danos consequentes, incidentais, especiais ou punitivos.',
+      s7a: '7A. Não Pagamento / Suspensão do Trabalho',
+      s7ap: 'Se qualquer pagamento não for recebido quando devido, o Contratado poderá imediatamente suspender a fabricação, entrega, instalação e todos os serviços relacionados até o recebimento integral do pagamento, sem penalidade ou responsabilidade para o Contratado. Os pagamentos em atraso acumularão juros à taxa máxima permitida pela lei da Flórida (Estatuto da Flórida § 55.03). O Cliente será responsável por todos os custos razoáveis de cobrança, honorários advocatícios, custas judiciais, custos de gravame e despesas incorridas pelo Contratado na recuperação de valores não pagos.',
+      s7b: '7B. Honorários Advocatícios',
+      s7bp: 'Em qualquer disputa decorrente ou relacionada a este Contrato, a parte vencedora terá direito a recuperar seus honorários advocatícios razoáveis, custas judiciais, honorários de peritos e despesas legais relacionadas da parte não vencedora.',
+
       s8: '8. Indenização',
-      s8p: 'O Cliente concorda em indenizar e isentar o Contratado de reclamações de terceiros decorrentes de violação deste Contrato pelo Cliente.',
+      s8p: 'O Cliente concorda em indenizar, defender e isentar o Contratado, seus sócios, administradores, funcionários, subcontratados e agentes de quaisquer reclamações, perdas, danos ou despesas de terceiros (incluindo honorários advocatícios) decorrentes de: (a) violação deste Contrato pelo Cliente; (b) negligência ou conduta dolosa do Cliente; ou (c) condições na Propriedade fora do controle razoável do Contratado.',
+
       s9: '9. Rescisão',
-      s9p: 'Qualquer parte pode rescindir mediante aviso por escrito se a outra parte descumprir materialmente e não corrigir em dez (10) dias. O Cliente pode cancelar sem penalidade em até três (3) dias úteis após a assinatura.',
+      s9p: 'Qualquer parte pode rescindir este Contrato mediante aviso por escrito se a outra parte descumprir materialmente e não corrigir tal descumprimento em dez (10) dias após aviso por escrito. Direito de Arrependimento da Flórida: O Cliente pode cancelar este Contrato sem penalidade dentro de três (3) dias úteis após a assinatura. Após o início do Trabalho, em caso de rescisão por qualquer outro motivo, o Cliente pagará por todo o Trabalho realizado, materiais pedidos ou fabricados e custos razoáveis de desmobilização incorridos até a data de rescisão.',
+
       s10: '10. Variações de Design Virtual',
-      s10p: 'O Cliente reconhece que pequenas variações em dimensões, tons de cor ou acabamentos podem ocorrer no produto final. Tais variações são aceitáveis e não constituem defeito.',
-      s11: '11. Lei de Privilégio de Construção da Flórida',
-      s11p: 'A LEI DE PRIVILÉGIO DE CONSTRUÇÃO DA FLÓRIDA EXIGE: QUALQUER PESSOA QUE FORNEÇA MÃO DE OBRA, SERVIÇOS OU MATERIAIS PARA MELHORIA DO SEU IMÓVEL E NÃO SEJA PAGA TEM DIREITO A REIVINDICAR UM PRIVILÉGIO SOBRE O IMÓVEL.',
+      s10p: 'O Cliente reconhece que pequenas variações em dimensões, tons de cor ou acabamentos podem ocorrer no produto final devido a tolerâncias de fabricação, características dos materiais e a diferença entre renderizações digitais e produtos físicos. Tais variações menores são inerentes ao processo de fabricação personalizada, são aceitáveis e não constituirão defeito ou violação deste Contrato.',
+
+      s11: '11. Aviso sobre a Lei de Gravame de Construção da Flórida',
+      s11p: 'A LEI DE GRAVAME DE CONSTRUÇÃO DA FLÓRIDA (CAPÍTULO 713, ESTATUTOS DA FLÓRIDA) EXIGE ESTE AVISO: QUALQUER PESSOA OU EMPRESA QUE FORNEÇA MÃO DE OBRA, SERVIÇOS OU MATERIAIS PARA A MELHORIA DO SEU IMÓVEL E NÃO RECEBA PAGAMENTO TEM O DIREITO DE REIVINDICAR UM GRAVAME SOBRE SUA PROPRIEDADE. MESMO QUE VOCÊ TENHA PAGO SEU CONTRATADO INTEGRALMENTE, SE O CONTRATADO NÃO PAGAR SUBCONTRATADOS OU FORNECEDORES DE MATERIAIS, ESSAS PESSOAS QUE SÃO DEVIDAS PODERÃO RECORRER À SUA PROPRIEDADE PARA PAGAMENTO.',
+      s11a: '11A. Direitos de Gravame do Contratado',
+      s11ap: 'O Contratado reserva expressamente todos os direitos disponíveis sob a Lei de Gravame de Construção da Flórida, Capítulo 713 dos Estatutos da Flórida, incluindo o direito de registrar e executar uma Reivindicação de Gravame contra a Propriedade por mão de obra, serviços, materiais, ordens de mudança, juros, honorários advocatícios e custos relacionados não pagos.',
+
       s12: '12. Lei Aplicável',
-      s12p: 'Este Contrato será regido pelas leis do Estado da Flórida. Qualquer litígio será proposto nos tribunais estaduais do Condado de Lake, Flórida.',
+      s12p: 'Este Contrato será regido e interpretado de acordo com as leis do Estado da Flórida, sem considerar seus princípios de conflito de leis. O foro para qualquer litígio será exclusivamente nos tribunais estaduais do Condado de Lake, Flórida.',
+
       s13: '13. Assinaturas Eletrônicas',
-      s13p: 'Este Contrato pode ser assinado em contrapartes. Assinaturas transmitidas eletronicamente serão vinculantes e tratadas como assinaturas originais.',
+      s13p: 'Este Contrato pode ser executado em contrapartes. As assinaturas eletrônicas transmitidas por e-mail, PDF ou plataformas similares serão legalmente vinculantes e tratadas como assinaturas originais nos termos da Lei de Assinatura Eletrônica da Flórida (§ 668.50, Fla. Stat.).',
+
       s14: '14. Fotografia e Marketing',
-      s14p: 'O Cliente concede ao Contratado permissão para fotografar e registrar o imóvel e os trabalhos realizados para fins de documentação, portfólio e marketing.',
+      s14a: '14A. Fotografia / Redes Sociais',
+      s14p: 'O Cliente concede ao Contratado uma licença não exclusiva, isenta de royalties e perpétua para fotografar, registrar e documentar a Propriedade e o Trabalho para fins de portfólio, marketing, publicidade, website e redes sociais. O Contratado não divulgará informações pessoais, endereço ou detalhes financeiros do Cliente sem consentimento prévio por escrito.',
+
+      s15: '15. Mediação / Arbitragem',
+      s15p: 'Antes de propor litígio (exceto para cobrança de valores não pagos, execução de gravame ou medida liminar), as partes concordam em primeiro tentar resolver qualquer disputa por meio de mediação de boa-fé no Condado de Lake, Flórida, com custos divididos igualmente. Se a mediação não for bem-sucedida em trinta (30) dias, a disputa poderá ser submetida à arbitragem vinculante de acordo com as Regras de Arbitragem Comercial da Associação Americana de Arbitragem (AAA), realizada no Condado de Lake, Flórida. O Contratado retém o direito de buscar ações de cobrança, execução de gravame ou medida liminar no tribunal a qualquer momento sem mediação prévia.',
+
+      s16: '16. Acesso / Condições do Local',
+      s16p: 'O Cliente garantirá acesso seguro, contínuo e desobstruído à Propriedade durante o horário de trabalho agendado. Se o pessoal do Contratado não puder trabalhar devido a condições inseguras, entulho excessivo, acesso restrito, trabalho inacabado de outros profissionais, animais de estimação, falta de serviços públicos ou outras condições relacionadas ao local fora do controle do Contratado, os dias de trabalho afetados não contarão contra o cronograma do projeto e encargos adicionais de mão de obra e extensões de prazo poderão ser aplicados.',
+
+      s17: '17. Aceitação das Características dos Materiais',
+      s17p: 'O Cliente reconhece e aceita que madeira, produtos de madeira engineered, MDF, MDP, laminados, folheados, acabamentos pintados e materiais decorativos podem naturalmente apresentar variações em grão, textura, brilho, padrão, tom, cor, expansão e contração ao longo do tempo devido às condições ambientais. Tais variações naturais são características inerentes dos materiais selecionados e não serão consideradas defeitos.',
+
+      s18: '18. Acordo Integral',
+      s18p: 'Este Contrato, juntamente com todos os Anexos, desenhos aprovados, especificações e Ordens de Mudança escritas executadas por ambas as partes, constitui o acordo integral entre as partes com relação ao objeto aqui tratado e substitui todas as negociações, discussões, representações, propostas ou entendimentos anteriores, sejam orais ou escritos. Nenhuma declaração, promessa ou representação verbal de qualquer parte modificará ou complementará este Contrato, a menos que confirmado em escrito assinado por ambas as partes.',
+
       exhibitA: 'Anexo A – Escopo do Trabalho',
-      project: 'Projeto',
-      materials: 'Materiais',
-      exclusions: 'Exclusões',
-      excl1: 'Esta proposta não inclui itens de decoração, espelhos, vidros, móveis soltos, pedras, bancadas ou instalações relacionadas.',
+      project: 'Projeto', materials: 'Materiais', exclusions: 'Exclusões',
+      excl1: 'Este Contrato não inclui itens de decoração, espelhos, vidros soltos, móveis soltos, pedras naturais, bancadas, hidráulica, elétrica, pisos, pintura ou obra civil, salvo especificamente listado acima.',
       thankYou: 'Obrigado!',
       thankMsg: 'Em nome de toda a equipe LEGNO HOME, somos gratos pela confiança depositada em nós. Aguardamos ansiosamente transformar sua visão em realidade.',
       contractor: 'Contratado: LEGNO HOME LLC',
@@ -3477,7 +3575,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       delivery: 'Entrega', installation: 'Instalação',
       paySchedule: 'Condições de Pagamento',
       amount: 'Valor', milestone: 'Marco',
-      downPayment: 'Entrada', monthly: 'Parcelas mensais', total: 'Total',
+      downPayment: 'Entrada (devida imediatamente na assinatura)', monthly: 'Parcelas mensais', total: 'Total',
       interest: 'juros',
     },
     es: {
@@ -3493,40 +3591,69 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       s1p: 'El Contratista proporcionará toda la mano de obra, materiales, herramientas y equipos necesarios para diseñar, construir, entregar e instalar la carpintería personalizada descrita en el Anexo A en la propiedad del Cliente.',
       s1mat: 'Los materiales permanecen propiedad del Contratista hasta el pago completo del Precio del Contrato.',
       s1excl: 'Exclusiones: El Contratista no es responsable de (a) movimiento de bienes personales; (b) condiciones estructurales imprevistas; (c) moho o deficiencias de código; o (d) trabajos de terceros.',
+
+      s1ins: '1A. Seguro / Certificado de Seguro (COI)',
+      s1insp: 'El Contratista mantendrá, a sus propios gastos, durante toda la duración del Trabajo, las siguientes coberturas de seguro: (a) Seguro de Responsabilidad Civil General con un límite mínimo de $1,000,000 por ocurrencia y $2,000,000 agregado; (b) Seguro de Compensación para Trabajadores según lo exigido por la ley de Florida. A solicitud, el Contratista proporcionará al Cliente un Certificado de Seguro (COI) designando al Cliente como asegurado adicional durante la duración del proyecto. La obligación del Contratista de mantener seguro es una condición material de este Contrato.',
       s2: '2. Precio del Contrato y Condiciones de Pago',
       s2price: 'El Cliente acepta pagar un precio total del contrato de',
       s2method: 'El pago se realizará de la siguiente manera:',
       s2note: 'Todos los pagos se realizarán electrónicamente a través de un enlace seguro proporcionado por el Contratista.',
       s3: '3. Cronograma',
-      s3p: 'El Contratista iniciará el Trabajo dentro de los 10 días posteriores a la recepción del depósito. Las fechas estimadas están sujetas a demoras fuera del control del Contratista.',
+      s3p: 'El Contratista iniciará el Trabajo dentro de los diez (10) días posteriores a la recepción del pago inicial requerido. Las fechas estimadas están sujetas a cambios por circunstancias fuera del control del Contratista.',
+      s3a: '3A. Demoras Más Allá del Control del Contratista',
+      s3ap: 'El Contratista no será responsable de demoras causadas por circunstancias más allá de su control razonable, incluyendo: escasez de materiales, demoras de proveedores, interrupciones de transporte, fuerza mayor, condiciones climáticas, escasez de mano de obra, acciones gubernamentales, demoras de permisos, interrupciones de servicios públicos, problemas de fabricación, demoras causadas por otros gremios, falta de preparación del sitio, acceso restringido a la Propiedad o cambios solicitados por el Cliente. Tales demoras extenderán automáticamente el cronograma estimado sin penalización ni responsabilidad para el Contratista.',
+      s3b: '3B. Demoras Causadas por el Cliente',
+      s3bp: 'Si el Cliente demora mediciones, aprobaciones, programación, entrega, instalación, preparación del sitio, o de cualquier manera impide que el Contratista proceda según lo programado, el Contratista podrá reprogramar el Trabajo según disponibilidad sin responsabilidad. El riesgo de pérdida de materiales completados se transfiere al Cliente una vez que el Trabajo esté sustancialmente completado o listo para entrega.',
       s4: '4. Responsabilidades del Cliente',
-      s4p: 'El Cliente deberá proporcionar acceso sin obstáculos durante el horario normal de trabajo y garantizar que el área de trabajo esté libre de peligros.',
+      s4p: 'El Cliente deberá: (a) proporcionar acceso sin obstáculos a la Propiedad durante el horario normal de trabajo (lunes a viernes, de 8:00 a 17:00, salvo acuerdo escrito en contrario); (b) garantizar que el área de trabajo esté libre de peligros, escombros excesivos, mascotas y pertenencias personales; (c) proporcionar agua y electricidad sin costo para el Contratista; y (d) garantizar que todas las condiciones preexistentes necesarias para la instalación (pisos, electricidad, obra civil) estén completadas antes de la fecha de instalación programada.',
+      s4ready: 'Requisito de Preparación del Sitio: Para que comience la instalación, lo siguiente debe estar completado: piso instalado, trabajo eléctrico completo, toda obra civil finalizada y acceso limpio y despejado disponible. Si el sitio no está listo en la fecha programada, la instalación se postpondrá automáticamente hasta que se cumplan las condiciones.',
       s5: '5. Cambios o Extras',
-      s5p: 'Ningún cambio será vinculante sin una orden de cambio escrita firmada por ambas partes.',
+      s5p: 'Ningún cambio en el Trabajo, el Precio del Contrato o el cronograma será vinculante a menos que esté establecido en una Orden de Cambio escrita firmada por ambas partes antes del inicio del trabajo modificado.',
+      s5a: '5A. Aprobaciones Finales',
+      s5ap: 'El Cliente reconoce que todos los planos, renderizaciones, dimensiones, acabados, colores, selecciones de herrajes, diseños y especificaciones aprobados se vuelven definitivos al recibir aprobación escrita o electrónica. Cualquier modificación solicitada después de la aprobación constituirá una Orden de Cambio y puede resultar en costos adicionales, extensiones de plazo o tarifas de rediseño. Las renderizaciones y diseños virtuales son solo ilustrativos y pueden variar ligeramente del producto final fabricado.',
+      s5b: '5B. Condiciones de Campo / Tolerancias de Instalación',
+      s5bp: 'El Cliente reconoce que las viviendas y estructuras existentes pueden contener paredes, pisos, techos y superficies que no están nivelados, escuadrados, rectos o a plomo. Pequeñas brechas, filetes, cuñas, tolerancias de alineación y variaciones de instalación consistentes con los estándares de la industria no constituirán defectos o trabajo incompleto. El Contratista no será responsable de corregir condiciones estructurales o del sitio preexistentes a menos que estén específicamente incluidas en este Contrato.',
       s6: '6. Garantía Limitada',
-      s6p: 'El Contratista garantiza que el Trabajo se realizará de manera profesional. Esta garantía cubre defectos de materiales y mano de obra durante dos (2) años después de la finalización.',
-      s6disc: 'La garantía no cubre daños por mal uso, negligencia o características naturales de la madera.',
+      s6p: 'El Contratista garantiza que el Trabajo se realizará de manera profesional y artesanal, consistente con los estándares de la industria. Esta garantía cubre defectos de materiales y mano de obra que aparezcan dentro de dos (2) años después de la finalización sustancial.',
+      s6disc: 'Esta garantía no cubre daños causados por: abuso, mal uso, negligencia, mantenimiento inadecuado, fuerza mayor o modificaciones realizadas por terceros. Las características naturales de la madera (variación de veta, cambio de color, expansión, contracción) no están cubiertas por esta garantía.',
+      s6service: '6B. Visitas de Servicio Técnico y Reparaciones Menores',
+      s6servicep: 'Durante el período de garantía de dos (2) años, el Contratista realizará visitas de servicio de garantía sin costo para el Cliente. Las reparaciones y ajustes menores cubiertos sin costo incluyen: alineación de puertas y cajones, ajuste de bisagras, regulación de mecanismo soft-close, fijación de manijas y otros ajustes funcionales menores inherentes al asentamiento normal de la carpintería personalizada. Si, tras la inspección, el Contratista determina que el problema es resultado de mal uso, abuso, productos de limpieza inadecuados, modificaciones no autorizadas, daño físico o condiciones fuera del control del Contratista, la reparación podrá realizarse a la tarifa estándar de mano de obra del Contratista, que será comunicada al Cliente antes de realizar cualquier trabajo.',
+      s6a: '6A. Finalización Sustancial',
+      s6ap: 'La Finalización Sustancial ocurrirá cuando el Trabajo esté suficientemente completo para su uso previsto, no obstante elementos menores de lista de pendientes, ajustes cosméticos, retoques o elementos incompletos que no perjudiquen materialmente la funcionalidad. La existencia de elementos de lista de pendientes no justificará la retención de pagos adeudados bajo este Contrato.',
       s7: '7. Limitación de Responsabilidad',
-      s7p: 'La responsabilidad del Contratista está limitada al monto efectivamente pagado. En ningún caso el Contratista será responsable de daños consecuentes.',
+      s7p: 'La responsabilidad del Contratista por cualquier reclamación derivada o relacionada con este Contrato se limita al monto del Precio del Contrato efectivamente pagado por el Cliente en el momento de la reclamación. En ningún caso el Contratista será responsable de daños consecuentes, incidentales, especiales o punitivos.',
+      s7a: '7A. No Pago / Suspensión del Trabajo',
+      s7ap: 'Si algún pago no se recibe cuando vence, el Contratista puede suspender inmediatamente la fabricación, entrega, instalación y todos los servicios relacionados hasta recibir el pago completo, sin penalización ni responsabilidad para el Contratista. Los pagos tardíos acumularán intereses a la tasa máxima permitida por la ley de Florida (Estatuto de Florida § 55.03). El Cliente será responsable de todos los costos razonables de cobranza, honorarios de abogados, costas judiciales, costos de gravamen y gastos incurridos por el Contratista para recuperar montos no pagados.',
+      s7b: '7B. Honorarios de Abogados',
+      s7bp: 'En cualquier disputa derivada o relacionada con este Contrato, la parte prevaleciente tendrá derecho a recuperar sus honorarios razonables de abogados, costas judiciales, honorarios de peritos y gastos legales relacionados de la parte no prevaleciente.',
       s8: '8. Indemnización',
-      s8p: 'El Cliente acepta indemnizar y eximir al Contratista de reclamaciones de terceros derivadas del incumplimiento de este Contrato por parte del Cliente.',
+      s8p: 'El Cliente acepta indemnizar, defender y eximir al Contratista, sus socios, administradores, empleados, subcontratistas y agentes de cualquier reclamación, pérdida, daño o gasto de terceros (incluidos honorarios de abogados) que surjan de: (a) el incumplimiento de este Contrato por parte del Cliente; (b) la negligencia o conducta dolosa del Cliente; o (c) condiciones en la Propiedad fuera del control razonable del Contratista.',
       s9: '9. Rescisión',
-      s9p: 'Cualquiera de las partes puede rescindir mediante aviso escrito si la otra parte incumple materialmente y no lo corrige en diez (10) días. El Cliente puede cancelar sin penalización dentro de los tres (3) días hábiles posteriores a la firma.',
+      s9p: 'Cualquiera de las partes puede rescindir este Contrato mediante aviso escrito si la otra parte incumple materialmente y no corrige dicho incumplimiento en diez (10) días tras aviso escrito. Derecho de Cancelación de Florida: El Cliente puede cancelar este Contrato sin penalización dentro de los tres (3) días hábiles posteriores a la firma. Tras el inicio del Trabajo, en caso de rescisión por cualquier otra razón, el Cliente pagará por todo el Trabajo realizado, materiales pedidos o fabricados y costos razonables de desmovilización incurridos hasta la fecha de rescisión.',
       s10: '10. Variaciones de Diseño Virtual',
-      s10p: 'El Cliente reconoce que pueden ocurrir pequeñas variaciones en dimensiones, tonos de color o acabados en el producto final. Tales variaciones son aceptables y no constituyen un defecto.',
+      s10p: 'El Cliente reconoce que pueden ocurrir pequeñas variaciones en dimensiones, tonos de color o acabados en el producto final debido a tolerancias de fabricación, características de los materiales y la diferencia entre renderizaciones digitales y productos físicos. Tales variaciones menores son inherentes al proceso de fabricación personalizada, son aceptables y no constituirán un defecto o incumplimiento de este Contrato.',
       s11: '11. Aviso de la Ley de Gravamen de Construcción de Florida',
-      s11p: 'LA LEY DE GRAVAMEN DE CONSTRUCCIÓN DE FLORIDA REQUIERE: CUALQUIER PERSONA QUE SUMINISTRE MANO DE OBRA, SERVICIOS O MATERIALES PARA LA MEJORA DE SU PROPIEDAD Y NO RECIBA PAGO TIENE DERECHO A RECLAMAR UN GRAVAMEN SOBRE LA PROPIEDAD.',
+      s11p: 'LA LEY DE GRAVAMEN DE CONSTRUCCIÓN DE FLORIDA (CAPÍTULO 713, ESTATUTOS DE FLORIDA) REQUIERE ESTE AVISO: CUALQUIER PERSONA O EMPRESA QUE SUMINISTRE MANO DE OBRA, SERVICIOS O MATERIALES PARA LA MEJORA DE SU PROPIEDAD Y NO RECIBA PAGO TIENE DERECHO A RECLAMAR UN GRAVAMEN SOBRE SU PROPIEDAD. INCLUSO SI USTED HA PAGADO A SU CONTRATISTA EN SU TOTALIDAD, SI SU CONTRATISTA NO PAGA A SUBCONTRATISTAS O PROVEEDORES DE MATERIALES, ESAS PERSONAS QUE SE LES DEBE DINERO PUEDEN RECURRIR A SU PROPIEDAD PARA EL PAGO.',
+      s11a: '11A. Derechos de Gravamen del Contratista',
+      s11ap: 'El Contratista se reserva expresamente todos los derechos disponibles bajo la Ley de Gravamen de Construcción de Florida, Capítulo 713 de los Estatutos de Florida, incluido el derecho a registrar y ejecutar una Reclamación de Gravamen contra la Propiedad por mano de obra, servicios, materiales, órdenes de cambio, intereses, honorarios de abogados y costos relacionados no pagados.',
       s12: '12. Ley Aplicable',
-      s12p: 'Este Contrato se regirá por las leyes del Estado de Florida. Cualquier litigio se presentará en los tribunales estatales del Condado de Lake, Florida.',
+      s12p: 'Este Contrato se regirá e interpretará de acuerdo con las leyes del Estado de Florida, sin considerar sus principios de conflicto de leyes. El foro para cualquier litigio será exclusivamente en los tribunales estatales del Condado de Lake, Florida.',
       s13: '13. Firmas Electrónicas',
-      s13p: 'Este Contrato puede ejecutarse en contrapartes. Las firmas transmitidas electrónicamente serán vinculantes y tratadas como firmas originales.',
+      s13p: 'Este Contrato puede ejecutarse en contrapartes. Las firmas electrónicas transmitidas por correo electrónico, PDF o plataformas similares serán legalmente vinculantes y tratadas como firmas originales de conformidad con la Ley de Firma Electrónica de Florida (§ 668.50, Fla. Stat.).',
       s14: '14. Fotografía y Marketing',
-      s14p: 'El Cliente otorga al Contratista permiso para fotografiar y grabar la propiedad y el Trabajo para documentación, portafolio y fines de marketing.',
+      s14a: '14A. Fotografía / Redes Sociales',
+      s14p: 'El Cliente otorga al Contratista una licencia no exclusiva, libre de regalías y perpetua para fotografiar, grabar y documentar la Propiedad y el Trabajo para fines de portafolio, marketing, publicidad, sitio web y redes sociales. El Contratista no divulgará información personal, dirección o detalles financieros del Cliente sin consentimiento previo por escrito.',
+      s15: '15. Mediación / Arbitraje',
+      s15p: 'Antes de presentar litigios (excepto para cobro de montos no pagados, ejecución de gravamen o medidas cautelares), las partes acuerdan primero intentar resolver cualquier disputa mediante mediación de buena fe en el Condado de Lake, Florida, con costos compartidos por igual. Si la mediación no tiene éxito en treinta (30) días, la disputa podrá someterse a arbitraje vinculante de acuerdo con las Reglas de Arbitraje Comercial de la Asociación Americana de Arbitraje (AAA), celebrado en el Condado de Lake, Florida. El Contratista conserva el derecho de buscar acciones de cobro, ejecución de gravamen o medidas cautelares en tribunales en cualquier momento sin mediación previa.',
+      s16: '16. Acceso / Condiciones del Sitio',
+      s16p: 'El Cliente garantizará acceso seguro, continuo y sin obstáculos a la Propiedad durante el horario de trabajo programado. Si el personal del Contratista no puede trabajar debido a condiciones inseguras, escombros excesivos, acceso restringido, trabajo inacabado de otros gremios, mascotas, falta de servicios públicos u otras condiciones relacionadas con el sitio fuera del control del Contratista, los días de trabajo afectados no contarán contra el cronograma del proyecto y pueden aplicarse cargos adicionales de mano de obra y extensiones de plazo.',
+      s17: '17. Aceptación de las Características de los Materiales',
+      s17p: 'El Cliente reconoce y acepta que la madera, los productos de madera engineered, MDF, MDP, laminados, chapas, acabados pintados y materiales decorativos pueden exhibir naturalmente variaciones en veta, textura, brillo, patrón, tono, color, expansión y contracción con el tiempo debido a las condiciones ambientales. Tales variaciones naturales son características inherentes de los materiales seleccionados y no se considerarán defectos.',
+      s18: '18. Acuerdo Completo',
+      s18p: 'Este Contrato, junto con todos los Anexos, planos aprobados, especificaciones y Órdenes de Cambio escritas ejecutadas por ambas partes, constituye el acuerdo completo entre las partes con respecto al objeto del mismo y reemplaza todas las negociaciones, discusiones, representaciones, propuestas o entendimientos anteriores, ya sean orales o escritos. Ninguna declaración, promesa o representación verbal de ninguna de las partes modificará ni complementará este Contrato a menos que se confirme en un escrito firmado por ambas partes.',
       exhibitA: 'Anexo A – Alcance del Trabajo',
-      project: 'Proyecto',
-      materials: 'Materiales',
-      exclusions: 'Exclusiones',
-      excl1: 'Esta propuesta no incluye artículos decorativos, espejos, vidrio, muebles sueltos, materiales de piedra, encimeras o instalaciones relacionadas.',
+      project: 'Proyecto', materials: 'Materiales', exclusions: 'Exclusiones',
+      excl1: 'Este Contrato no incluye artículos decorativos, espejos, vidrio suelto, muebles sueltos, piedra natural, encimeras, plomería, electricidad, pisos, pintura u obra civil, salvo que se indique específicamente arriba.',
       thankYou: '¡Gracias!',
       thankMsg: 'En nombre de todo el equipo de LEGNO HOME, estamos profundamente agradecidos por la confianza que han depositado en nosotros.',
       contractor: 'Contratista: LEGNO HOME LLC',
@@ -3538,7 +3665,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       delivery: 'Entrega', installation: 'Instalación',
       paySchedule: 'Condiciones de Pago',
       amount: 'Monto', milestone: 'Hito',
-      downPayment: 'Pago inicial', monthly: 'Cuotas mensuales', total: 'Total',
+      downPayment: 'Pago inicial (debido inmediatamente al firmar)', monthly: 'Cuotas mensuales', total: 'Total',
       interest: 'interés',
     }
   };
@@ -3711,8 +3838,12 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
   <div class="notice">${t.licenseNote}</div>
 
   <!-- SECTIONS -->
-  <div class="section"><h2>${t.s1}</h2><p>${t.s1p}</p><p>${t.s1mat}</p><p>${t.s1excl}</p></div>
+  <!-- S1: Scope -->
+  <div class="section"><h2>${t.s1}</h2><p>${t.s1p}</p><p>${t.s1mat}</p><p>${t.s1excl}</p>
+    ${t.s1ins?`<h2 style="margin-top:14px">${t.s1ins}</h2><p>${t.s1insp}</p>`:''}
+  </div>
 
+  <!-- S2: Price & Payment -->
   <div class="section">
     <h2>${t.s2}</h2>
     <p>${t.s2price} <strong>${fmtV(precoFinal)}</strong> ("${lang==='en'?'Contract Price':lang==='pt'?'Preço do Contrato':'Precio del Contrato'}").</p>
@@ -3724,23 +3855,85 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
         <tr><td class="pay-total">${t.total}</td><td class="pay-total" style="text-align:right">${fmtV(precoFinal)}</td></tr>
       </tbody>
     </table>
-    <p>${t.s2note}</p>
+    <div class="notice" style="background:#fff9f0;border:1px solid #f0d090;border-radius:4px;padding:12px;font-size:12px;color:#7a5c00;margin-top:8px">${t.s2down||''}</div>
+    <p style="margin-top:8px">${t.s2note}</p>
   </div>
 
   ${timelineHTML}
 
-  <div class="section"><h2>${t.s3}</h2><p>${t.s3p}</p></div>
-  <div class="section"><h2>${t.s4}</h2><p>${t.s4p}</p></div>
-  <div class="section"><h2>${t.s5}</h2><p>${t.s5p}</p></div>
-  <div class="section"><h2>${t.s6}</h2><p>${t.s6p}</p><p>${t.s6disc}</p></div>
-  <div class="section"><h2>${t.s7}</h2><p>${t.s7p}</p></div>
+  <!-- S3: Schedule + 3A + 3B -->
+  <div class="section">
+    <h2>${t.s3}</h2><p>${t.s3p}</p>
+    <h2 style="margin-top:14px">${t.s3a||''}</h2><p>${t.s3ap||''}</p>
+    <h2 style="margin-top:14px">${t.s3b||''}</h2><p>${t.s3bp||''}</p>
+  </div>
+
+  <!-- S4: Client Responsibilities -->
+  <div class="section">
+    <h2>${t.s4}</h2><p>${t.s4p}</p>
+    ${t.s4ready?`<p style="margin-top:8px;padding:10px 14px;background:#fff9f0;border-left:3px solid #c9a96e;border-radius:0 4px 4px 0;font-size:12px"><strong>⚠ ${t.s4ready}</strong></p>`:''}
+  </div>
+
+  <!-- S5: Changes + 5A + 5B -->
+  <div class="section">
+    <h2>${t.s5}</h2><p>${t.s5p}</p>
+    <h2 style="margin-top:14px">${t.s5a||''}</h2><p>${t.s5ap||''}</p>
+    <h2 style="margin-top:14px">${t.s5b||''}</h2><p>${t.s5bp||''}</p>
+  </div>
+
+  <!-- S6: Warranty + 6A + 6B -->
+  <div class="section">
+    <h2>${t.s6}</h2><p>${t.s6p}</p><p>${t.s6disc}</p>
+    <h2 style="margin-top:14px">${t.s6a||''}</h2><p>${t.s6ap||''}</p>
+    ${t.s6service?`<h2 style="margin-top:14px">${t.s6service}</h2><p>${t.s6servicep}</p>`:''}
+  </div>
+
+  <!-- S7: Liability + 7A + 7B -->
+  <div class="section">
+    <h2>${t.s7}</h2><p>${t.s7p}</p>
+    <h2 style="margin-top:14px">${t.s7a||''}</h2><p>${t.s7ap||''}</p>
+    <h2 style="margin-top:14px">${t.s7b||''}</h2><p>${t.s7bp||''}</p>
+  </div>
+
+  <!-- S8: Indemnification -->
   <div class="section"><h2>${t.s8}</h2><p>${t.s8p}</p></div>
+
+  <!-- S9: Termination -->
   <div class="section"><h2>${t.s9}</h2><p>${t.s9p}</p></div>
+
+  <!-- S10: Virtual Design -->
   <div class="section"><h2>${t.s10}</h2><p>${t.s10p}</p></div>
-  <div class="section"><h2>${t.s11}</h2><div class="lien-notice">${t.s11p}</div></div>
+
+  <!-- S11: Lien Notice + 11A -->
+  <div class="section">
+    <h2>${t.s11}</h2>
+    <div class="lien-notice">${t.s11p}</div>
+    <h2 style="margin-top:14px">${t.s11a||''}</h2><p>${t.s11ap||''}</p>
+  </div>
+
+  <!-- S12: Governing Law -->
   <div class="section"><h2>${t.s12}</h2><p>${t.s12p}</p></div>
+
+  <!-- S13: Electronic Signatures -->
   <div class="section"><h2>${t.s13}</h2><p>${t.s13p}</p></div>
-  <div class="section"><h2>${t.s14}</h2><p>${t.s14p}</p></div>
+
+  <!-- S14: Photography + 14A -->
+  <div class="section">
+    <h2>${t.s14||t.s14a||''}</h2>
+    <p>${t.s14p}</p>
+  </div>
+
+  <!-- S15: Mediation / Arbitration -->
+  ${t.s15?`<div class="section"><h2>${t.s15}</h2><p>${t.s15p}</p></div>`:''}
+
+  <!-- S16: Access / Site -->
+  ${t.s16?`<div class="section"><h2>${t.s16}</h2><p>${t.s16p}</p></div>`:''}
+
+  <!-- S17: Material Characteristics -->
+  ${t.s17?`<div class="section"><h2>${t.s17}</h2><p>${t.s17p}</p></div>`:''}
+
+  <!-- S18: Entire Agreement -->
+  ${t.s18?`<div class="section"><h2>${t.s18}</h2><p>${t.s18p}</p></div>`:''}
 
   <!-- SIGNATURES -->
   <div class="sig-section">
