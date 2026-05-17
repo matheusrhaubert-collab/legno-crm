@@ -409,7 +409,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       </button>
       <div class="nav-section">Ferramentas</div>
       <button class="nav-item" onclick="goPage('imagens')" data-page="imagens">
-        <span class="nav-icon">⊞</span> Imagens
+        <span class="nav-icon">🗄</span> Banco de Dados
       </button>
       <button class="nav-item nav-admin" onclick="goPage('config')" data-page="config">
         <span class="nav-icon">⊙</span> Configurações
@@ -611,38 +611,33 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <div id="list-concluidos"></div>
       </div>
       <div class="page" id="page-imagens">
-        <div class="sec-header"><span class="sec-title">Upload de imagens por ambiente</span></div>
-        <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
-          <div class="form-row" style="margin-bottom:12px">
-            <div class="form-group" style="margin:0">
-              <label class="form-label">Cliente / Projeto</label>
-              <select class="form-select" id="imgCliente" onchange="updateAmbientesSelect()">
-                <option value="">Selecionar cliente...</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin:0">
-              <label class="form-label">Ambiente</label>
-              <select class="form-select" id="imgAmbiente">
-                <option value="">Selecionar ambiente...</option>
-              </select>
-            </div>
-          </div>
-          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="dragOver(event)" ondrop="dropFiles(event)" ondragleave="dragLeave(event)">
-            <span class="upload-icon">🖼</span>
-            <div class="upload-text">Clique ou arraste imagens aqui</div>
-            <div class="upload-hint">PNG, JPG, WEBP — múltiplas imagens</div>
-          </div>
-          <input type="file" id="fileInput" accept="image/*,application/pdf" multiple style="display:none" onchange="handleFiles(this.files)">
-          <div class="upload-preview" id="uploadPreview"></div>
-          <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end" id="uploadActions" style="display:none">
-            <button class="btn" onclick="clearUpload()">Limpar</button>
-            <button class="btn btn-primary" onclick="doUpload()" id="btnUpload">Enviar para o Drive</button>
-          </div>
+        <!-- TABS -->
+        <div style="display:flex;gap:0;border-bottom:0.5px solid var(--border);margin-bottom:20px;overflow-x:auto">
+          <button id="db-tab-xml" onclick="dbSetTab('xml')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">📐 XMLs</button>
+          <button id="db-tab-imagens" onclick="dbSetTab('imagens')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">🖼 Imagens</button>
+          <button id="db-tab-propostas" onclick="dbSetTab('propostas')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">📄 Propostas</button>
+          <button id="db-tab-contratos" onclick="dbSetTab('contratos')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">📋 Contratos</button>
         </div>
-        <div class="sec-header"><span class="sec-title">Histórico de uploads</span></div>
-        <div id="list-imagens">
-          <div class="empty"><span class="empty-icon">🖼</span><p>Nenhuma imagem enviada ainda.</p></div>
+        <!-- FILTROS -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+          <div class="search-wrap" style="margin:0;flex:1;min-width:160px">
+            <span class="search-icon">⌕</span>
+            <input type="search" id="db-search" placeholder="Buscar por cliente..." oninput="dbRender()">
+          </div>
+          <select class="form-select" id="db-filter-responsavel" onchange="dbRender()" style="height:38px;font-size:13px;width:auto;min-width:140px">
+            <option value="">Todos responsáveis</option>
+          </select>
         </div>
+        <!-- CONTEÚDO -->
+        <div id="db-content"></div>
+        <!-- Manter inputs antigos para compatibilidade -->
+        <select id="imgCliente" style="display:none"></select>
+        <select id="imgAmbiente" style="display:none"></select>
+        <div id="uploadPreview" style="display:none"></div>
+        <div id="list-imagens" style="display:none"></div>
+        <div id="uploadActions" style="display:none"></div>
+        <div id="uploadZone" style="display:none"></div>
+        <input type="file" id="fileInput" accept="image/*,application/pdf" multiple style="display:none" onchange="handleFiles(this.files)">
       </div>
 
       <!-- ══ MARKETING ══ -->
@@ -1453,7 +1448,7 @@ function carregarXML(event) {
           body: xmlBlob
         });
         if (uploadResp.ok) {
-          _ambObj.xmlStorageUrl = `${SB_URL}/storage/v1/object/public/XML/${xmlPath}`;
+          _ambObj.xmlStorageUrl = `${SB_URL}/storage/v1/object/public/XML/${xmlPath.split('/').map(encodeURIComponent).join('/')}`;
           _ambObj.xmlStoragePath = xmlPath;
         } else {
           console.warn('XML Storage upload failed:', await uploadResp.text());
@@ -4680,7 +4675,7 @@ function parseCSV(text) {
 // ══════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════
-const pageTitles = {leads:'Clients',projetos:'Projetos',marketing:'Marketing',financeiro:'Financeiro',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',concluidos:'Concluídos',imagens:'Imagens',config:'Configurações'};
+const pageTitles = {leads:'Clients',projetos:'Projetos',marketing:'Marketing',financeiro:'Financeiro',agenda:'Agenda',producao:'Produção',entrega:'Entrega',instalacao:'Instalação',perdidos:'Perdidos',concluidos:'Concluídos',imagens:'Banco de Dados',config:'Configurações'};
 const addBtnPages = {leads:false, projetos:true, agenda:false, producao:false, entrega:false, instalacao:false, perdidos:false, imagens:false, config:false};
 
 function goPage(page) {
@@ -4699,6 +4694,7 @@ function goPage(page) {
     if (page === 'projetos') { projetosView = 'cliente'; setProjetosView('cliente'); setFiltroProj('projetando'); }
     if (page === 'agenda') renderAgenda();
     if (page === 'producao') renderProducao();
+    if (page === 'imagens') { dbSetTab(_dbTab||'xml'); }
     if (page === 'entrega') renderEntrega();
     if (page === 'instalacao') renderInstalacao();
     if (page === 'config') carregarUsuarios();
@@ -8243,6 +8239,200 @@ async function confirmarEnvioProducao() {
   } catch(e) { toast('Erro ao enviar para produção: ' + e.message); }
 }
 
+// ══════════════════════════════════════════
+// BANCO DE DADOS
+// ══════════════════════════════════════════
+let _dbTab = 'xml';
+
+function dbSetTab(tab) {
+  _dbTab = tab;
+  ['xml','imagens','propostas','contratos'].forEach(t => {
+    const btn = document.getElementById('db-tab-'+t);
+    if (!btn) return;
+    btn.style.borderBottomColor = t===tab ? 'var(--gold)' : 'transparent';
+    btn.style.color = t===tab ? 'var(--gold2)' : 'var(--text3)';
+    btn.style.fontWeight = t===tab ? '600' : '400';
+  });
+  dbRender();
+}
+
+async function dbRender() {
+  const el = document.getElementById('db-content');
+  if (!el) return;
+  const search = (document.getElementById('db-search')?.value||'').toLowerCase();
+  const respFiltro = document.getElementById('db-filter-responsavel')?.value||'';
+
+  // Populate responsavel filter
+  const sel = document.getElementById('db-filter-responsavel');
+  if (sel && sel.options.length <= 1) {
+    const resps = [...new Set(DB.leads.map(l=>l.responsavel).filter(Boolean))];
+    resps.forEach(r => { const o = document.createElement('option'); o.value=r; o.textContent=r; sel.appendChild(o); });
+  }
+
+  if (_dbTab === 'xml') {
+    await dbRenderXML(el, search, respFiltro);
+  } else if (_dbTab === 'imagens') {
+    dbRenderImagens(el, search, respFiltro);
+  } else if (_dbTab === 'propostas') {
+    dbRenderPropostas(el, search, respFiltro);
+  } else if (_dbTab === 'contratos') {
+    dbRenderContratos(el, search, respFiltro);
+  }
+}
+
+async function dbRenderXML(el, search, respFiltro) {
+  el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3)"><span style="font-size:24px">⏳</span><br>Carregando XMLs...</div>';
+  try {
+    const resp = await fetch(`${SB_URL}/storage/v1/object/list/XML`, {
+      method: 'POST',
+      headers: {'apikey': SB_KEY_SERVICE, 'Authorization': 'Bearer '+SB_KEY_SERVICE, 'Content-Type': 'application/json'},
+      body: JSON.stringify({limit:500, offset:0, prefix:'', sortBy:{column:'created_at',order:'desc'}})
+    });
+    const files = await resp.json();
+    if (!Array.isArray(files) || !files.length) {
+      el.innerHTML = '<div class="empty"><span class="empty-icon">📐</span><p>Nenhum XML no Storage ainda.</p></div>'; return;
+    }
+    // files in subdirs - need to list recursively by lead folders
+    const flatFiles = [];
+    for (const f of files) {
+      if (f.id) {
+        flatFiles.push(f);
+      } else {
+        // it's a folder - list inside
+        try {
+          const r2 = await fetch(`${SB_URL}/storage/v1/object/list/XML`, {
+            method:'POST',
+            headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':'application/json'},
+            body: JSON.stringify({limit:200, offset:0, prefix:f.name+'/', sortBy:{column:'created_at',order:'desc'}})
+          });
+          const sub = await r2.json();
+          if (Array.isArray(sub)) {
+            for (const sf of sub) {
+              if (sf.id) flatFiles.push({...sf, _folder: f.name});
+              else {
+                // nested folder (cliente/ambiente/file)
+                const r3 = await fetch(`${SB_URL}/storage/v1/object/list/XML`, {
+                  method:'POST',
+                  headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':'application/json'},
+                  body: JSON.stringify({limit:200, offset:0, prefix:f.name+'/'+sf.name+'/', sortBy:{column:'created_at',order:'desc'}})
+                });
+                const sub2 = await r3.json();
+                if (Array.isArray(sub2)) sub2.filter(x=>x.id).forEach(x => flatFiles.push({...x, _folder: f.name+'/'+sf.name}));
+              }
+            }
+          }
+        } catch(e){}
+      }
+    }
+
+    const filtered = flatFiles.filter(f => {
+      const name = (f._folder||'') + '/' + f.name;
+      return !search || name.toLowerCase().includes(search);
+    });
+
+    if (!filtered.length) {
+      el.innerHTML = '<div class="empty"><span class="empty-icon">📐</span><p>Nenhum XML encontrado.</p></div>'; return;
+    }
+
+    el.innerHTML = filtered.map(f => {
+      const path = (f._folder ? f._folder+'/' : '') + f.name;
+      const url = `${SB_URL}/storage/v1/object/public/XML/${path.split('/').map(encodeURIComponent).join('/')}`;
+      const parts = path.split('/');
+      const cliente = parts[0]||'—';
+      const ambiente = parts[1]||'—';
+      const arquivo = parts[parts.length-1]||f.name;
+      const data = f.created_at ? new Date(f.created_at).toLocaleDateString('pt-BR') : '—';
+      return `<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px">📐 ${arquivo}</div>
+          <div style="font-size:11px;color:var(--text3)">${cliente} · ${ambiente} · ${data}</div>
+        </div>
+        <a href="${url}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3);flex-shrink:0">⬇ Download</a>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="empty"><span class="empty-icon">⚠️</span><p>Erro ao carregar XMLs: '+e.message+'</p></div>';
+  }
+}
+
+function dbRenderImagens(el, search, respFiltro) {
+  const leads = DB.leads.filter(l => {
+    const ambs = l.ambientesBriefing||[];
+    return ambs.some(a => (a.imagens||[]).length > 0);
+  });
+  const filtered = leads.filter(l => {
+    const okSearch = !search || l.nome.toLowerCase().includes(search);
+    const okResp = !respFiltro || l.responsavel === respFiltro;
+    return okSearch && okResp;
+  });
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty"><span class="empty-icon">🖼</span><p>Nenhuma imagem salva ainda.</p></div>'; return;
+  }
+  el.innerHTML = filtered.map(l => {
+    const ambs = (l.ambientesBriefing||[]).filter(a=>(a.imagens||[]).length>0);
+    return `<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px">${l.nome} ${l.responsavel?'<span style="font-size:11px;color:var(--gold2);font-weight:400">· '+l.responsavel+'</span>':''}</div>
+      ${ambs.map(a => `
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${a.nome||a.tipo}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${(a.imagens||[]).map(img => `<a href="${img.url||img.data}" target="_blank"><img src="${img.url||img.data}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:0.5px solid var(--border)"></a>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function dbRenderPropostas(el, search, respFiltro) {
+  const projs = DB.projetos.filter(p => {
+    const lead = DB.leads.find(l=>l.id===p.leadId);
+    const temProposta = p.temPropostaNobanco || p.pdfPropostaData || localStorage.getItem('proposta_html_'+p.id);
+    if (!temProposta) return false;
+    const okSearch = !search || p.nome.toLowerCase().includes(search);
+    const okResp = !respFiltro || lead?.responsavel === respFiltro;
+    return okSearch && okResp;
+  });
+  if (!projs.length) {
+    el.innerHTML = '<div class="empty"><span class="empty-icon">📄</span><p>Nenhuma proposta gerada ainda.</p></div>'; return;
+  }
+  el.innerHTML = projs.map(p => {
+    const lead = DB.leads.find(l=>l.id===p.leadId);
+    const data = p.pdfPropostaData || '—';
+    return `<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px">📄 ${p.nome}</div>
+        <div style="font-size:11px;color:var(--text3)">${lead?.responsavel||'—'} · ${data} · <span style="color:${p.propostaAceita?'var(--green)':'var(--amber)'}">${p.propostaAceita?'✓ Aceita':'Pendente'}</span></div>
+      </div>
+      <button class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3)" onclick="verPropostaPDF('${p.id}')">👁 Ver proposta</button>
+    </div>`;
+  }).join('');
+}
+
+function dbRenderContratos(el, search, respFiltro) {
+  const projs = DB.projetos.filter(p => {
+    const lead = DB.leads.find(l=>l.id===p.leadId);
+    const temContrato = p.contratoGerado || p.contratoData || localStorage.getItem('contrato_html_'+p.id);
+    if (!temContrato) return false;
+    const okSearch = !search || p.nome.toLowerCase().includes(search);
+    const okResp = !respFiltro || lead?.responsavel === respFiltro;
+    return okSearch && okResp;
+  });
+  if (!projs.length) {
+    el.innerHTML = '<div class="empty"><span class="empty-icon">📋</span><p>Nenhum contrato gerado ainda.</p></div>'; return;
+  }
+  el.innerHTML = projs.map(p => {
+    const lead = DB.leads.find(l=>l.id===p.leadId);
+    const data = p.contratoData || '—';
+    return `<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px">📋 ${p.nome}</div>
+        <div style="font-size:11px;color:var(--text3)">${lead?.responsavel||'—'} · ${data}</div>
+      </div>
+      <button class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3)" onclick="verContratoHTML('${p.id}')">👁 Ver contrato</button>
+    </div>`;
+  }).join('');
+}
+
 async function reenviarEmailXMLs(prodId) {
   const prod = DB.producao.find(x=>x.id===prodId);
   if (!prod) { toast('⚠️ Produção não encontrada'); return; }
@@ -8324,7 +8514,9 @@ async function enviarEmailXMLs(p, ambientes, dataFabrica, dataEntrega, dataInsta
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         subject: `[PEDIDO] ${p.nome} — Entrega: ${fmt(dataEntrega)} — Studio Legno`,
-        text: corpo
+        text: corpo,
+        xmlUrl: ambientes.filter(a=>a.xmlStorageUrl).map(a=>a.xmlStorageUrl).join(','),
+        xmlNome: ambientes.filter(a=>a.xmlNome).map(a=>a.xmlNome).join(',')
       })
     });
     if (res.ok) {
@@ -9870,7 +10062,7 @@ function mobGoPage(page) {
   document.getElementById('mob-back-btn').style.display = 'flex';
   document.getElementById('mob-user-bar').style.display = 'none';
 
-  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', imagens:'Imagens'};
+  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', imagens:'Banco de Dados'};
   document.getElementById('mob-title').textContent = titles[page] || page;
 
   const content = document.getElementById('mob-content');
