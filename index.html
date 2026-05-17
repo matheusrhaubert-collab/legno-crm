@@ -3367,6 +3367,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       title: 'Service Provider Agreement',
       subtitle: 'LEGNO HOME LLC',
       made: 'This Service Provider Agreement (this "Agreement") is made and entered into as of',
+      roleLabel: 'Title', ceo: 'CEO',
       between: 'by and between',
       company: 'LEGNO HOME LLC, a Florida limited liability company with its principal place of business located at 12302 Roper Blvd Ste 103, Clermont, FL 34711, EIN 39-3331452 (the "Contractor"), and:',
       client: 'Client Information',
@@ -3579,7 +3580,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       thankMsg: 'Em nome de toda a equipe LEGNO HOME, somos gratos pela confiança depositada em nós. Aguardamos ansiosamente transformar sua visão em realidade.',
       contractor: 'Contratado: LEGNO HOME LLC',
       clientSig: 'Cliente',
-      namePrinted: 'Nome (impresso)', title: 'Cargo', ceo: 'CEO', date: 'Data',
+      namePrinted: 'Nome (impresso)', title: 'Cargo', roleLabel: 'Cargo', ceo: 'CEO', date: 'Data',
       sig: 'Assinatura', sigLine: '___________________________',
       timeline: 'Cronograma do Projeto',
       measurement: 'Conferência de Medidas e Pedido à Fábrica', production: 'Produção (~15 dias)',
@@ -3672,7 +3673,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       thankMsg: 'En nombre de todo el equipo de LEGNO HOME, estamos profundamente agradecidos por la confianza que han depositado en nosotros.',
       contractor: 'Contratista: LEGNO HOME LLC',
       clientSig: 'Cliente',
-      namePrinted: 'Nombre (impreso)', title: 'Cargo', ceo: 'CEO', date: 'Fecha',
+      namePrinted: 'Nombre (impreso)', title: 'Cargo', roleLabel: 'Cargo', ceo: 'CEO', date: 'Fecha',
       sig: 'Firma', sigLine: '___________________________',
       timeline: 'Cronograma del Proyecto',
       measurement: 'Verificación de medidas y pedido a fábrica', production: 'Producción (~15 días)',
@@ -3966,7 +3967,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
         <div class="sig-line"></div>
         <div class="sig-label">${t.sig}</div>
         <div class="sig-name">Matheus Haubert</div>
-        <div class="sig-label">${t.title}: ${t.ceo}</div>
+        <div class="sig-label">${t.roleLabel||t.title}: ${t.ceo}</div>
         <div class="sig-label" style="margin-top:12px">${t.date}: ${fmtDate(dataContrato)}</div>
       </div>
       <div class="sig-block">
@@ -5881,7 +5882,8 @@ body{background:#fff;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;fo
   <div class="divider"></div>
   <div class="cover-label">${T.for}</div>
   <div class="cover-client">${lead.nome}</div>
-  <div class="cover-tipo">${lead.endereco||''}</div>
+  ${lead.projetoNome ? `<div style="font-size:18px;font-weight:400;color:#c9a96e;letter-spacing:2px;margin-bottom:6px">${lead.projetoNome}</div>` : ''}
+  <div class="cover-tipo">${lead.endereco||lead.obs||''}</div>
   <div class="divider"></div>
   <div class="cover-date">${dataHoje}</div>
 </div>
