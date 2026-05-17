@@ -4847,8 +4847,8 @@ function renderProjetos(filter='') {
       const pz = p.prazos||{};
       const etapa4Ok = !!(pz.medicao && pz.producao && pz.entrega && pz.instalacao);
       // Etapa 5: Proposta gerada
-      const etapa5Ok = !!(p.pdfProposta || p.propostaAceita);
-      const propostaGerada = !!(p.contratoGerado || p.contratoData || p.contratoHtml || localStorage.getItem('contrato_html_'+p.id));
+      const etapa5Ok = !!(p.pdfProposta || p.propostaAceita || p.pdfPropostaData || p.temPropostaNobanco || localStorage.getItem('proposta_html_'+p.id));
+      const propostaGerada = !!(p.pdfProposta || p.pdfPropostaData || p.temPropostaNobanco || localStorage.getItem('proposta_html_'+p.id));
       // Sync contratoGerado flag if derived from contrato_data
       if ((p.contratoData || p.contratoHtml) && !p.contratoGerado) p.contratoGerado = true;
 
