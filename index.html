@@ -1574,16 +1574,59 @@ function parsearXMLPromob(xmlStr) {
     });
 
     // LED = hardwares with UNIT=M and 'led' in description
-    rootHardwares.forEach(item => {
+    // Also collect detailed hardware list — search ALL families, not just Hardwares
+    const hardwareDetalhado = {};
+    const addHW = (key, label, qty) => {
+      if (!hardwareDetalhado[key]) hardwareDetalhado[key] = {label, qty:0};
+      hardwareDetalhado[key].qty += qty;
+    };
+
+    // Search root items AND all items for hardware keywords regardless of family
+    const hwCandidates = [...rootItems, ...allItems.filter(i => i.getAttribute('UNIQUEPARENTID') === '-2')];
+    // Deduplicate by UNIQUEID
+    const seen = new Set();
+    const hwUnique = [];
+    for (const item of allItems) {
+      const uid = item.getAttribute('UNIQUEID');
+      if (uid && seen.has(uid)) continue;
+      if (uid) seen.add(uid);
+      hwUnique.push(item);
+    }
+
+    hwUnique.forEach(item => {
       const desc = (item.getAttribute('DESCRIPTION')||'').toLowerCase();
+      const descOrig = item.getAttribute('DESCRIPTION')||'';
       const unit = item.getAttribute('UNIT')||'';
-      if (desc.includes('led') && unit === 'M') metrosLED += getQty(item);
-    });
-    // Also check all items for LED with UNIT=M (some may not be root)
-    allItems.forEach(item => {
-      if (item.getAttribute('UNIQUEPARENTID') === '-2') return; // already counted
-      const desc = (item.getAttribute('DESCRIPTION')||'').toLowerCase();
-      if (desc.includes('led') && item.getAttribute('UNIT') === 'M') metrosLED += getQty(item);
+      const qty = getQty(item);
+      const family = item.getAttribute('FAMILY')||'';
+
+      if (desc.includes('led') && unit === 'M') {
+        metrosLED += qty; addHW('led','LED Strip (m)', qty);
+      } else if (desc.includes('drawer slide') || desc.includes('undermount') || (desc.includes('slide') && (desc.includes('soft') || desc.includes('close') || desc.includes('30kg') || desc.includes('50kg')))) {
+        addHW('slide','Drawer Slides / Soft Close', qty);
+      } else if (desc.includes('soft close') || desc.includes('soft-close') || desc.includes('damper')) {
+        addHW('softclose','Soft-close Damper', qty);
+      } else if (desc.includes('hinge') || desc.includes('dobradica') || desc.includes('dobradiça')) {
+        addHW('hinge','Hinges', qty);
+      } else if (desc.includes('glass') || desc.includes('vidro')) {
+        addHW('glass','Glass', qty);
+      } else if (desc.includes('aluminium') || desc.includes('aluminum') || (desc.includes('profile') && !desc.includes('drawer'))) {
+        addHW('aluminium','Aluminium Profile', qty);
+      } else if (desc.includes('hafele') || desc.includes('häfele')) {
+        addHW('hafele','Häfele Hardware', qty);
+      } else if (desc.includes('rod support') || desc.includes('suporte varão')) {
+        addHW('rodsupport','Rod Support', qty);
+      } else if ((desc.includes('rod') || desc.includes('varão') || desc.includes('varao')) && unit === 'M') {
+        addHW('rod','Hanging Rod (m)', qty);
+      } else if (desc.includes('handle') || desc.includes('puxador') || desc.includes('knob')) {
+        addHW('handle','Handles / Knobs', qty);
+      } else if (desc.includes('lift') || desc.includes('flap') || desc.includes('aventos')) {
+        addHW('lift','Lift / Flap System', qty);
+      } else if (desc.includes('leg') || (desc.includes('pe ') && family === 'Hardwares') || desc.includes('leveling')) {
+        addHW('leg','Cabinet Legs', qty);
+      } else if (family === 'Hardwares' && qty > 0 && !desc.includes('edgeband') && !desc.includes('mdp') && !desc.includes('mdf')) {
+        addHW('hw_'+descOrig.slice(0,15).replace(/\s/g,'_'), descOrig.slice(0,35), qty);
+      }
     });
 
     dados.contagem = {
@@ -1595,6 +1638,7 @@ function parsearXMLPromob(xmlStr) {
       vidro: Math.round(qtdVidro),
       metrosLED: Math.round(metrosLED * 100) / 100
     };
+    dados.hardwareDetalhado = Object.values(hardwareDetalhado).filter(h=>h.qty>0);
 
     // ── AMBIENTES E CATEGORIAS ──
     const ambientes = [];
@@ -1684,6 +1728,20 @@ function verXML() {
     {label:'Box / Caixas', cores: d.coresBox},
     {label:'Frontais / Portas', cores: d.coresFrontais},
   ].filter(g => g.cores?.length);
+
+  // Hardware detalhado
+  if (d.hardwareDetalhado?.length) {
+    html += `<div style="margin-bottom:16px">
+      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🔩 Hardware & Acessórios</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px">`;
+    d.hardwareDetalhado.forEach(h => {
+      html += `<div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-size:12px;color:var(--text2)">${h.label}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--gold);font-family:DM Mono,monospace">${Math.round(h.qty*100)/100}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
 
   if (coreGroups.length) {
     html += `<div style="margin-bottom:16px">
