@@ -4569,7 +4569,7 @@ async function loadFromSupabase() {
       responsavel: i.responsavel||'', hora: i.hora||'',
       ambientes: i.ambientes||'', dias: i.dias||'', equipe: i.equipe||'',
       obs: i.obs||'', data: i.data||'', concluida: i.concluida||false,
-      checklist: i.checklist || [],
+      checklist: Array.isArray(i.checklist) ? i.checklist : (typeof i.checklist === 'string' ? JSON.parse(i.checklist||'[]') : []),
       projetoId: i.projeto_id||'', producaoId: i.producao_id||'',
       ambientesDetalhados: i.ambientes_detalhados||[],
       tel: i.tel||'', email: i.email||'',
@@ -5039,7 +5039,7 @@ function renderProjetos(filter='') {
       const proposalPronta = ambientes.length > 0 && prontos.length === ambientes.length;
 
       // Trava global após aceite da proposta — vale para todos incluindo admin
-      const travadoCard = !!(p.propostaAceita || p.propostaTravada);
+      const travadoCard = !!(p.propostaAceita || p.propostaTravada) || bloqueioTotal;
       const travadoStyle = travadoCard ? 'opacity:0.45;cursor:not-allowed;filter:grayscale(0.4)' : '';
       const travadoBtn = (label) => travadoCard
         ? `<button class="btn btn-sm" style="width:100%;justify-content:center;font-size:11px;opacity:0.35;cursor:not-allowed;color:var(--text3);border-color:var(--border)" disabled>🔒 ${label}</button>`
@@ -5093,24 +5093,28 @@ function renderProjetos(filter='') {
       const todos2 = ambientes;
       const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
       const emProducao = p.status === 'producao' || idsEmProducao.has(p.id);
-      const btnProposta = emProducao
+      const bloqueioTotal = emProducao || p.status === 'instalacao' || p.status === 'concluido';
+      const _statusLbl = p.status==='instalacao'?'🔧 Em instalação':p.status==='concluido'?'✓ Concluído':'🏭 Em produção';
+      const _btnLocked = `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed;border-color:var(--border3);color:var(--text3)" disabled>🔒 ${_statusLbl}</button>`;
+      const btnProposta = bloqueioTotal
         ? `<button class="btn" style="flex:1;border-color:var(--blue);color:var(--blue);opacity:0.6;cursor:not-allowed" disabled>🏭 Em produção</button>`
+        : bloqueioTotal ? _btnLocked
         : p.propostaAceita
           ? `<button class="btn" style="flex:1;border-color:var(--green);color:var(--green);display:flex;align-items:center;justify-content:center;gap:6px" onclick="event.stopPropagation();${isAdmin()?`desbloquearProposta('${p.id}')`:'toast(\'🔒 Proposta travada\')'  }" title="${isAdmin()?'Clique para desbloquear':'Apenas admin pode desbloquear'}">🔒 Proposta aceita${isAdmin()?' <span style=\"font-size:10px;opacity:0.7\">(desbloquear)</span>':''}</button>`
           : propostaGerada
             ? `<button class="btn btn-primary" style="flex:1;background:var(--gold);border-color:var(--gold);color:#0d0d0d;font-weight:600" onclick="event.stopPropagation();aceitarProposta('${p.id}')">✅ Aceitar proposta</button>`
             : `<button class="btn" style="flex:1;opacity:0.25;cursor:not-allowed;background:transparent;border-color:var(--border);color:var(--text3)" disabled>✅ Aceitar proposta</button>`;
       const temContratoGerado = !!(p.contratoGerado || p.contratoData || localStorage.getItem('contrato_html_'+p.id));
-      const btnContrato = p.propostaAceita
+      const btnContrato = bloqueioTotal ? _btnLocked : p.propostaAceita
         ? `<div style="display:flex;gap:6px;flex:1">
             <button class="btn btn-primary" style="flex:1" onclick="event.stopPropagation();abrirContrato('${p.id}')">📋 ${temContratoGerado ? 'Novo contrato' : 'Gerar contrato'}</button>
             ${temContratoGerado ? `<button class="btn" style="border-color:var(--green);color:var(--green);white-space:nowrap" onclick="event.stopPropagation();verUltimoContrato('${p.id}')">📄 Ver último</button>` : ''}
            </div>`
         : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" disabled>📋 Gerar contrato</button>`;
-      const podeEnviar = (p.propostaAceita || p.contratoAprovado) && !emProducao;
+      const podeEnviar = (p.propostaAceita || p.contratoAprovado) && !bloqueioTotal;
       const motivoEnvio = !p.propostaAceita ? 'Aceite a proposta primeiro' : '';
-      const btnProd = emProducao
-        ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue);opacity:0.5;cursor:not-allowed" disabled>✓ Enviado pra produção</button>`
+      const btnProd = bloqueioTotal
+        ? _btnLocked
         : podeEnviar
           ? `<button class="btn" style="flex:1;background:var(--blue);color:#fff;border-color:var(--blue)" onclick="event.stopPropagation();enviarProducao('${p.id}')">🏭 Enviar pra produção</button>`
           : `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed" title="${motivoEnvio}" disabled>🏭 Enviar pra produção</button>`;
@@ -6893,7 +6897,7 @@ function renderInstalacao(filter='') {
     const atrasada = !i.concluida && i.data && i.data < hoje;
     const ehHoje = i.data === hoje;
     const mapsUrl = i.endereco ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(i.endereco)}` : '';
-    const cl = i.checklist||[];
+    const cl = Array.isArray(i.checklist) ? i.checklist : (typeof i.checklist === 'string' ? JSON.parse(i.checklist||'[]') : []);
     const clFeitos = cl.filter(c=>c.concluido).length;
     const clTotal = cl.length;
     const corBorda = i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border)';
@@ -11263,7 +11267,7 @@ function mobRenderInstalacao(el) {
     items.forEach(i => {
       const atrasada = !i.concluida && i.data && i.data < hoje;
       const ehHoje = i.data === hoje;
-      const checklist = i.checklist||[];
+      const checklist = Array.isArray(i.checklist) ? i.checklist : (typeof i.checklist === 'string' ? JSON.parse(i.checklist||'[]') : []);
       const feitos = checklist.filter(c=>c.concluido).length;
       const total = checklist.length;
       const pct = total > 0 ? Math.round(feitos/total*100) : 0;
