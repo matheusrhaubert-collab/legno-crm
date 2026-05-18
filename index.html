@@ -4562,7 +4562,9 @@ async function loadFromSupabase() {
       itens: e.itens||'', obs: e.obs||'', data: e.data||'',
       concluida: e.concluida||false,
       prontoRetirada: e.pronto_retirada||false,
-      projetoId: e.projeto_id||''
+      projetoId: e.projeto_id||'',
+      fotosEntrega: e.fotos_entrega||[],
+      dataConclusao: e.data_conclusao||''
     }));
     DB.instalacoes = instalacoes.map(i => ({
       id: i.id, cliente: i.cliente||'', endereco: i.endereco||'',
@@ -6481,12 +6483,93 @@ async function salvarNovaEntrega() {
   toast('Entrega agendada! ✓');
 }
 
-async function concluirEntrega(id) {
-  const e = (DB.entregas||[]).find(x=>x.id===id); if(!e) return;
-  e.concluida = true;
-  try { await sbFetch('entregas?id=eq.'+id,'PATCH',{concluida:true}); } catch(err){}
-  renderEntrega(); updateBadges();
-  toast('Entrega concluída! ✓');
+function concluirEntrega(id) {
+  const e = (DB.entregas||[]).find(x=>x.id===id);
+  if (!e) return;
+  // Open photo modal
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(92,184,130,0.3);border-radius:16px;padding:28px;max-width:480px;width:100%';
+
+  let _fotosEntrega = [];
+
+  div.innerHTML = `
+    <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">✅ Concluir Entrega</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:20px">${e.cliente} — ${e.itens||''}</div>
+    <div style="margin-bottom:6px;padding:10px 14px;background:rgba(92,184,130,0.06);border:1px solid rgba(92,184,130,0.2);border-radius:8px;font-size:12px;color:var(--text2)">
+      📷 Adicione fotos dos itens descarregados para confirmar a entrega.
+    </div>
+    <div style="margin-bottom:16px">
+      <button onclick="document.getElementById('ent-foto-input-${id}').click()" style="width:100%;height:50px;background:#1e1e1e;border:1.5px dashed rgba(92,184,130,0.4);border-radius:10px;color:var(--green);font-size:14px;cursor:pointer;margin-top:10px">📷 Adicionar foto(s)</button>
+      <input type="file" id="ent-foto-input-${id}" accept="image/*" capture="environment" multiple style="display:none" onchange="addFotosEntrega('${id}',this)">
+      <div id="ent-fotos-preview-${id}" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="ent-skip-${id}" style="flex:1;padding:12px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>
+      <button id="ent-ok-${id}" style="flex:2;padding:12px;background:var(--green);color:#0d0d0d;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">✅ Confirmar entrega</button>
+    </div>`;
+
+  window['_fotosEntrega_'+id] = [];
+
+  div.querySelector('#ent-skip-'+id).onclick = () => document.body.removeChild(ov);
+  div.querySelector('#ent-ok-'+id).onclick = async () => {
+    const btn = div.querySelector('#ent-ok-'+id);
+    btn.disabled=true; btn.textContent='⏳ Salvando...';
+    const fotos = window['_fotosEntrega_'+id]||[];
+    // Upload fotos to Supabase
+    const fotosUrls = [];
+    for (const f of fotos) {
+      try {
+        const clean = s=>s.replace(/[^a-zA-Z0-9_-]/g,'_');
+        const path = 'entregas/'+clean(e.cliente)+'/'+Date.now()+'_'+f.nome;
+        const ab = await f.file.arrayBuffer();
+        const resp = await fetch(SB_URL+'/storage/v1/object/imagens/'+path,{
+          method:'POST',headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':f.file.type||'image/jpeg','x-upsert':'true'},body:ab
+        });
+        if (resp.ok) fotosUrls.push(SB_URL+'/storage/v1/object/public/imagens/'+path);
+        else fotosUrls.push(f.data);
+      } catch(err) { fotosUrls.push(f.data); }
+    }
+    e.concluida = true;
+    e.fotosEntrega = fotosUrls;
+    e.dataConclusao = new Date().toISOString().slice(0,10);
+    try {
+      await sbFetch('entregas?id=eq.'+id,'PATCH',{concluida:true, fotos_entrega: fotosUrls, data_conclusao: e.dataConclusao});
+      renderEntrega(); updateBadges();
+      toast('✅ Entrega concluída com '+fotosUrls.length+' foto(s)!');
+      document.body.removeChild(ov);
+    } catch(err) {
+      toast('Erro: '+err.message);
+      btn.disabled=false; btn.textContent='✅ Confirmar entrega';
+    }
+    delete window['_fotosEntrega_'+id];
+  };
+
+  ov.appendChild(div);
+  ov.addEventListener('click', e=>{ if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
+function addFotosEntrega(id, input) {
+  const files = Array.from(input.files);
+  const preview = document.getElementById('ent-fotos-preview-'+id);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      if (!window['_fotosEntrega_'+id]) window['_fotosEntrega_'+id] = [];
+      const idx = window['_fotosEntrega_'+id].length;
+      window['_fotosEntrega_'+id].push({data: ev.target.result, nome: file.name, file});
+      if (preview) {
+        const img = document.createElement('div');
+        img.style.cssText = 'position:relative';
+        img.innerHTML = '<img src="'+ev.target.result+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(92,184,130,0.4)">';
+        preview.appendChild(img);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
 }
 
 async function deletarEntrega(id) {
