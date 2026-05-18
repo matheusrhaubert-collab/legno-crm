@@ -557,11 +557,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <div class="stat"><div class="stat-label">Prontos</div><div class="stat-val green" id="sprod-pron">0</div></div>
           <div class="stat"><div class="stat-label">Entregues</div><div class="stat-val" id="sprod-entregues">0</div></div>
         </div>
-        <div class="search-wrap">
-          <span class="search-icon">⌕</span>
-          <input type="search" placeholder="Buscar cliente..." oninput="filterPage('producao',this.value)">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button id="fprod-ativos" onclick="setFiltroProd('ativos')" style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--gold);background:var(--gold-dim);color:var(--gold2);font-size:11px;font-family:inherit;cursor:pointer">Em produção</button>
+          <button id="fprod-instalacao" onclick="setFiltroProd('instalacao')" style="height:26px;padding:0 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer">🔧 Instalação</button>
+          <div style="flex:1"></div>
+          <div class="search-wrap" style="margin:0;max-width:200px">
+            <span class="search-icon">⌕</span>
+            <input type="search" placeholder="Buscar cliente..." oninput="filterPage('producao',this.value)" style="width:100%">
+          </div>
         </div>
-        <div class="sec-header"><span class="sec-title">Projetos em produção</span>
+        <div class="sec-header"><span class="sec-title" id="prod-sec-title">Projetos em produção</span>
           <span style="font-size:12px;color:var(--text3)">Somente ambientes aprovados</span>
         </div>
         <div id="list-producao"></div>
@@ -4566,6 +4571,8 @@ async function loadFromSupabase() {
       obs: i.obs||'', data: i.data||'', concluida: i.concluida||false,
       checklist: i.checklist || [],
       projetoId: i.projeto_id||'', producaoId: i.producao_id||'',
+      ambientesDetalhados: i.ambientes_detalhados||[],
+      tel: i.tel||'', email: i.email||'',
     }));
 
     renderAll();
@@ -4803,9 +4810,11 @@ function updateBadges() {
   const el_bag_ag = document.getElementById('badge-agenda'); if(el_bag_ag) el_bag_ag.textContent=tarefasHoje.length||'';
   // stats producao
   const emProd = (DB.producao||[]);
-  const el_sprod = document.getElementById('sprod-total'); if(el_sprod) el_sprod.textContent=emProd.length;
-  const el_sfab = document.getElementById('sprod-fab'); if(el_sfab) el_sfab.textContent=emProd.filter(p=>p.etapa==='fabricando').length;
-  const el_spron = document.getElementById('sprod-pron'); if(el_spron) el_spron.textContent=emProd.filter(p=>p.etapa==='pronto').length;
+  const emProdAtivo = emProd.filter(p=>!p.quadros?.saidaFabrica?.confirmedAt);
+  const emInstalacao = emProd.filter(p=>!!p.quadros?.saidaFabrica?.confirmedAt);
+  const el_sprod = document.getElementById('sprod-total'); if(el_sprod) el_sprod.textContent=emProdAtivo.length;
+  const el_sfab = document.getElementById('sprod-fab'); if(el_sfab) el_sfab.textContent=emProdAtivo.filter(p=>p.etapa==='fabricando').length;
+  const el_spron = document.getElementById('sprod-pron'); if(el_spron) el_spron.textContent=emInstalacao.length;
   const el_sent = document.getElementById('sprod-entregues'); if(el_sent) el_sent.textContent=emProd.filter(p=>p.etapa==='entregue').length;
   const el_bag_prod = document.getElementById('badge-producao'); if(el_bag_prod) el_bag_prod.textContent=emProd.length||'';
   // stats entrega
@@ -6486,6 +6495,17 @@ async function deletarEntrega(id) {
 // ── INSTALAÇÃO ──
 let _filterInstalacao = '';
 
+
+function _renderFotosInstalacao(i) {
+  const ambFotos = (i.ambientesDetalhados||[]).filter(function(a){ return (a.imagens||[]).length > 0; });
+  if (!ambFotos.length) return '';
+  const fotos = ambFotos.reduce(function(acc, a){ return acc.concat((a.imagens||[]).slice(0,3)); }, []).slice(0,9);
+  if (!fotos.length) return '';
+  return '<div style="margin-bottom:10px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Fotos dos ambientes</div><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+    fotos.map(function(img){ return '<a href="' + img + '" target="_blank"><img src="' + img + '" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:0.5px solid rgba(255,255,255,0.07)" onerror="this.style.display=\'none\'"></a>'; }).join('') +
+    '</div></div>';
+}
+
 // ══════════════════════════════════════════
 // COMPLEMENTO DE PROJETO
 // ══════════════════════════════════════════
@@ -6898,6 +6918,8 @@ function renderInstalacao(filter='') {
         ${i.equipe?`<span>👥 ${i.equipe}</span>`:''}
       </div>
       ${i.ambientes?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px">🏠 ${i.ambientes}</div>`:''}
+      ${(i.tel||i.email)?`<div style="font-size:11px;color:var(--text3);margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap">${i.tel?`<span>📞 ${i.tel}</span>`:''} ${i.email?`<span>✉ ${i.email}</span>`:''}</div>`:''}
+${_renderFotosInstalacao(i)}
       <!-- Checklist progress -->
       ${clTotal>0?`<div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px"><span>Checklist</span><span>${clFeitos}/${clTotal}</span></div>
@@ -9742,16 +9764,43 @@ const ETAPAS_PROD = [
 // PRODUÇÃO — NOVO RENDERIZADOR (5 QUADROS)
 // ══════════════════════════════════════════
 
+let _filtroProd = 'ativos';
+
+function setFiltroProd(filtro) {
+  _filtroProd = filtro;
+  ['ativos','instalacao'].forEach(f => {
+    const btn = document.getElementById('fprod-'+f);
+    if (!btn) return;
+    const active = f === filtro;
+    btn.style.borderColor = active ? 'var(--gold)' : 'var(--border2)';
+    btn.style.background = active ? 'var(--gold-dim)' : 'transparent';
+    btn.style.color = active ? 'var(--gold2)' : 'var(--text2)';
+  });
+  const title = document.getElementById('prod-sec-title');
+  if (title) title.textContent = filtro === 'instalacao' ? 'Em instalação' : 'Projetos em produção';
+  renderProducao();
+}
+
 function renderProducao(filter='') {
   const f = (filter||filterTexts.producao||'').toLowerCase();
-  const items = (DB.producao||[]).filter(p => !f || p.clienteNome.toLowerCase().includes(f));
+  let items = (DB.producao||[]).filter(p => !f || (p.clienteNome||'').toLowerCase().includes(f));
+  if (_filtroProd === 'ativos') {
+    // Mostra só os que NÃO estão prontos (quadro 5 não confirmado)
+    items = items.filter(p => !p.quadros?.saidaFabrica?.confirmedAt);
+  } else if (_filtroProd === 'instalacao') {
+    // Mostra os que estão prontos (quadro 5 confirmado)
+    items = items.filter(p => !!p.quadros?.saidaFabrica?.confirmedAt);
+  }
   const el = document.getElementById('list-producao');
   if (!el) return;
   if (!items.length) {
-    el.innerHTML = `<div class="empty"><span class="empty-icon">🏭</span><p>Nenhum projeto em produção ainda.<br>Aprove ambientes e envie para produção em Projetos.</p></div>`;
+    el.innerHTML = `<div class="empty"><span class="empty-icon">${_filtroProd==='instalacao'?'🔧':'🏭'}</span><p>${_filtroProd==='instalacao'?'Nenhum projeto em instalação.':'Nenhum projeto em produção ainda.'}</p></div>`;
     return;
   }
-  el.innerHTML = items.map(prod => renderCardProducao(prod)).join('');
+  el.innerHTML = items.map(prod => {
+    const isInstCard = !!prod.quadros?.saidaFabrica?.confirmedAt;
+    return renderCardProducao(prod, isInstCard);
+  }).join('');
 }
 
 function _selectUsuarios(prodId, quadro, campo, valorAtual) {
@@ -9772,7 +9821,7 @@ function _selectUsuariosFiltrado(prodId, quadro, campo, valorAtual) {
     onchange="_setProdQ('${prodId}','${quadro}','${campo}',this.value)">${opts}</select>`;
 }
 
-function renderCardProducao(p) {
+function renderCardProducao(p, isInstCard=false) {
   const proj = DB.projetos.find(x => x.id === p.projetoId);
   const lead = proj ? DB.leads.find(l => l.id === proj.leadId) : null;
   const isAssistencia = p.isAssistencia || (p.clienteNome||'').startsWith('ASSISTÊNCIA');
@@ -9819,7 +9868,8 @@ function renderCardProducao(p) {
   const q4alertaAtivo = !!(q.comprasEspeciais && q.comprasEspeciais.alerta);
 
   return `
-  <div style="background:var(--bg2);border:0.5px solid ${isAssistencia?'var(--red)':'var(--border)'};border-radius:var(--radius);margin-bottom:18px;overflow:hidden;${isAssistencia?'animation:assistenciaPulse 1.4s ease-in-out infinite':''}">
+  <div style="background:var(--bg2);border:0.5px solid ${isAssistencia?'var(--red)':isInstCard?'var(--border3)':'var(--border)'};border-radius:var(--radius);margin-bottom:18px;overflow:hidden;${isAssistencia?'animation:assistenciaPulse 1.4s ease-in-out infinite':''}${isInstCard?';opacity:0.65;filter:grayscale(0.3)':''}">
+  ${isInstCard?`<div style="background:rgba(255,255,255,0.03);border-bottom:0.5px solid var(--border3);padding:6px 18px;font-size:11px;color:var(--text3);font-weight:500">🔧 Em instalação — saiu em ${formatDate(p.quadros?.saidaFabrica?.confirmedAt||p.quadros?.saidaFabrica?.data)}</div>`:''}
   ${isAssistencia?`<div style="background:rgba(224,96,96,0.12);border-bottom:0.5px solid rgba(224,96,96,0.3);padding:7px 18px;font-size:11px;color:var(--red);font-weight:700;letter-spacing:0.5px;display:flex;align-items:center;gap:8px"><span>🔴</span> ASSISTÊNCIA — AÇÃO NECESSÁRIA</div>`:''}
 
     <!-- ── TOPO: Identificação + Prazo Destaque ── -->
@@ -10260,14 +10310,25 @@ async function confirmarQuadro(prodId, quadro) {
       const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
       const jaTemInstalacao = (DB.instalacoes||[]).some(i=>i.projetoId===p.projetoId);
       if (!jaTemInstalacao) {
+        // Build ambientes com fotos do lead
+        const ambsComFotos = (lead?.ambientesBriefing||[]).map(a => ({
+          nome: a.nome||a.tipo||'',
+          tipo: a.tipo||'',
+          descricao: a.descricao||'',
+          imagens: (a.imagens||[]).map(img=>img.url||img.data||'').filter(Boolean),
+          xmlNome: a.xmlNome||''
+        }));
         const inst = {
           id: 'INS'+Date.now(),
           cliente: p.clienteNome||proj?.nome||'',
           projetoId: p.projetoId||'',
           producaoId: p.id,
           endereco: lead?.obs||lead?.enderecoEntrega||'',
-          responsavel: p.responsavelInstalacao||'',
-          hora: '', ambientes: (p.ambientes||[]).map(a=>a.nome||a).join(', '),
+          responsavel: p.responsavelInstalacao||proj?.responsavelInstalacao||'',
+          hora: '', 
+          ambientes: ambsComFotos.length ? ambsComFotos.map(a=>a.nome).join(', ') : (p.ambientes||[]).map(a=>a.nome||a).join(', '),
+          ambientesDetalhados: ambsComFotos,
+          tel: lead?.tel||'', email: lead?.email||'',
           dias: proj?.diasInstalacao||'', equipe: '',
           obs: '', data: proj?.prazos?.instalacao||'',
           concluida: false, criadoEm: new Date().toISOString(),
@@ -10275,9 +10336,16 @@ async function confirmarQuadro(prodId, quadro) {
         };
         if (!DB.instalacoes) DB.instalacoes = [];
         DB.instalacoes.push(inst);
+        // Muda projeto para status instalacao
+        if (proj) {
+          proj.status = 'instalacao';
+          pushProjeto(proj).catch(()=>{});
+        }
         await sbFetch('instalacoes?on_conflict=id','POST',[{
           id:inst.id, cliente:inst.cliente, endereco:inst.endereco,
           responsavel:inst.responsavel, hora:inst.hora, ambientes:inst.ambientes,
+          ambientes_detalhados: inst.ambientesDetalhados,
+          tel:inst.tel||'', email:inst.email||'',
           dias:inst.dias, equipe:inst.equipe, obs:inst.obs, data:inst.data,
           concluida:false, criado_em:inst.criadoEm, checklist:'[]',
           projeto_id:inst.projetoId, producao_id:inst.producaoId
