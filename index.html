@@ -634,6 +634,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <button id="db-tab-imagens" onclick="dbSetTab('imagens')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">🖼 Imagens</button>
           <button id="db-tab-propostas" onclick="dbSetTab('propostas')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">📄 Propostas</button>
           <button id="db-tab-contratos" onclick="dbSetTab('contratos')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">📋 Contratos</button>
+          <button id="db-tab-instalacao" onclick="dbSetTab('instalacao')" style="padding:12px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:13px;cursor:pointer;white-space:nowrap">🔧 Instalação</button>
         </div>
         <!-- FILTROS -->
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
@@ -6524,7 +6525,7 @@ function concluirEntrega(id) {
     for (const f of fotos) {
       try {
         const clean = s=>s.replace(/[^a-zA-Z0-9_-]/g,'_');
-        const path = 'entregas/'+clean(e.cliente)+'/'+Date.now()+'_'+f.nome;
+        const path = 'entrega/'+clean(e.cliente)+'/descarregamento/'+Date.now()+'_'+clean(f.nome);
         const ab = await f.file.arrayBuffer();
         const resp = await fetch(SB_URL+'/storage/v1/object/imagens/'+path,{
           method:'POST',headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':f.file.type||'image/jpeg','x-upsert':'true'},body:ab
@@ -6863,7 +6864,7 @@ async function enviarReposicaoPeca(inst, proj, lead, div, ov) {
   for (const f of (window._repFotos||[])) {
     try {
       const clean = s=>s.replace(/[^a-zA-Z0-9_-]/g,'_');
-      const path = `reposicao/${clean(inst.cliente)}/${Date.now()}_${f.nome}`;
+      const path = `instalacao/${clean(inst.cliente)}/reposicao/${Date.now()}_${clean(f.nome)}`;
       const ab = await f.file.arrayBuffer();
       const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`,{
         method:'POST', headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':f.file.type||'image/jpeg','x-upsert':'true'}, body:ab
@@ -7061,10 +7062,20 @@ async function concluirInstalacao(id) {
   i.concluida = true;
   try { await sbFetch('instalacoes?id=eq.'+id,'PATCH',{concluida:true}); } catch(err){}
   // Marcar projeto como concluído
-  const proj = DB.projetos.find(p => p.nome === i.clienteNome || p.id === i.projetoId);
-  if (proj && proj.status !== 'concluido') {
+  const proj = DB.projetos.find(p => p.id === i.projetoId || p.nome === i.cliente || p.nome === i.clienteNome);
+  if (proj) {
     proj.status = 'concluido';
     try { await pushProjeto(proj); } catch(err){}
+    // Adicionar aos concluídos se não estiver
+    if (!DB.fechados.find(f=>f.id===proj.id)) {
+      const lead = DB.leads.find(l=>l.id===proj.leadId);
+      DB.fechados.push({
+        id: proj.id, nome: proj.nome, tipo: proj.tipo||'',
+        data: new Date().toISOString().slice(0,10),
+        valorTotal: proj.condicaoPrecoFinal||proj.finPrecoFinal||0,
+        responsavel: lead?.responsavel||''
+      });
+    }
   }
   renderInstalacao(); updateBadges(); renderAll();
   toast('✓ Instalação concluída! Projeto marcado como concluído.');
@@ -8963,7 +8974,8 @@ async function uploadFotoItem(idx, input) {
   try {
     const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
     const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
-    const path = `${clean(inst.cliente||'cliente')}/${clean(inst.id)}/${idx}_${Date.now()}.${ext}`;
+    const itemNome = _checklistItems[idx]?.titulo||_checklistItems[idx]?.item||'item';
+    const path = `instalacao/${clean(inst.cliente||'cliente')}/${clean(itemNome)}/${idx}_${Date.now()}.${ext}`;
     const ab = await file.arrayBuffer();
     const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
       method:'POST',
@@ -9043,7 +9055,7 @@ let _dbTab = 'xml';
 
 function dbSetTab(tab) {
   _dbTab = tab;
-  ['xml','imagens','propostas','contratos'].forEach(t => {
+  ['xml','imagens','propostas','contratos','instalacao'].forEach(t => {
     const btn = document.getElementById('db-tab-'+t);
     if (!btn) return;
     btn.style.borderBottomColor = t===tab ? 'var(--gold)' : 'transparent';
@@ -9074,6 +9086,8 @@ async function dbRender() {
     dbRenderPropostas(el, search, respFiltro);
   } else if (_dbTab === 'contratos') {
     dbRenderContratos(el, search, respFiltro);
+    } else if (tab === 'instalacao') {
+      dbRenderInstalacaoFotos(el, search);
   }
 }
 
@@ -9203,6 +9217,54 @@ function dbRenderPropostas(el, search, respFiltro) {
       <button class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3)" onclick="verPropostaPDF('${p.id}')">👁 Ver proposta</button>
     </div>`;
   }).join('');
+}
+
+
+async function dbRenderInstalacaoFotos(el, search) {
+  el.innerHTML = '<div style="padding:20px;color:var(--text3);font-size:13px">⏳ Carregando fotos de instalação...</div>';
+  try {
+    const resp = await fetch(SB_URL+'/storage/v1/object/list/imagens', {
+      method: 'POST',
+      headers: {'apikey': SB_KEY_SERVICE, 'Authorization': 'Bearer '+SB_KEY_SERVICE, 'Content-Type': 'application/json'},
+      body: JSON.stringify({prefix: 'instalacao/', limit: 500, offset: 0})
+    });
+    const files = await resp.json();
+    if (!Array.isArray(files) || !files.length) {
+      el.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text3)"><div style="font-size:36px;margin-bottom:8px">🔧</div><p>Nenhuma foto de instalação ainda.</p><p style="font-size:12px;margin-top:8px">As fotos do checklist de instalação aparecerão aqui.</p></div>';
+      return;
+    }
+    // Group by cliente / ambiente
+    const grupos = {};
+    files.forEach(f => {
+      const parts = (f.name||'').split('/');
+      const cliente = (parts[0]||'—').replace(/_/g,' ');
+      const ambiente = (parts[1]||'—').replace(/_/g,' ');
+      const key = cliente+'||'+ambiente;
+      if (!grupos[key]) grupos[key] = {cliente, ambiente, fotos: []};
+      const url = SB_URL+'/storage/v1/object/public/imagens/instalacao/'+f.name;
+      grupos[key].fotos.push({nome: parts[parts.length-1]||f.name, url});
+    });
+    const q = (search||'').toLowerCase();
+    const renderGrupoInst = function(g) {
+      const fotos = g.fotos.map(function(f) {
+        return '<a href="' + f.url + '" target="_blank"><img src="' + f.url + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:0.5px solid rgba(255,255,255,0.07)" onerror="this.style.display=&quot;none&quot;"></a>';
+      }).join('');
+      return '<div style="margin-bottom:16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">' +
+        '<div style="padding:10px 16px;border-bottom:0.5px solid var(--border)">' +
+          '<div style="font-size:14px;font-weight:600;color:var(--text)">' + g.cliente + '</div>' +
+          '<div style="font-size:11px;color:var(--gold2);margin-top:2px">🔧 ' + g.ambiente + ' · ' + g.fotos.length + ' foto' + (g.fotos.length!==1?'s':'') + '</div>' +
+        '</div>' +
+        '<div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap">' + fotos + '</div>' +
+      '</div>';
+    };
+    let html = Object.values(grupos)
+      .filter(function(g){ return !q || g.cliente.toLowerCase().includes(q) || g.ambiente.toLowerCase().includes(q); })
+      .sort(function(a,b){ return a.cliente.localeCompare(b.cliente); })
+      .map(renderGrupoInst).join('');
+    el.innerHTML = html || '<div style="text-align:center;padding:48px;color:var(--text3)">Nenhuma foto encontrada.</div>';
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--red);padding:20px;font-size:12px">Erro: '+e.message+'</div>';
+  }
 }
 
 function dbRenderContratos(el, search, respFiltro) {
