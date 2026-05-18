@@ -378,15 +378,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     </div>
     <nav class="nav">
       <div class="nav-section">Clientes</div>
-      <button class="nav-item" onclick="goPage('leads')" data-page="leads">
+      <button class="nav-item nav-restricted" onclick="goPage('leads')" data-page="leads">
         <span class="nav-icon">◎</span> Clients
         <span class="nav-badge" id="badge-leads">0</span>
       </button>
-      <button class="nav-item active" onclick="goPage('projetos')" data-page="projetos">
+      <button class="nav-item active nav-restricted" onclick="goPage('projetos')" data-page="projetos">
         <span class="nav-icon">◈</span> Projetos
         <span class="nav-badge" id="badge-projetos">0</span>
       </button>
-      <button class="nav-item" onclick="goPage('agenda')" data-page="agenda">
+      <button class="nav-item nav-restricted" onclick="goPage('agenda')" data-page="agenda">
         <span class="nav-icon">📅</span> Agenda
         <span class="nav-badge" id="badge-agenda">0</span>
       </button>
@@ -398,30 +398,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <span class="nav-icon">🚚</span> Entrega
         <span class="nav-badge" id="badge-entrega"></span>
       </button>
-      <button class="nav-item" onclick="goPage('instalacao')" data-page="instalacao">
+      <button class="nav-item nav-restricted" onclick="goPage('instalacao')" data-page="instalacao">
         <span class="nav-icon">🔧</span> Instalação
         <span class="nav-badge" id="badge-instalacao"></span>
       </button>
-      <button class="nav-item" onclick="goPage('perdidos')" data-page="perdidos">
+      <button class="nav-item nav-restricted" onclick="goPage('perdidos')" data-page="perdidos">
         <span class="nav-icon">○</span> Perdidos
       </button>
-      <button class="nav-item" onclick="goPage('concluidos')" data-page="concluidos">
+      <button class="nav-item nav-restricted" onclick="goPage('concluidos')" data-page="concluidos">
         <span class="nav-icon">✓</span> Concluídos
         <span class="nav-badge" id="badge-concluidos" style="display:none"></span>
       </button>
       <div class="nav-section">Marketing</div>
-      <button class="nav-item nav-admin" onclick="goPage('marketing')" data-page="marketing">
+      <button class="nav-item nav-admin nav-restricted" onclick="goPage('marketing')" data-page="marketing">
         <span class="nav-icon">✦</span> Marketing
       </button>
       <div class="nav-section">Financeiro</div>
-      <button class="nav-item nav-admin" onclick="goPage('financeiro')" data-page="financeiro">
+      <button class="nav-item nav-admin nav-restricted" onclick="goPage('financeiro')" data-page="financeiro">
         <span class="nav-icon">💰</span> Financeiro
       </button>
       <div class="nav-section">Ferramentas</div>
-      <button class="nav-item" onclick="goPage('imagens')" data-page="imagens">
+      <button class="nav-item nav-restricted" onclick="goPage('imagens')" data-page="imagens">
         <span class="nav-icon">🗄</span> Banco de Dados
       </button>
-      <button class="nav-item nav-admin" onclick="goPage('config')" data-page="config">
+      <button class="nav-item nav-admin nav-restricted" onclick="goPage('config')" data-page="config">
         <span class="nav-icon">⊙</span> Configurações
       </button>
     </nav>
@@ -4243,19 +4243,32 @@ function fazerLogout() {
 }
 
 function aplicarPermissoes() {
-  const isInstalacao = usuarioAtual?.perfil === 'instalacao';
-  // Hide admin-only nav items
+  const perfil = usuarioAtual?.perfil || '';
+  const isInstalacao = perfil === 'instalacao';
+  const isProducao = perfil === 'producao';
+  const isRestricted = isInstalacao || isProducao;
+
+  // Hide admin-only nav items for restricted profiles
   document.querySelectorAll('.nav-admin').forEach(el => {
-    el.style.display = isInstalacao ? 'none' : '';
+    el.style.display = isRestricted ? 'none' : '';
+  });
+  // Hide nav items restricted to producao profile
+  document.querySelectorAll('.nav-restricted').forEach(el => {
+    el.style.display = isProducao ? 'none' : '';
   });
   // Hide values for instalacao
   document.querySelectorAll('.valor-admin').forEach(el => {
     el.style.display = isInstalacao ? 'none' : '';
   });
+  // For producao profile, go directly to producao page
+  if (isProducao) {
+    setTimeout(() => goPage('producao'), 100);
+  }
 }
 
 function podeVerValores() {
-  return !usuarioAtual || usuarioAtual.perfil !== 'instalacao';
+  const p = usuarioAtual?.perfil || '';
+  return !usuarioAtual || (p !== 'instalacao' && p !== 'producao');
 }
 
 // ══════════════════════════════════════════
