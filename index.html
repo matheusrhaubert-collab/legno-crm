@@ -95,6 +95,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 }
 .card-novo{animation:leadNovo 1.4s ease-in-out infinite;border-color:var(--gold)!important;background:linear-gradient(135deg,var(--bg2),rgba(201,169,110,0.06))!important}
 .card-novo .card-name::after{content:' ✦ NOVO';font-size:10px;color:var(--gold);font-family:'DM Mono',monospace;letter-spacing:1px;vertical-align:middle;margin-left:6px}
+@keyframes complementoPulse{
+  0%,100%{border-color:rgba(212,148,74,0.2);box-shadow:0 0 0 0 rgba(212,148,74,0)}
+  50%{border-color:var(--amber);box-shadow:0 0 16px 4px rgba(212,148,74,0.3)}
+}
+.card-complemento{animation:complementoPulse 1.6s ease-in-out infinite;border-color:var(--amber)!important;background:linear-gradient(135deg,var(--bg2),rgba(212,148,74,0.06))!important}
+.card-complemento .card-name::before{content:'🔄 COMPLEMENTO — ';font-size:10px;color:var(--amber);font-family:'DM Mono',monospace;letter-spacing:1px;vertical-align:middle}
 
 /* ── SECTION HEADER ── */
 .sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -4534,6 +4540,7 @@ async function loadFromSupabase() {
       ambientes: i.ambientes||'', dias: i.dias||'', equipe: i.equipe||'',
       obs: i.obs||'', data: i.data||'', concluida: i.concluida||false,
       checklist: i.checklist || [],
+      projetoId: i.projeto_id||'', producaoId: i.producao_id||'',
     }));
 
     renderAll();
@@ -5079,8 +5086,10 @@ function renderProjetos(filter='') {
       const etapaLabels = ['Briefing','Ambientes','Condições','Prazos','Proposta'];
       const etapaCores = [etapa1Ok,etapa2Ok,etapa3Ok,etapa4Ok,etapa5Ok];
 
+      const isComplemento = p.isComplemento || p.status==='complemento';
       return `
-      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden">
+      <div style="background:var(--bg2);border:0.5px solid ${isComplemento?'var(--amber)':'var(--border)'};border-radius:var(--radius);margin-bottom:14px;overflow:hidden;${isComplemento?'animation:complementoPulse 1.6s ease-in-out infinite':''}">
+      ${isComplemento?`<div style="background:rgba(212,148,74,0.12);border-bottom:0.5px solid rgba(212,148,74,0.3);padding:6px 18px;font-size:11px;color:var(--amber);font-weight:600;letter-spacing:0.5px">🔄 COMPLEMENTO DE PROJETO</div>`:''}
 
         <!-- ── PROGRESS BAR ── -->
         <div style="padding:10px 18px 0">
@@ -5363,8 +5372,10 @@ function renderProjetos(filter='') {
       const aMargPct = aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
       const travado = !!(p.propostaTravada && !isAdmin());
+      const isComplemento = p.isComplemento || p.status==='complemento';
       return `
-      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden">
+      <div style="background:var(--bg2);border:0.5px solid ${isComplemento?'var(--amber)':'var(--border)'};border-radius:var(--radius);margin-bottom:14px;overflow:hidden;${isComplemento?'animation:complementoPulse 1.6s ease-in-out infinite':''}">
+      ${isComplemento?`<div style="background:rgba(212,148,74,0.12);border-bottom:0.5px solid rgba(212,148,74,0.3);padding:6px 18px;font-size:11px;color:var(--amber);font-weight:600;letter-spacing:0.5px">🔄 COMPLEMENTO DE PROJETO</div>`:''}
 
         <!-- HEADER -->
         <div style="padding:12px 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -6440,12 +6451,372 @@ async function deletarEntrega(id) {
 
 // ── INSTALAÇÃO ──
 let _filterInstalacao = '';
+
+// ══════════════════════════════════════════
+// COMPLEMENTO DE PROJETO
+// ══════════════════════════════════════════
+function abrirComplementoProjeto(instId) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
+  if (!inst) return;
+  const proj = DB.projetos.find(x=>x.id===inst.projetoId);
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(201,169,110,0.3);border-radius:16px;padding:28px;max-width:480px;width:100%';
+  div.innerHTML = `
+    <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">🔄 Complemento de Projeto</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Cliente: <strong style="color:var(--gold2)">${inst.cliente}</strong>${proj?' · '+proj.nome:''}</div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Descrição do complemento *</label>
+      <textarea id="comp-desc" style="width:100%;min-height:80px;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px;outline:none;resize:vertical" placeholder="Ex: Armário não coube, precisa aumentar módulo lateral 10cm..."></textarea>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Responsável</label>
+      <input id="comp-resp" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px;outline:none" placeholder="Responsável pelo complemento..." value="${usuarioAtual?.nome||''}">
+    </div>
+    <div style="margin-bottom:20px;padding:10px 14px;background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.2);border-radius:8px;font-size:12px;color:var(--text3)">
+      ⚠️ Um novo projeto será criado marcado como <strong style="color:var(--gold2)">COMPLEMENTO</strong> e aparecerá piscando em amarelo na aba Projetos para o responsável tratar.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="comp-cancel" style="flex:1;padding:12px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>
+      <button id="comp-ok" style="flex:2;padding:12px;background:var(--gold);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🔄 Criar complemento</button>
+    </div>`;
+
+  div.querySelector('#comp-cancel').onclick = () => document.body.removeChild(ov);
+  div.querySelector('#comp-ok').onclick = async () => {
+    const desc = div.querySelector('#comp-desc').value.trim();
+    const resp = div.querySelector('#comp-resp').value.trim();
+    if (!desc) { toast('Descreva o complemento'); return; }
+
+    const btn = div.querySelector('#comp-ok');
+    btn.disabled = true; btn.textContent = '⏳ Criando...';
+
+    // Create lead marked as COMPLEMENTO
+    const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+    const novoLead = {
+      id: 'COMP'+Date.now(),
+      nome: 'COMPLEMENTO — ' + inst.cliente,
+      tipo: lead?.tipo||'',
+      tel: lead?.tel||'',
+      email: lead?.email||'',
+      obs: (lead?.obs||'') + '
+
+Complemento ref: ' + (proj?.nome||inst.cliente) + '
+' + desc,
+      responsavel: resp,
+      origem: 'complemento',
+      status: 'briefing',
+      data: new Date().toISOString().slice(0,10),
+      valorTotal: '',
+      complementoRef: proj?.id||'',
+      complementoDesc: desc,
+      ambientesBriefing: [],
+      novo: true,
+    };
+
+    try {
+      await pushLead(novoLead);
+      DB.leads.push(novoLead);
+      // Create project
+      const novoProjeto = {
+        id: 'P'+novoLead.id,
+        nome: novoLead.nome,
+        tipo: novoLead.tipo||'',
+        status: 'complemento',
+        data: new Date().toISOString().slice(0,10),
+        estimate: '',
+        ambientes: [],
+        leadId: novoLead.id,
+        complementoRef: proj?.id||'',
+        isComplemento: true,
+      };
+      await pushProjeto(novoProjeto);
+      DB.projetos.push(novoProjeto);
+      renderAll();
+      toast('✓ Complemento criado! Aparece em Projetos.');
+      document.body.removeChild(ov);
+    } catch(e) {
+      toast('Erro: '+e.message);
+      btn.disabled=false; btn.textContent='🔄 Criar complemento';
+    }
+  };
+
+  ov.appendChild(div);
+  ov.addEventListener('click', e=>{ if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
+// ══════════════════════════════════════════
+// REPOSIÇÃO DE PEÇA
+// ══════════════════════════════════════════
+function abrirReposicaoPeca(instId) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
+  if (!inst) return;
+  const proj = DB.projetos.find(x=>x.id===inst.projetoId);
+  const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+  const ambientes = lead?.ambientesBriefing||[];
+
+  // Collect all XML items from ambientes
+  const todasPecas = [];
+  ambientes.forEach(amb => {
+    const xmlDados = amb.xmlDados;
+    if (!xmlDados) return;
+    (xmlDados.ambientes||[]).forEach(a => {
+      (a.categorias||[]).forEach(cat => {
+        (cat.itens||[]).forEach(item => {
+          if (item.ref) todasPecas.push({
+            ref: item.ref, desc: item.desc, dimensoes: item.dimensoes,
+            familia: item.familia, ambiente: amb.nome||amb.tipo, valor: item.valorFormatado
+          });
+        });
+      });
+    });
+  });
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(96,144,208,0.3);border-radius:16px;padding:28px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto';
+
+  let fotosReposicao = [];
+
+  div.innerHTML = `
+    <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">🔩 Solicitar Reposição de Peça</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Cliente: <strong style="color:var(--gold2)">${inst.cliente}</strong></div>
+
+    ${todasPecas.length ? `
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Buscar peça pelo ID/Referência</label>
+      <input id="rep-busca" oninput="filtrarPecasReposicao()" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px;outline:none;margin-bottom:6px" placeholder="Digite o código da peça...">
+      <div id="rep-pecas-lista" style="max-height:150px;overflow-y:auto;background:#111;border-radius:8px;border:1px solid #222"></div>
+    </div>
+    <div id="rep-pecas-selecionadas" style="margin-bottom:14px"></div>
+    ` : `<div style="margin-bottom:14px;padding:10px;background:rgba(96,144,208,0.08);border-radius:8px;font-size:12px;color:var(--text3)">⚠ Nenhum XML importado neste projeto. Descreva a peça manualmente.</div>`}
+
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Peça(s) / Descrição *</label>
+      <textarea id="rep-desc" style="width:100%;min-height:70px;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px;outline:none;resize:vertical" placeholder="Código(s) e descrição da(s) peça(s)..."></textarea>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Motivo do problema *</label>
+      <textarea id="rep-motivo" style="width:100%;min-height:60px;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:10px;outline:none;resize:vertical" placeholder="Ex: Peça chegou quebrada, medida errada, cor divergente..."></textarea>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Precisa alterar?</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="rep-medida" style="accent-color:var(--blue)"> Medida</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="rep-cor" style="accent-color:var(--blue)"> Cor/Acabamento</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="rep-furacao" style="accent-color:var(--blue)"> Furação</label>
+      </div>
+      <input id="rep-alteracao-obs" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;padding:8px;outline:none;margin-top:8px" placeholder="Detalhe a alteração necessária...">
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">📷 Fotos do problema</label>
+      <button onclick="document.getElementById('rep-foto-input').click()" style="width:100%;height:48px;background:#1e1e1e;border:1.5px dashed #333;border-radius:8px;color:var(--text3);font-size:14px;cursor:pointer">＋ Adicionar foto(s)</button>
+      <input type="file" id="rep-foto-input" accept="image/*" capture="environment" multiple style="display:none" onchange="adicionarFotosReposicao(this)">
+      <div id="rep-fotos-preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="rep-cancel" style="flex:1;padding:12px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Cancelar</button>
+      <button id="rep-ok" style="flex:2;padding:12px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📧 Enviar solicitação</button>
+    </div>`;
+
+  // Store context
+  window._repInstId = instId;
+  window._repTodasPecas = todasPecas;
+  window._repPecasSelecionadas = [];
+  window._repFotos = [];
+
+  div.querySelector('#rep-cancel').onclick = () => { window._repFotos=[]; document.body.removeChild(ov); };
+  div.querySelector('#rep-ok').onclick = () => enviarReposicaoPeca(inst, proj, lead, div, ov);
+
+  ov.appendChild(div);
+  ov.addEventListener('click', e=>{ if(e.target===ov){ window._repFotos=[]; document.body.removeChild(ov); } });
+  document.body.appendChild(ov);
+
+  // Init lista pecas
+  if (todasPecas.length) filtrarPecasReposicao();
+}
+
+function filtrarPecasReposicao() {
+  const busca = (document.getElementById('rep-busca')?.value||'').toLowerCase();
+  const lista = document.getElementById('rep-pecas-lista');
+  if (!lista) return;
+  const pecas = (window._repTodasPecas||[]).filter(p =>
+    !busca || p.ref.toLowerCase().includes(busca) || p.desc.toLowerCase().includes(busca)
+  ).slice(0,20);
+  lista.innerHTML = pecas.map((p,i) => `
+    <div onclick="selecionarPecaReposicao(${window._repTodasPecas.indexOf(p)})" style="padding:8px 10px;cursor:pointer;border-bottom:0.5px solid #1a1a1a;display:flex;gap:8px;align-items:center" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--gold2)">${p.ref}</div>
+        <div style="font-size:11px;color:var(--text3)">${p.desc} · ${p.ambiente}</div>
+      </div>
+    </div>`).join('') || '<div style="padding:10px;font-size:12px;color:var(--text3)">Nenhuma peça encontrada</div>';
+}
+
+function selecionarPecaReposicao(idx) {
+  const peca = (window._repTodasPecas||[])[idx];
+  if (!peca) return;
+  const jaExiste = (window._repPecasSelecionadas||[]).find(p=>p.ref===peca.ref);
+  if (!jaExiste) {
+    window._repPecasSelecionadas = window._repPecasSelecionadas||[];
+    window._repPecasSelecionadas.push(peca);
+    // Add to desc textarea
+    const desc = document.getElementById('rep-desc');
+    if (desc) desc.value = (desc.value ? desc.value+'
+' : '') + peca.ref + ' — ' + peca.desc + (peca.dimensoes?' ('+peca.dimensoes+')':'');
+  }
+  renderPecasSelecionadas();
+}
+
+function renderPecasSelecionadas() {
+  const el = document.getElementById('rep-pecas-selecionadas');
+  if (!el) return;
+  const pecas = window._repPecasSelecionadas||[];
+  if (!pecas.length) { el.innerHTML=''; return; }
+  el.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Peças selecionadas:</div>` +
+    pecas.map((p,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(96,144,208,0.1);border:1px solid rgba(96,144,208,0.3);border-radius:99px;padding:3px 10px;font-size:12px;color:var(--blue);margin:2px">
+      ${p.ref} <span onclick="removerPecaReposicao(${i})" style="cursor:pointer;color:var(--text3);font-size:10px">✕</span></span>`).join('');
+}
+
+function removerPecaReposicao(idx) {
+  (window._repPecasSelecionadas||[]).splice(idx,1);
+  renderPecasSelecionadas();
+}
+
+async function adicionarFotosReposicao(input) {
+  const files = Array.from(input.files);
+  const preview = document.getElementById('rep-fotos-preview');
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      window._repFotos = window._repFotos||[];
+      window._repFotos.push({data: e.target.result, nome: file.name, file});
+      if (preview) {
+        preview.innerHTML = (window._repFotos||[]).map((f,i)=>`
+          <div style="position:relative">
+            <img src="${f.data}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+            <button onclick="window._repFotos.splice(${i},1);adicionarFotosReposicao({files:[]})" style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;background:#0d0d0d;border:1px solid #333;border-radius:50%;color:#888;font-size:10px;cursor:pointer">✕</button>
+          </div>`).join('');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function enviarReposicaoPeca(inst, proj, lead, div, ov) {
+  const desc = div.querySelector('#rep-desc')?.value.trim();
+  const motivo = div.querySelector('#rep-motivo')?.value.trim();
+  if (!desc || !motivo) { toast('Preencha a descrição e o motivo'); return; }
+
+  const btn = div.querySelector('#rep-ok');
+  btn.disabled=true; btn.textContent='⏳ Enviando...';
+
+  const alteracoes = [];
+  if (div.querySelector('#rep-medida')?.checked) alteracoes.push('Medida');
+  if (div.querySelector('#rep-cor')?.checked) alteracoes.push('Cor/Acabamento');
+  if (div.querySelector('#rep-furacao')?.checked) alteracoes.push('Furação');
+  const alteracaoObs = div.querySelector('#rep-alteracao-obs')?.value.trim();
+
+  // Upload fotos to Supabase
+  const fotosUrls = [];
+  for (const f of (window._repFotos||[])) {
+    try {
+      const clean = s=>s.replace(/[^a-zA-Z0-9_-]/g,'_');
+      const path = `reposicao/${clean(inst.cliente)}/${Date.now()}_${f.nome}`;
+      const ab = await f.file.arrayBuffer();
+      const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`,{
+        method:'POST', headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':f.file.type||'image/jpeg','x-upsert':'true'}, body:ab
+      });
+      if (resp.ok) fotosUrls.push(`${SB_URL}/storage/v1/object/public/imagens/${path}`);
+      else fotosUrls.push(f.data); // base64 fallback
+    } catch(e) { fotosUrls.push(f.data); }
+  }
+
+  // Create ASSISTÊNCIA in Producao
+  const assId = 'ASSIS'+Date.now();
+  const assItem = {
+    id: assId,
+    projetoId: proj?.id||'',
+    clienteNome: 'ASSISTÊNCIA — '+inst.cliente,
+    tipo: proj?.tipo||'',
+    etapa: 'fabricando',
+    dataEnvio: new Date().toISOString().slice(0,10),
+    dataEntrega: '', dataInstalacao: '',
+    responsavelFabricacao: usuarioAtual?.nome||'',
+    responsavelEntrega: '', responsavelInstalacao: '',
+    ambientes: [{nome: desc, tipo:'reposicao', descricao: motivo, xmlNome:''}],
+    obs: `PEDIDO ORIGINAL: ${proj?.nome||inst.cliente}
+PEÇA(S): ${desc}
+MOTIVO: ${motivo}${alteracoes.length?'
+ALTERAÇÕES: '+alteracoes.join(', ')+(alteracaoObs?' — '+alteracaoObs:''):''}`,
+    quadros: {xmlEnviado:{obs:'Reposição de peça — pedido automático',data:new Date().toISOString().slice(0,10),confirmedAt:new Date().toISOString().slice(0,10),confirmedBy:usuarioAtual?.nome||'Sistema'}},
+    isAssistencia: true,
+    fotosReposicao: fotosUrls,
+  };
+
+  try {
+    await pushProducao(assItem);
+    DB.producao.push(assItem);
+
+    // Send email to orders@
+    const fmtData = new Date().toLocaleDateString('pt-BR');
+    const corpo = [
+      '═══════════════════════════════════════',
+      '  SOLICITAÇÃO DE REPOSIÇÃO DE PEÇA',
+      '═══════════════════════════════════════',
+      '',
+      `Cliente:        ${inst.cliente}`,
+      `Projeto orig.:  ${proj?.nome||'—'}`,
+      `Responsável:    ${usuarioAtual?.nome||'—'}`,
+      `Data:           ${fmtData}`,
+      '',
+      '── PEÇA(S) ──────────────────────────────',
+      desc,
+      '',
+      '── MOTIVO ───────────────────────────────',
+      motivo,
+      alteracoes.length ? '
+── ALTERAÇÕES ──────────────────────────
+' + alteracoes.join(', ') + (alteracaoObs?'
+'+alteracaoObs:'') : '',
+      fotosUrls.filter(u=>u.startsWith('http')).length ? '
+── FOTOS ───────────────────────────────
+' + fotosUrls.filter(u=>u.startsWith('http')).join('
+') : '',
+      '',
+      '═══════════════════════════════════════',
+      'Enviado via Studio Legno CRM — Assistência',
+      '═══════════════════════════════════════'
+    ].filter(l=>l!==undefined).join('
+');
+
+    await fetch('https://hook.us2.make.com/krok6qyqrbru4ru7s1qnvunnkpjznabs', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        subject: `[REPOSIÇÃO] ${inst.cliente} — ${desc.slice(0,50)} — Studio Legno`,
+        text: corpo
+      })
+    }).catch(()=>{});
+
+    renderProducao();
+    updateBadges();
+    toast('✓ Solicitação enviada! Aparece em Produção como ASSISTÊNCIA.');
+    window._repFotos=[];
+    document.body.removeChild(ov);
+  } catch(e) {
+    toast('Erro: '+e.message);
+    btn.disabled=false; btn.textContent='📧 Enviar solicitação';
+  }
+}
+
 function renderInstalacao(filter='') {
   _filterInstalacao = filter || filterTexts.instalacao || '';
   const f = _filterInstalacao.toLowerCase();
   const hoje = new Date().toISOString().slice(0,10);
   const items = (DB.instalacoes||[]).filter(i => {
-    return !f || i.cliente.toLowerCase().includes(f) || (i.endereco||'').toLowerCase().includes(f);
+    return !f || (i.cliente||'').toLowerCase().includes(f) || (i.endereco||'').toLowerCase().includes(f);
   }).sort((a,b) => {
     if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
     return (a.data||'').localeCompare(b.data||'');
@@ -6454,35 +6825,52 @@ function renderInstalacao(filter='') {
   if (!el) return;
   if (!items.length) { el.innerHTML = `<div class="empty"><span class="empty-icon">🔧</span><p>Nenhuma instalação agendada.</p><button class="btn btn-primary" onclick="openModal('novaInstalacao')">＋ Agendar instalação</button></div>`; return; }
   el.innerHTML = items.map(i => {
+    const proj = DB.projetos.find(x=>x.id===i.projetoId) || null;
+    const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
     const atrasada = !i.concluida && i.data && i.data < hoje;
     const ehHoje = i.data === hoje;
     const mapsUrl = i.endereco ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(i.endereco)}` : '';
+    const cl = i.checklist||[];
+    const clFeitos = cl.filter(c=>c.concluido).length;
+    const clTotal = cl.length;
+    const corBorda = i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border)';
+    const statusLabel = i.concluida?'✓ Concluída':atrasada?'⚠ Atrasada':ehHoje?'• Hoje':'○ Pendente';
+    const statusCor = i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--text2)';
     return `
-    <div class="card" style="${i.concluida ? 'opacity:0.55' : atrasada ? 'border-color:var(--red)' : ehHoje ? 'border-color:var(--gold)' : ''}">
+    <div class="card" style="border-color:${corBorda};${i.concluida?'opacity:0.7':''}">
+      <!-- Header -->
       <div class="card-header">
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="card-name">${i.cliente}</div>
-          <div class="card-sub">${i.endereco||'Endereço não informado'}</div>
+          ${proj?`<div style="font-size:11px;color:var(--gold2);margin-top:2px">◈ ${proj.nome}${proj.tipo?' · '+proj.tipo:''}</div>`:''}
+          <div class="card-sub">${i.endereco||lead?.obs||'Endereço não informado'}</div>
         </div>
-        <span style="font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid ${i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border2)'};color:${i.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--text2)'}">
-          ${i.concluida ? '✓ Concluída' : atrasada ? '⚠ Atrasada' : ehHoje ? '• Hoje' : '○ Pendente'}
-        </span>
+        <span style="font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid ${statusCor};color:${statusCor};flex-shrink:0">${statusLabel}</span>
       </div>
+      <!-- Meta -->
       <div class="card-meta">
-        ${i.data ? `<span>📅 ${formatDate(i.data)}${i.hora ? ' ' + i.hora : ''}</span>` : ''}
-        ${i.responsavel ? `<span>👤 ${i.responsavel}</span>` : ''}
-        ${i.dias ? `<span>⏱ ${i.dias} dia(s)</span>` : ''}
-        ${i.equipe ? `<span>👥 ${i.equipe} pessoa(s)</span>` : ''}
+        ${i.data?`<span>📅 ${formatDate(i.data)}${i.hora?' '+i.hora:''}</span>`:''}
+        ${i.responsavel?`<span>👤 ${i.responsavel}</span>`:''}
+        ${i.dias?`<span>⏱ ${i.dias}d</span>`:''}
+        ${i.equipe?`<span>👥 ${i.equipe}</span>`:''}
       </div>
-      ${i.ambientes ? `<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px">🏠 ${i.ambientes}</div>` : ''}
-      ${i.obs ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;border-left:2px solid var(--border2);padding-left:8px">${i.obs}</div>` : ''}
-      <div class="card-footer">
-        <div class="card-actions">
-          ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:var(--blue-dim);text-decoration:none">🗺 Rota</a>` : ''}
-          <button class="btn btn-sm" style="color:var(--amber);border-color:rgba(212,148,74,0.3)" onclick="event.stopPropagation();abrirChecklist('${i.id}')">☑ Checklist${i.checklist&&i.checklist.length?` (${i.checklist.filter(c=>c.concluido).length}/${i.checklist.length})`:''}</button>
-          ${!i.concluida ? `<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();concluirInstalacao('${i.id}')">✓ Concluir</button>` : ''}
-          <button class="btn btn-sm" style="color:var(--text3);border-color:transparent;margin-left:auto" onclick="event.stopPropagation();deletarInstalacao('${i.id}')">🗑</button>
-        </div>
+      ${i.ambientes?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px">🏠 ${i.ambientes}</div>`:''}
+      <!-- Checklist progress -->
+      ${clTotal>0?`<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px"><span>Checklist</span><span>${clFeitos}/${clTotal}</span></div>
+        <div style="height:4px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(clFeitos/clTotal*100)}%;background:${clFeitos===clTotal?'var(--green)':'var(--gold)'};border-radius:99px"></div></div>
+      </div>`:''}
+      <!-- Actions row 1 -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        ${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3);text-decoration:none">🗺 Rota</a>`:''}
+        <button class="btn btn-sm" style="color:var(--amber);border-color:rgba(212,148,74,0.3)" onclick="event.stopPropagation();abrirChecklist('${i.id}')">☑ Checklist${clTotal?` (${clFeitos}/${clTotal})`:''}</button>
+        ${!i.concluida?`<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();concluirInstalacao('${i.id}')">✓ Concluir</button>`:''}
+      </div>
+      <!-- Actions row 2 -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="color:var(--gold2);border-color:rgba(201,169,110,0.3)" onclick="event.stopPropagation();abrirComplementoProjeto('${i.id}')">🔄 Complemento de projeto</button>
+        <button class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3)" onclick="event.stopPropagation();abrirReposicaoPeca('${i.id}')">🔩 Repor peça</button>
+        <button class="btn btn-sm" style="color:var(--text3);border-color:transparent;margin-left:auto" onclick="event.stopPropagation();deletarInstalacao('${i.id}')">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -8332,7 +8720,7 @@ function renderChecklistLista() {
             <div style="font-size:15px;font-weight:500;color:var(--text3);text-decoration:line-through;margin-bottom:3px">${item.descricao||'—'}</div>
             <div style="font-size:11px;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap">
               ${item.responsavel?`<span>👤 ${item.responsavel}</span>`:''}
-              ${item.dataConclusao?`<span style="color:var(--green)">✓ ${item.dataConclusao}</span>`:''}
+              ${item.dataConclusao?`<span style="color:var(--green)">✓ ${item.dataConclusao}${item.horaConclusao?' '+item.horaConclusao:''}</span>`:''}
             </div>
             ${item.foto?`<img src="${item.foto}" style="margin-top:8px;max-width:100px;max-height:75px;object-fit:cover;border-radius:8px;border:1px solid var(--green)">`:''}
           ` : `
@@ -8395,6 +8783,14 @@ function concluirItemComFoto(idx) {
   // Abre câmera — foto obrigatória para concluir
   const input = document.getElementById('foto-input-'+idx);
   if (input) input.click();
+  else {
+    // fallback: mark without photo
+    _checklistItems[idx].concluido = true;
+    const _n = new Date();
+    _checklistItems[idx].dataConclusao = _n.toISOString().slice(0,10);
+    _checklistItems[idx].horaConclusao = _n.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    renderChecklistLista();
+  }
 }
 
 function removerFotoItem(idx) {
@@ -8441,7 +8837,9 @@ async function uploadFotoItem(idx, input) {
   }
   // Mark as concluded after photo upload
   _checklistItems[idx].concluido = true;
-  _checklistItems[idx].dataConclusao = new Date().toISOString().slice(0,10);
+  const _now = new Date();
+  _checklistItems[idx].dataConclusao = _now.toISOString().slice(0,10);
+  _checklistItems[idx].horaConclusao = _now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   renderChecklistLista();
   input.value = '';
   // Auto-save to Supabase after photo
@@ -8453,7 +8851,7 @@ async function uploadFotoItem(idx, input) {
       concluido: c.concluido, dataConclusao: c.dataConclusao, foto: c.foto||null
     }));
     sbFetch('instalacoes?id=eq.'+_inst.id, 'PATCH', {checklist: _checklistSave})
-      .then(()=>{ toast('✓ Salvo!'); renderInstalacao(); })
+      .then(()=>{ toast('✓ Salvo!'); renderInstalacao(); renderChecklistLista(); })
       .catch(e=>{ toast('⚠ Erro ao salvar: '+e.message); });
   }
 }
@@ -9646,7 +10044,38 @@ async function confirmarQuadro(prodId, quadro) {
   if (etapaMap[quadro]) p.etapa = etapaMap[quadro];
   try {
     await pushProducao(p);
+    // Auto-create instalacao when saidaFabrica confirmed
+    if (quadro === 'saidaFabrica') {
+      const proj = DB.projetos.find(x=>x.id===p.projetoId);
+      const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+      const jaTemInstalacao = (DB.instalacoes||[]).some(i=>i.projetoId===p.projetoId);
+      if (!jaTemInstalacao) {
+        const inst = {
+          id: 'INS'+Date.now(),
+          cliente: p.clienteNome||proj?.nome||'',
+          projetoId: p.projetoId||'',
+          producaoId: p.id,
+          endereco: lead?.obs||lead?.enderecoEntrega||'',
+          responsavel: p.responsavelInstalacao||'',
+          hora: '', ambientes: (p.ambientes||[]).map(a=>a.nome||a).join(', '),
+          dias: proj?.diasInstalacao||'', equipe: '',
+          obs: '', data: proj?.prazos?.instalacao||'',
+          concluida: false, criadoEm: new Date().toISOString(),
+          checklist: []
+        };
+        if (!DB.instalacoes) DB.instalacoes = [];
+        DB.instalacoes.push(inst);
+        await sbFetch('instalacoes?on_conflict=id','POST',[{
+          id:inst.id, cliente:inst.cliente, endereco:inst.endereco,
+          responsavel:inst.responsavel, hora:inst.hora, ambientes:inst.ambientes,
+          dias:inst.dias, equipe:inst.equipe, obs:inst.obs, data:inst.data,
+          concluida:false, criado_em:inst.criadoEm, checklist:'[]',
+          projeto_id:inst.projetoId, producao_id:inst.producaoId
+        }],'resolution=merge-duplicates').catch(()=>{});
+      }
+    }
     renderProducao();
+    renderInstalacao();
     updateBadges();
     const labels = {xmlEnviado:'XML enviado ✓', recebidoFabrica:'Recebimento confirmado ✓', invoice:'Invoice confirmada ✓', comprasEspeciais:'Compras confirmadas ✓', saidaFabrica:'Saída da fábrica confirmada! 🚛'};
     toast(labels[quadro] || 'Confirmado ✓');
