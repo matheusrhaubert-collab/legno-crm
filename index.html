@@ -4993,9 +4993,10 @@ function renderProjetos(filter='') {
   const idsEmProducao = new Set((DB.producao||[]).map(x => x.projetoId).filter(Boolean));
   const idsEmInstalacao = new Set((DB.instalacoes||[]).filter(i=>!i.concluida).map(i=>i.clienteNome).filter(Boolean));
   let items = DB.projetos.filter(p => {
-    const estaEmProducao = p.status === 'producao' || idsEmProducao.has(p.id);
+    const estaEmInstalacaoStatus = p.status === 'instalacao';
+    const estaEmProducao = (p.status === 'producao' || idsEmProducao.has(p.id)) && !estaEmInstalacaoStatus;
     const estaConcluido = p.status === 'concluido';
-    const estaEmInstalacao = p.status === 'instalacao' || (DB.instalacoes||[]).some(i=>!i.concluida && (i.clienteNome===p.nome || i.projetoId===p.id));
+    const estaEmInstalacao = estaEmInstalacaoStatus || (DB.instalacoes||[]).some(i=>!i.concluida && (i.clienteNome===p.nome || i.projetoId===p.id));
     const matchText = !f || p.nome.toLowerCase().includes(f);
     const matchStatus = !activeProjetoStatus || p.status === activeProjetoStatus;
     if (filtroProj === 'producao') return matchText && estaEmProducao;
@@ -5041,6 +5042,8 @@ function renderProjetos(filter='') {
       const proposalPronta = ambientes.length > 0 && prontos.length === ambientes.length;
 
       // Trava global após aceite da proposta — vale para todos incluindo admin
+      const emProducao = p.status === 'producao' || idsEmProducao.has(p.id);
+      const bloqueioTotal = emProducao || p.status === 'instalacao' || p.status === 'concluido';
       const travadoCard = !!(p.propostaAceita || p.propostaTravada) || bloqueioTotal;
       const travadoStyle = travadoCard ? 'opacity:0.45;cursor:not-allowed;filter:grayscale(0.4)' : '';
       const travadoBtn = (label) => travadoCard
@@ -5094,8 +5097,7 @@ function renderProjetos(filter='') {
       // ── Botões da barra inferior ──
       const todos2 = ambientes;
       const aprovados2 = todos2.filter(a=>a.aprovado==='aprovado');
-      const emProducao = p.status === 'producao' || idsEmProducao.has(p.id);
-      const bloqueioTotal = emProducao || p.status === 'instalacao' || p.status === 'concluido';
+
       const _statusLbl = p.status==='instalacao'?'🔧 Em instalação':p.status==='concluido'?'✓ Concluído':'🏭 Em produção';
       const _btnLocked = `<button class="btn" style="flex:1;opacity:0.35;cursor:not-allowed;border-color:var(--border3);color:var(--text3)" disabled>🔒 ${_statusLbl}</button>`;
       const btnProposta = bloqueioTotal
@@ -9954,9 +9956,12 @@ function renderCardProducao(p, isInstCard=false) {
   const q2alertaAtivo = !!(q.recebidoFabrica && q.recebidoFabrica.alerta);
   const q4alertaAtivo = !!(q.comprasEspeciais && q.comprasEspeciais.alerta);
 
+  // Add pointer-events:none to all inputs/buttons when in instalacao
+  const instStyle = isInstCard ? 'pointer-events:none;opacity:0.5' : '';
   return `
-  <div style="background:var(--bg2);border:0.5px solid ${isAssistencia?'var(--red)':isInstCard?'var(--border3)':'var(--border)'};border-radius:var(--radius);margin-bottom:18px;overflow:hidden;${isAssistencia?'animation:assistenciaPulse 1.4s ease-in-out infinite':''}${isInstCard?';opacity:0.65;filter:grayscale(0.3)':''}">
-  ${isInstCard?`<div style="background:rgba(255,255,255,0.03);border-bottom:0.5px solid var(--border3);padding:6px 18px;font-size:11px;color:var(--text3);font-weight:500">🔧 Em instalação — saiu em ${formatDate(p.quadros?.saidaFabrica?.confirmedAt||p.quadros?.saidaFabrica?.data)}</div>`:''}
+  <div style="background:var(--bg2);border:0.5px solid ${isAssistencia?'var(--red)':isInstCard?'var(--border3)':'var(--border)'};border-radius:var(--radius);margin-bottom:18px;overflow:hidden;${isAssistencia?'animation:assistenciaPulse 1.4s ease-in-out infinite':''}${isInstCard?';filter:grayscale(0.4)':''}">
+  ${isInstCard?`<div style="background:rgba(255,255,255,0.04);border-bottom:0.5px solid var(--border3);padding:7px 18px;font-size:11px;color:var(--text3);font-weight:500;display:flex;align-items:center;gap:6px">🔧 Em instalação — saiu em ${formatDate(p.quadros?.saidaFabrica?.confirmedAt||p.quadros?.saidaFabrica?.data)} <span style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.05);color:var(--text3)">🔒 Bloqueado</span></div>`:''}
+  ${isInstCard?'<div style="pointer-events:none;user-select:none">':''}
   ${isAssistencia?`<div style="background:rgba(224,96,96,0.12);border-bottom:0.5px solid rgba(224,96,96,0.3);padding:7px 18px;font-size:11px;color:var(--red);font-weight:700;letter-spacing:0.5px;display:flex;align-items:center;gap:8px"><span>🔴</span> ASSISTÊNCIA — AÇÃO NECESSÁRIA</div>`:''}
 
     <!-- ── TOPO: Identificação + Prazo Destaque ── -->
@@ -10186,6 +10191,7 @@ function renderCardProducao(p, isInstCard=false) {
       </div>
 
     </div><!-- /5 quadros -->
+    ${isInstCard?'</div>':''}
 
     <!-- ── RODAPÉ ── -->
     <div style="padding:10px 18px 14px;border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
