@@ -10003,14 +10003,14 @@ function renderCardProducao(p) {
         ${!q4ok ? `<button class="btn btn-sm btn-primary" style="margin-top:4px;width:100%;justify-content:center" onclick="confirmarQuadro('${p.id}','comprasEspeciais')">✓ Confirmar compras concluídas</button>` : `<div style="margin-top:4px;font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.comprasEspeciais?.confirmedAt)}</div>`}
       </div>
 
-      <!-- QUADRO 5: SAÍDA DA FÁBRICA -->
+      <!-- QUADRO 5: PRONTO PARA RETIRADA -->
       <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q5ok,false)}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:15px">🚛</span>
+            <span style="font-size:15px">📦</span>
             <div>
-              <div style="font-size:12px;font-weight:600;color:var(--text)">5. Saída da Fábrica</div>
-              <div style="font-size:10px;color:var(--text3)">Liberação e data real de saída</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">5. Pronto para Retirada</div>
+              <div style="font-size:10px;color:var(--text3)">Confirme quando o pedido estiver pronto</div>
             </div>
           </div>
           ${q5ok ? '<span style="font-size:16px">✅</span>' : ''}
@@ -10021,22 +10021,22 @@ function renderCardProducao(p) {
             ${_selectUsuarios(p.id,'saidaFabrica','responsavel',q.saidaFabrica?.responsavel||'')}
           </div>
           <div>
-            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data real de saída</div>
+            <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Data de retirada</div>
             <input type="date" class="form-input" style="height:30px;font-size:12px;padding:4px 8px" value="${q.saidaFabrica?.data||''}"
               onchange="_setProdQ('${p.id}','saidaFabrica','data',this.value)">
           </div>
         </div>
         <div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Observações da saída</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Observações</div>
           <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Nota fiscal, transportadora, etc..." value="${q.saidaFabrica?.obs||''}"
             oninput="_setProdQ('${p.id}','saidaFabrica','obs',this.value)">
         </div>
-        ${!q5ok ? `<button class="btn btn-sm" style="margin-top:10px;width:100%;justify-content:center;background:var(--green);color:#0d0d0d;border-color:var(--green);font-weight:600;${!q3ok?'opacity:0.4;cursor:not-allowed':''}" ${!q3ok?'disabled title="Confirme a invoice primeiro"':''} onclick="confirmarQuadro('${p.id}','saidaFabrica')">🚛 Confirmar saída da fábrica</button>` : `
+        ${!q5ok ? `<button class="btn btn-sm" style="margin-top:10px;width:100%;justify-content:center;background:var(--green);color:#0d0d0d;border-color:var(--green);font-weight:600;${!q3ok?'opacity:0.4;cursor:not-allowed':''}" ${!q3ok?'disabled title="Confirme a invoice primeiro"':''} onclick="confirmarQuadro('${p.id}','saidaFabrica')">📦 Confirmar pronto para retirada</button>` : `
           <div style="margin-top:10px;padding:10px 14px;background:rgba(92,184,130,0.1);border-radius:8px;border:0.5px solid rgba(92,184,130,0.3);display:flex;align-items:center;gap:8px">
             <span style="font-size:18px">✅</span>
             <div>
-              <div style="font-size:12px;font-weight:600;color:var(--green)">Fábrica liberou! Saiu em ${formatDate(q.saidaFabrica?.data||q.saidaFabrica?.confirmedAt)}</div>
-              <div style="font-size:11px;color:var(--text3)">Agendar entrega e instalação.</div>
+              <div style="font-size:12px;font-weight:600;color:var(--green)">Pronto! Retirada em ${formatDate(q.saidaFabrica?.data||q.saidaFabrica?.confirmedAt)}</div>
+              <div style="font-size:11px;color:var(--text3)">Entrega habilitada — tarefa criada na agenda.</div>
             </div>
           </div>`}
       </div>
@@ -10213,6 +10213,30 @@ async function confirmarQuadro(prodId, quadro) {
   if (etapaMap[quadro]) p.etapa = etapaMap[quadro];
   try {
     await pushProducao(p);
+    // When pronto para retirada — criar tarefa agenda e ativar entrega
+    if (quadro === 'saidaFabrica') {
+      const proj5 = DB.projetos.find(x=>x.id===p.projetoId);
+      const lead5 = proj5 ? DB.leads.find(l=>l.id===proj5.leadId) : null;
+      // Criar tarefa de entrega na agenda
+      const tarefaEntrega = {
+        id: 'TENT_'+p.id,
+        titulo: '🚚 Entrega: ' + p.clienteNome,
+        descricao: 'Pedido pronto para retirada — agendar entrega ao cliente.',
+        data: proj5?.prazos?.entrega || hoje,
+        prioridade: 'Alta',
+        responsavel: p.responsavelEntrega || '',
+        cliente: p.clienteNome,
+        leadId: proj5?.leadId || '',
+        concluida: false,
+        automatica: true,
+        comentarios: [],
+        criadoEm: new Date().toISOString()
+      };
+      pushTarefa(tarefaEntrega).then(()=>{
+        if (!DB.tarefas.find(t=>t.id===tarefaEntrega.id)) DB.tarefas.unshift(tarefaEntrega);
+        renderAgenda(); updateBadges();
+      }).catch(()=>{});
+    }
     // Auto-create instalacao when saidaFabrica confirmed
     if (quadro === 'saidaFabrica') {
       const proj = DB.projetos.find(x=>x.id===p.projetoId);
@@ -10246,7 +10270,7 @@ async function confirmarQuadro(prodId, quadro) {
     renderProducao();
     renderInstalacao();
     updateBadges();
-    const labels = {xmlEnviado:'XML enviado ✓', recebidoFabrica:'Recebimento confirmado ✓', invoice:'Invoice confirmada ✓', comprasEspeciais:'Compras confirmadas ✓', saidaFabrica:'Saída da fábrica confirmada! 🚛'};
+    const labels = {xmlEnviado:'XML enviado ✓', recebidoFabrica:'Recebimento confirmado ✓', invoice:'Invoice confirmada ✓', comprasEspeciais:'Compras confirmadas ✓', saidaFabrica:'📦 Pronto para retirada! Entrega habilitada.'};
     toast(labels[quadro] || 'Confirmado ✓');
   } catch(e) { toast('Erro: ' + e.message); }
 }
