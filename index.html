@@ -4539,7 +4539,7 @@ async function loadFromSupabase() {
       sbFetch('perdidos?select=*&order=created_at.desc'),
       sbFetch('entregas?select=*&order=criado_em.desc').catch(()=>[]),
       sbFetch('instalacoes?select=*&order=criado_em.desc').catch(()=>[]),
-      sbFetch('usuarios?select=nome&order=nome.asc').catch(()=>[])
+      sbFetch('usuarios?select=nome,perfil&order=nome.asc').catch(()=>[])
     ]);
 
     DB.leads = leads.map(mapLead);
@@ -4550,7 +4550,7 @@ async function loadFromSupabase() {
       id: p.id, nome: p.nome, tipo: p.tipo||'',
       motivo: p.motivo||'', data: p.data||''
     }));
-    DB.usuarios = usuarios.map(u=>({nome:u.nome}));
+    DB.usuarios = usuarios.map(u=>({nome:u.nome, perfil:u.perfil||''}));
     DB.entregas = entregas.map(e => ({
       id: e.id, cliente: e.cliente||'', endereco: e.endereco||'',
       responsavel: e.responsavel||'', hora: e.hora||'',
