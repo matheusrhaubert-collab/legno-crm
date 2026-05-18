@@ -4508,8 +4508,8 @@ async function pushProducao(p) {
     responsavel_instalacao: p.responsavelInstalacao||'',
     ambientes: p.ambientes||[], obs: p.obs||'',
     quadros: p.quadros||{},
-    isAssistencia: p.is_assistencia||false,
-    fotosReposicao: p.fotos_reposicao||[]
+    is_assistencia: p.isAssistencia||false,
+    fotos_reposicao: p.fotosReposicao||[]
   }], 'resolution=merge-duplicates');
 }
 
@@ -4644,8 +4644,8 @@ function mapProducao(p) {
     responsavelInstalacao: p.responsavel_instalacao||'',
     ambientes: p.ambientes||[], obs: p.obs||'',
     quadros: p.quadros||{},
-    isAssistencia: p.is_assistencia||false,
-    fotosReposicao: p.fotos_reposicao||[]
+    is_assistencia: p.isAssistencia||false,
+    fotos_reposicao: p.fotosReposicao||[]
   };
 }
 
@@ -9538,8 +9538,8 @@ function abrirCondicoes(projetoId) {
       if (tipoFinal==='avista') precoFinalSave = precoBase*(1-descFinal/100);
       else if (tipoFinal==='financiado') precoFinalSave = precoBase*Math.pow(1+jurosFinal/100,parcelasFinal);
       else {
-        // parcelado — usar finPrecoFinal (já tem desconto cliente aplicado pelo financeiro)
-        precoFinalSave = p.finPrecoFinal||precoBase;
+        // parcelado — usar precoBase (valor negociado da proposta)
+        precoFinalSave = precoBase;
       }
 
       // Collect etapas if parcelado
