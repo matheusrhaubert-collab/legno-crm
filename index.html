@@ -10163,6 +10163,10 @@ function setFiltroRapido(valor) {
 function renderBtnsPorUsuario() {
   const el = document.getElementById('btns-por-usuario');
   if (!el) return;
+  // Non-admin users don't see other users' filter buttons
+  const perfil = usuarioAtual?.perfil || '';
+  const isAdminUser = perfil === 'admin' || perfil === 'administrativo';
+  if (!isAdminUser) { el.innerHTML = ''; return; }
   const usuarios = DB.usuarios && DB.usuarios.length
     ? DB.usuarios.map(u => u.nome)
     : [...new Set((DB.tarefas||[]).map(t=>t.responsavel).filter(Boolean))];
