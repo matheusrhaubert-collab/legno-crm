@@ -6500,10 +6500,7 @@ function abrirComplementoProjeto(instId) {
       tipo: lead?.tipo||'',
       tel: lead?.tel||'',
       email: lead?.email||'',
-      obs: (lead?.obs||'') + '
-
-Complemento ref: ' + (proj?.nome||inst.cliente) + '
-' + desc,
+      obs: (lead?.obs||'') + '\n\nComplemento ref: ' + (proj?.nome||inst.cliente) + '\n' + desc,
       responsavel: resp,
       origem: 'complemento',
       status: 'briefing',
@@ -6664,8 +6661,7 @@ function selecionarPecaReposicao(idx) {
     window._repPecasSelecionadas.push(peca);
     // Add to desc textarea
     const desc = document.getElementById('rep-desc');
-    if (desc) desc.value = (desc.value ? desc.value+'
-' : '') + peca.ref + ' — ' + peca.desc + (peca.dimensoes?' ('+peca.dimensoes+')':'');
+    if (desc) desc.value = (desc.value ? desc.value+'\n' : '') + peca.ref + ' — ' + peca.desc + (peca.dimensoes?' ('+peca.dimensoes+')':'');
   }
   renderPecasSelecionadas();
 }
@@ -6747,10 +6743,7 @@ async function enviarReposicaoPeca(inst, proj, lead, div, ov) {
     responsavelFabricacao: usuarioAtual?.nome||'',
     responsavelEntrega: '', responsavelInstalacao: '',
     ambientes: [{nome: desc, tipo:'reposicao', descricao: motivo, xmlNome:''}],
-    obs: `PEDIDO ORIGINAL: ${proj?.nome||inst.cliente}
-PEÇA(S): ${desc}
-MOTIVO: ${motivo}${alteracoes.length?'
-ALTERAÇÕES: '+alteracoes.join(', ')+(alteracaoObs?' — '+alteracaoObs:''):''}`,
+    obs: 'PEDIDO ORIGINAL: '+(proj?.nome||inst.cliente)+'\nPEÇA(S): '+desc+'\nMOTIVO: '+motivo+(alteracoes.length?'\nALTERAÇÕES: '+alteracoes.join(', ')+(alteracaoObs?' — '+alteracaoObs:''):''),
     quadros: {xmlEnviado:{obs:'Reposição de peça — pedido automático',data:new Date().toISOString().slice(0,10),confirmedAt:new Date().toISOString().slice(0,10),confirmedBy:usuarioAtual?.nome||'Sistema'}},
     isAssistencia: true,
     fotosReposicao: fotosUrls,
@@ -6777,20 +6770,13 @@ ALTERAÇÕES: '+alteracoes.join(', ')+(alteracaoObs?' — '+alteracaoObs:''):''}
       '',
       '── MOTIVO ───────────────────────────────',
       motivo,
-      alteracoes.length ? '
-── ALTERAÇÕES ──────────────────────────
-' + alteracoes.join(', ') + (alteracaoObs?'
-'+alteracaoObs:'') : '',
-      fotosUrls.filter(u=>u.startsWith('http')).length ? '
-── FOTOS ───────────────────────────────
-' + fotosUrls.filter(u=>u.startsWith('http')).join('
-') : '',
+      alteracoes.length ? '── ALTERAÇÕES ──────────────────────────\n' + alteracoes.join(', ') + (alteracaoObs?' — '+alteracaoObs:'') : '',
+      fotosUrls.filter(u=>u.startsWith('http')).length ? '── FOTOS ───────────────────────────────\n' + fotosUrls.filter(u=>u.startsWith('http')).join('\n') : '',
       '',
       '═══════════════════════════════════════',
       'Enviado via Studio Legno CRM — Assistência',
       '═══════════════════════════════════════'
-    ].filter(l=>l!==undefined).join('
-');
+    ].filter(l=>l!==undefined).join('\n');
 
     await fetch('https://hook.us2.make.com/krok6qyqrbru4ru7s1qnvunnkpjznabs', {
       method:'POST', headers:{'Content-Type':'application/json'},
