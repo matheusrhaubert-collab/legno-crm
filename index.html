@@ -4491,7 +4491,9 @@ async function pushTarefa(t) {
     lead_id: t.leadId||'', concluida: t.concluida||false,
     automatica: t.automatica||false,
     criado_em: t.criadoEm || new Date().toISOString(),
-    comentarios: t.comentarios||[]
+    comentarios: t.comentarios||[],
+    is_lembrete: t.isLembrete||false,
+    lembrete_ass_id: t.lembreteAssId||''
   }], 'resolution=merge-duplicates');
 }
 
@@ -4626,7 +4628,9 @@ function mapTarefa(t) {
     automatica: t.automatica||false,
     responsavel: t.responsavel||'', cliente: t.cliente||'',
     leadId: t.lead_id||'', concluida: t.concluida||false,
-    comentarios: t.comentarios||[]
+    comentarios: t.comentarios||[],
+    isLembrete: t.is_lembrete||false,
+    lembreteAssId: t.lembrete_ass_id||''
   };
 }
 function mapProducao(p) {
@@ -6775,6 +6779,29 @@ async function enviarReposicaoPeca(inst, proj, lead, div, ov) {
   try {
     await pushProducao(assItem);
     DB.producao.push(assItem);
+
+    // Criar tarefa-lembrete na agenda
+    const tarefaAss = {
+      id: 'TASS_' + assId,
+      titulo: '🔴 ASSISTÊNCIA: ' + inst.cliente,
+      descricao: desc + '\nMotivo: ' + motivo,
+      data: new Date().toISOString().slice(0,10),
+      prioridade: 'Alta',
+      responsavel: '',
+      cliente: inst.cliente,
+      leadId: '',
+      concluida: false,
+      isLembrete: true,
+      lembreteAssId: assId,
+      comentarios: [],
+      criadoEm: new Date().toISOString()
+    };
+    try {
+      await pushTarefa(tarefaAss);
+      DB.tarefas.unshift(tarefaAss);
+      renderAgenda();
+      updateBadges();
+    } catch(e) { console.warn('Tarefa assistência error:', e.message); }
 
     // Send email to orders@
     const fmtData = new Date().toLocaleDateString('pt-BR');
@@ -10060,6 +10087,15 @@ async function confirmarQuadro(prodId, quadro) {
   if (quadro === 'recebidoFabrica' && !p.quadros[quadro].data) {
     p.quadros[quadro].data = hoje;
   }
+  // Remove tarefa-lembrete de assistência quando recebido
+  if (quadro === 'recebidoFabrica' && p.isAssistencia) {
+    const tarefaId = 'TASS_' + p.id;
+    const idx = DB.tarefas.findIndex(t => t.id === tarefaId);
+    if (idx !== -1) {
+      DB.tarefas.splice(idx, 1);
+      sbFetch('tarefas?id=eq.'+tarefaId, 'DELETE').catch(()=>{});
+    }
+  }
   // Marcar como "ok" — o campo confirmedAt serve de flag
   // Também atualiza etapa geral do prod
   const etapaMap = {xmlEnviado:'xml_enviado', recebidoFabrica:'recebido_fabrica', invoice:'invoice', comprasEspeciais:'compras', saidaFabrica:'pronto'};
@@ -10392,12 +10428,14 @@ function renderListaTarefas(el, tarefas) {
     const comentarios = t.comentarios || [];
     const ultimoComentario = comentarios.length ? comentarios[comentarios.length-1] : null;
     const isAuto = !!t.automatica;
-    const cardBg = isAuto && !t.concluida ? 'background:rgba(212,148,74,0.06);border-color:rgba(212,148,74,0.3);' : '';
+    const isLembrete = !!t.isLembrete;
+    const cardBg = isLembrete && !t.concluida ? 'background:rgba(212,148,74,0.08);border-color:rgba(212,148,74,0.5);' : isAuto && !t.concluida ? 'background:rgba(212,148,74,0.06);border-color:rgba(212,148,74,0.3);' : '';
     return `<div class="card" style="margin-bottom:8px;${t.concluida?'opacity:0.55':''}${cardBg}">
-      ${isAuto&&!t.concluida?`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px"><span style="font-size:10px;background:rgba(212,148,74,0.15);color:var(--gold);border:1px solid rgba(212,148,74,0.3);padding:2px 8px;border-radius:99px;font-weight:600">⚡ Tarefa automática</span></div>`:''}
+      ${isLembrete&&!t.concluida?`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px"><span style="font-size:10px;background:rgba(212,148,74,0.2);color:var(--amber);border:1px solid rgba(212,148,74,0.4);padding:2px 8px;border-radius:99px;font-weight:700">🔔 LEMBRETE — Some ao confirmar recebimento na fábrica</span></div>`:''}
+      ${isAuto&&!isLembrete&&!t.concluida?`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px"><span style="font-size:10px;background:rgba(212,148,74,0.15);color:var(--gold);border:1px solid rgba(212,148,74,0.3);padding:2px 8px;border-radius:99px;font-weight:600">⚡ Tarefa automática</span></div>`:''}
       <div style="display:flex;align-items:flex-start;gap:12px">
-        <div onclick="${t.concluida ? `reabrirTarefa('${t.id}')` : `abrirConcluirTarefa('${t.id}')`}" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${t.concluida?'var(--green)':isAuto?'var(--gold)':'var(--border3)'};background:${t.concluida?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px;color:#0d0d0d;font-size:11px">
-          ${t.concluida?'✓':''}
+        <div ${isLembrete?'title="Essa tarefa some quando receber na fábrica"':(`onclick="${t.concluida ? `reabrirTarefa('${t.id}')` : `abrirConcluirTarefa('${t.id}')`}"`)} style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${t.concluida?'var(--green)':isLembrete?'var(--amber)':isAuto?'var(--gold)':'var(--border3)'};background:${t.concluida?'var(--green)':isLembrete?'rgba(212,148,74,0.2)':'transparent'};display:flex;align-items:center;justify-content:center;${isLembrete?'cursor:default':'cursor:pointer'};flex-shrink:0;margin-top:2px;color:#0d0d0d;font-size:11px">
+          ${t.concluida?'✓':isLembrete?'🔔':''}
         </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:500;${t.concluida?'text-decoration:line-through;color:var(--text3)':isAuto?'color:var(--gold2)':''}">${t.titulo}</div>
