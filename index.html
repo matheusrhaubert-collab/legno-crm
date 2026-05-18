@@ -8020,7 +8020,7 @@ function openModal(id) {
   if (id === 'novoLead') {
     const sel = document.getElementById('nl-responsavel');
     if (sel) {
-      const usuarios = DB.usuarios && DB.usuarios.length ? DB.usuarios.map(u=>u.nome) : [];
+      const usuarios = getUsersByPerfil();
       sel.innerHTML = '<option value="">Selecionar...</option>' + usuarios.map(n=>`<option value="${n}">${n}</option>`).join('');
     }
   }
@@ -9748,7 +9748,7 @@ function renderProducao(filter='') {
 }
 
 function _selectUsuarios(prodId, quadro, campo, valorAtual) {
-  const users = (DB.usuarios||[]).map(u=>u.nome).filter(Boolean);
+  const users = getUsersByPerfil();
   const opts = ['', ...users].map(n =>
     `<option value="${n}" ${n===valorAtual?'selected':''}>${n||'Selecionar...'}</option>`
   ).join('');
@@ -9757,10 +9757,7 @@ function _selectUsuarios(prodId, quadro, campo, valorAtual) {
 }
 
 function _selectUsuariosFiltrado(prodId, quadro, campo, valorAtual) {
-  const users = (DB.usuarios||[]).filter(u => {
-    const p = (u.perfil||'').toLowerCase();
-    return p === 'administrativo' || p === 'admin' || p === 'producao' || p === 'produção';
-  }).map(u=>u.nome).filter(Boolean);
+  const users = getUsersByPerfil();
   const opts = ['', ...users].map(n =>
     `<option value="${n}" ${n===valorAtual?'selected':''}>${n||'Selecionar...'}</option>`
   ).join('');
@@ -10222,9 +10219,22 @@ function setAgendaView(view) {
   renderAgenda();
 }
 
+function getUsersByPerfil() {
+  // Returns users filtered by current user's perfil
+  // Admin sees all, others see only same perfil
+  const meuPerfil = (usuarioAtual?.perfil||'').toLowerCase();
+  const isAdmin = meuPerfil === 'admin' || meuPerfil === 'administrativo';
+  if (!DB.usuarios || !DB.usuarios.length) return [];
+  return DB.usuarios.filter(u => {
+    if (isAdmin) return true;
+    return (u.perfil||'').toLowerCase() === meuPerfil;
+  }).map(u => u.nome).filter(Boolean);
+}
+
 function getResponsaveis() {
-  // Prefer usuarios from Supabase if loaded
-  if (DB.usuarios && DB.usuarios.length) return DB.usuarios.map(u=>u.nome);
+  const filtered = getUsersByPerfil();
+  if (filtered.length) return filtered;
+  // fallback from tarefas
   const set = new Set();
   (DB.tarefas||[]).forEach(t => { if(t.responsavel) set.add(t.responsavel); });
   return [...set];
@@ -10690,12 +10700,12 @@ async function populateResponsavelSelect() {
   const sel = document.getElementById('nt-responsavel');
   if (!sel) return;
   try {
-    const usuarios = await sbFetch('usuarios?select=nome&order=nome.asc');
-    const nomes = usuarios.map(u => u.nome);
+    const nomes = getUsersByPerfil();
     sel.innerHTML = '<option value="">Selecionar...</option>' +
       nomes.map(n => `<option value="${n}">${n}</option>`).join('');
     // Pre-select current user if not admin
-    if (usuarioAtual && usuarioAtual.perfil !== 'admin') {
+    const meuPerfilP = (usuarioAtual?.perfil||'').toLowerCase();
+    if (usuarioAtual && meuPerfilP !== 'admin' && meuPerfilP !== 'administrativo') {
       sel.value = usuarioAtual.nome;
     }
   } catch(e) {
