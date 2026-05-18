@@ -4555,7 +4555,9 @@ async function loadFromSupabase() {
       id: e.id, cliente: e.cliente||'', endereco: e.endereco||'',
       responsavel: e.responsavel||'', hora: e.hora||'',
       itens: e.itens||'', obs: e.obs||'', data: e.data||'',
-      concluida: e.concluida||false
+      concluida: e.concluida||false,
+      prontoRetirada: e.pronto_retirada||false,
+      projetoId: e.projeto_id||''
     }));
     DB.instalacoes = instalacoes.map(i => ({
       id: i.id, cliente: i.cliente||'', endereco: i.endereco||'',
@@ -6409,15 +6411,20 @@ function renderEntrega(filter='') {
     const atrasada = !e.concluida && e.data && e.data < hoje;
     const ehHoje = e.data === hoje;
     const mapsUrl = e.endereco ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(e.endereco)}` : '';
+    const prontoRetirada = e.prontoRetirada || false;
+    const bordaCor = e.concluida?'var(--green)':prontoRetirada?'var(--amber)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border)';
+    const statusLabel = e.concluida?'✓ Entregue':prontoRetirada?'📦 Pronto p/ Entrega':atrasada?'⚠ Atrasada':ehHoje?'• Hoje':'🏭 Em Produção';
+    const statusCor = e.concluida?'var(--green)':prontoRetirada?'var(--amber)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--text3)';
     return `
-    <div class="card" style="${e.concluida ? 'opacity:0.55' : atrasada ? 'border-color:var(--red)' : ehHoje ? 'border-color:var(--gold)' : ''}">
+    <div class="card" style="border-color:${bordaCor};${e.concluida?'opacity:0.55':''}${prontoRetirada&&!e.concluida?';animation:complementoPulse 1.6s ease-in-out infinite':''}">
+      ${prontoRetirada&&!e.concluida?`<div style="background:rgba(212,148,74,0.1);border-bottom:0.5px solid rgba(212,148,74,0.3);padding:5px 14px;font-size:11px;color:var(--amber);font-weight:600">📦 PRONTO PARA ENTREGA</div>`:''}
       <div class="card-header">
         <div>
           <div class="card-name">${e.cliente}</div>
           <div class="card-sub">${e.endereco||'Endereço não informado'}</div>
         </div>
-        <span style="font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid ${e.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--border2)'};color:${e.concluida?'var(--green)':atrasada?'var(--red)':ehHoje?'var(--gold)':'var(--text2)'}">
-          ${e.concluida ? '✓ Entregue' : atrasada ? '⚠ Atrasada' : ehHoje ? '• Hoje' : '○ Pendente'}
+        <span style="font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid ${statusCor};color:${statusCor}">
+          ${statusLabel}
         </span>
       </div>
       <div class="card-meta">
@@ -10217,6 +10224,16 @@ async function confirmarQuadro(prodId, quadro) {
     if (quadro === 'saidaFabrica') {
       const proj5 = DB.projetos.find(x=>x.id===p.projetoId);
       const lead5 = proj5 ? DB.leads.find(l=>l.id===proj5.leadId) : null;
+      // Marcar entregas do projeto como prontoRetirada
+      const entregasDoProjeto = (DB.entregas||[]).filter(en => en.projetoId === p.projetoId || en.cliente === p.clienteNome);
+      for (const en of entregasDoProjeto) {
+        if (!en.concluida) {
+          en.prontoRetirada = true;
+          sbFetch('entregas?id=eq.'+en.id, 'PATCH', {pronto_retirada: true}).catch(()=>{});
+        }
+      }
+      renderEntrega();
+
       // Criar tarefa de entrega na agenda
       const tarefaEntrega = {
         id: 'TENT_'+p.id,
