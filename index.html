@@ -99,6 +99,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   0%,100%{border-color:rgba(212,148,74,0.2);box-shadow:0 0 0 0 rgba(212,148,74,0)}
   50%{border-color:var(--amber);box-shadow:0 0 16px 4px rgba(212,148,74,0.3)}
 }
+@keyframes assistenciaPulse{
+  0%,100%{border-color:rgba(224,96,96,0.2);box-shadow:0 0 0 0 rgba(224,96,96,0)}
+  50%{border-color:var(--red);box-shadow:0 0 18px 4px rgba(224,96,96,0.35)}
+}
 .card-complemento{animation:complementoPulse 1.6s ease-in-out infinite;border-color:var(--amber)!important;background:linear-gradient(135deg,var(--bg2),rgba(212,148,74,0.06))!important}
 .card-complemento .card-name::before{content:'🔄 COMPLEMENTO — ';font-size:10px;color:var(--amber);font-family:'DM Mono',monospace;letter-spacing:1px;vertical-align:middle}
 
@@ -4486,7 +4490,9 @@ async function pushProducao(p) {
     responsavel_entrega: p.responsavelEntrega||'',
     responsavel_instalacao: p.responsavelInstalacao||'',
     ambientes: p.ambientes||[], obs: p.obs||'',
-    quadros: p.quadros||{}
+    quadros: p.quadros||{},
+    isAssistencia: p.is_assistencia||false,
+    fotosReposicao: p.fotos_reposicao||[]
   }], 'resolution=merge-duplicates');
 }
 
@@ -4618,7 +4624,9 @@ function mapProducao(p) {
     responsavelEntrega: p.responsavel_entrega||'',
     responsavelInstalacao: p.responsavel_instalacao||'',
     ambientes: p.ambientes||[], obs: p.obs||'',
-    quadros: p.quadros||{}
+    quadros: p.quadros||{},
+    isAssistencia: p.is_assistencia||false,
+    fotosReposicao: p.fotos_reposicao||[]
   };
 }
 
@@ -9721,6 +9729,7 @@ function _selectUsuariosFiltrado(prodId, quadro, campo, valorAtual) {
 function renderCardProducao(p) {
   const proj = DB.projetos.find(x => x.id === p.projetoId);
   const lead = proj ? DB.leads.find(l => l.id === proj.leadId) : null;
+  const isAssistencia = p.isAssistencia || (p.clienteNome||'').startsWith('ASSISTÊNCIA');
   const prazos = proj?.prazos || {};
   const ambs = p.ambientes || [];
 
@@ -9764,7 +9773,8 @@ function renderCardProducao(p) {
   const q4alertaAtivo = !!(q.comprasEspeciais && q.comprasEspeciais.alerta);
 
   return `
-  <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:18px;overflow:hidden">
+  <div style="background:var(--bg2);border:0.5px solid ${isAssistencia?'var(--red)':'var(--border)'};border-radius:var(--radius);margin-bottom:18px;overflow:hidden;${isAssistencia?'animation:assistenciaPulse 1.4s ease-in-out infinite':''}">
+  ${isAssistencia?`<div style="background:rgba(224,96,96,0.12);border-bottom:0.5px solid rgba(224,96,96,0.3);padding:7px 18px;font-size:11px;color:var(--red);font-weight:700;letter-spacing:0.5px;display:flex;align-items:center;gap:8px"><span>🔴</span> ASSISTÊNCIA — AÇÃO NECESSÁRIA</div>`:''}
 
     <!-- ── TOPO: Identificação + Prazo Destaque ── -->
     <div style="padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -9801,18 +9811,28 @@ function renderCardProducao(p) {
     <!-- ── 5 QUADROS ── -->
     <div style="padding:0 14px 14px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:start">
 
-      <!-- QUADRO 1: XML ENVIADO -->
+      <!-- QUADRO 1: XML ENVIADO / DETALHES ASSISTÊNCIA -->
       <div style="border:0.5px solid;border-radius:10px;padding:14px;${quadroBg(q1ok,false)}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:15px">📄</span>
+            <span style="font-size:15px">${isAssistencia?'🔩':'📄'}</span>
             <div>
-              <div style="font-size:12px;font-weight:600;color:var(--text)">1. XML Enviado</div>
-              <div style="font-size:10px;color:var(--text3)">Responsável, cliente e projeto</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">${isAssistencia?'1. Detalhes da Assistência':'1. XML Enviado'}</div>
+              <div style="font-size:10px;color:var(--text3)">${isAssistencia?'Peça, motivo e fotos':'Responsável, cliente e projeto'}</div>
             </div>
           </div>
           ${q1ok ? '<span style="font-size:16px">✅</span>' : ''}
         </div>
+        ${isAssistencia ? `
+        <div style="background:rgba(224,96,96,0.06);border:0.5px solid rgba(224,96,96,0.2);border-radius:8px;padding:12px;margin-bottom:10px;font-size:12px;color:var(--text2);white-space:pre-line;line-height:1.7">${p.obs||q.xmlEnviado?.obs||'—'}</div>
+        ${(p.fotosReposicao||[]).filter(f=>f&&f.startsWith('http')).length ? `
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">📷 Fotos do problema</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${(p.fotosReposicao||[]).filter(f=>f&&f.startsWith('http')).map(f=>`<a href="${f}" target="_blank"><img src="${f}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--red)"></a>`).join('')}
+          </div>
+        </div>` : ''}
+        ` : `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div>
             <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Responsável</div>
@@ -9829,7 +9849,8 @@ function renderCardProducao(p) {
           <input class="form-input" style="height:30px;font-size:12px;padding:4px 8px" placeholder="Detalhes do envio..." value="${q.xmlEnviado?.obs||''}"
             oninput="_setProdQ('${p.id}','xmlEnviado','obs',this.value)">
         </div>
-        ${!q1ok ? `<button class="btn btn-sm btn-primary" style="margin-top:10px;width:100%;justify-content:center" onclick="confirmarQuadro('${p.id}','xmlEnviado')">✓ Confirmar envio do XML</button>` : `<div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.xmlEnviado?.confirmedAt||q.xmlEnviado?.data)}</div><button class="btn btn-sm" style="border-color:rgba(96,144,208,0.4);color:var(--blue);white-space:nowrap" onclick="reenviarEmailXMLs('${p.id}')">📧 Reenviar email</button></div>`}
+        `}
+        ${!q1ok ? `<button class="btn btn-sm btn-primary" style="margin-top:10px;width:100%;justify-content:center" onclick="confirmarQuadro('${p.id}','xmlEnviado')">✓ ${isAssistencia?'Confirmar recebimento da solicitação':'Confirmar envio do XML'}</button>` : `<div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:11px;color:var(--green)">✓ Confirmado em ${formatDate(q.xmlEnviado?.confirmedAt||q.xmlEnviado?.data)}</div>${!isAssistencia?`<button class="btn btn-sm" style="border-color:rgba(96,144,208,0.4);color:var(--blue);white-space:nowrap" onclick="reenviarEmailXMLs('${p.id}')">📧 Reenviar email</button>`:''}</div>`}
       </div>
 
       <!-- QUADRO 2: RECEBIDO PELA FÁBRICA -->
@@ -10980,10 +11001,14 @@ function mobRenderInstalacao(el) {
             <div style="height:100%;width:${pct}%;background:${pct===100?'var(--green)':'var(--gold)'};border-radius:99px"></div>
           </div>
         </div>` : ''}
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <button onclick="abrirChecklist('${i.id}')" style="flex:1;height:44px;background:rgba(212,148,74,0.15);border:1px solid rgba(212,148,74,0.4);border-radius:10px;color:var(--amber);font-size:14px;font-weight:600;cursor:pointer">☑ Checklist${total?` (${feitos}/${total})`:''}</button>
           ${mapsUrl?`<a href="${mapsUrl}" target="_blank" style="height:44px;padding:0 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;color:var(--blue);font-size:14px;display:flex;align-items:center;text-decoration:none">🗺</a>`:''}
           ${!i.concluida?`<button onclick="concluirInstalacao('${i.id}');mobGoPage('instalacao')" style="height:44px;padding:0 14px;background:rgba(92,184,130,0.15);border:1px solid rgba(92,184,130,0.4);border-radius:10px;color:var(--green);font-size:14px;cursor:pointer">✓</button>`:''}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="abrirComplementoProjeto('${i.id}')" style="flex:1;height:44px;background:rgba(201,169,110,0.1);border:1px solid rgba(201,169,110,0.3);border-radius:10px;color:var(--gold2);font-size:13px;font-weight:600;cursor:pointer">🔄 Complemento</button>
+          <button onclick="abrirReposicaoPeca('${i.id}')" style="flex:1;height:44px;background:rgba(96,144,208,0.1);border:1px solid rgba(96,144,208,0.3);border-radius:10px;color:var(--blue);font-size:13px;font-weight:600;cursor:pointer">🔩 Repor peça</button>
         </div>
       </div>`;
     });
