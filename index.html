@@ -4831,7 +4831,7 @@ function updateBadges() {
   const el_sent_h = document.getElementById('sent-hoje');      if(el_sent_h) el_sent_h.textContent=entHoje.length;
   const el_sent_s = document.getElementById('sent-semana');    if(el_sent_s) el_sent_s.textContent=entSem.length;
   const el_sent_c = document.getElementById('sent-concluidas');if(el_sent_c) el_sent_c.textContent=entConc.length;
-  const el_bag_ent = document.getElementById('badge-entrega'); if(el_bag_ent) el_bag_ent.textContent=entHoje.length||'';
+  const el_bag_ent = document.getElementById('badge-entrega'); if(el_bag_ent) el_bag_ent.textContent=entPend.length||'';
   // stats instalacao
   const instals = (DB.instalacoes||[]);
   const insPend = instals.filter(i=>!i.concluida);
@@ -4842,7 +4842,7 @@ function updateBadges() {
   const el_sins_h = document.getElementById('sins-hoje');      if(el_sins_h) el_sins_h.textContent=insHoje.length;
   const el_sins_s = document.getElementById('sins-semana');    if(el_sins_s) el_sins_s.textContent=insSem.length;
   const el_sins_c = document.getElementById('sins-concluidas');if(el_sins_c) el_sins_c.textContent=insConc.length;
-  const el_bag_ins = document.getElementById('badge-instalacao'); if(el_bag_ins) el_bag_ins.textContent=insHoje.length||'';
+  const el_bag_ins = document.getElementById('badge-instalacao'); if(el_bag_ins) el_bag_ins.textContent=insPend.length||'';
   const concluidos = DB.projetos.filter(p => p.status === 'concluido');
   const el_bag_conc = document.getElementById('badge-concluidos');
   if (el_bag_conc) { el_bag_conc.textContent = concluidos.length||''; el_bag_conc.style.display = concluidos.length ? '' : 'none'; }
