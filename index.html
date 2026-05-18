@@ -10072,6 +10072,114 @@ function _setProdQBool(prodId, quadro, campo, valor) {
   pushProducao(p).catch(()=>{});
 }
 
+
+function abrirModalEntregaAuto(prod, proj, lead) {
+  const dataEntrega = prod.dataEntrega || proj?.prazos?.entrega || '';
+  const cliente = prod.clienteNome || proj?.nome || '';
+  const endereco = lead?.obs || lead?.enderecoEntrega || '';
+  const ambientes = (prod.ambientes||[]).map(a=>a.nome||a).join(', ') || 
+                    (lead?.ambientesBriefing||[]).map(a=>a.nome||a.tipo).join(', ') || '';
+  const responsavel = prod.responsavelEntrega || '';
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#141414;border:1px solid rgba(92,184,130,0.3);border-radius:16px;padding:28px;max-width:500px;width:100%';
+
+  div.innerHTML = `
+    <div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">🚚 Criar Entrega</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:20px">Fábrica confirmou recebimento — agende a entrega</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Cliente</label>
+        <input id="ent-auto-cliente" value="${cliente}" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:9px;outline:none">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Responsável entrega</label>
+        <select id="ent-auto-resp" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:9px;outline:none">
+          <option value="">Selecionar...</option>
+          ${getUsersByPerfil().map(n=>`<option value="${n}" ${n===responsavel?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Endereço *</label>
+      <input id="ent-auto-endereco" value="${endereco}" placeholder="Rua, número, bairro, cidade..." style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:9px;outline:none">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:var(--gold2);display:block;margin-bottom:5px;font-weight:600">📅 Data de entrega *</label>
+        <input id="ent-auto-data" type="date" value="${dataEntrega}" style="width:100%;background:rgba(201,169,110,0.06);border:1px solid var(--gold);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:9px;outline:none">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Horário</label>
+        <input id="ent-auto-hora" type="time" style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:9px;outline:none">
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Ambientes / Itens</label>
+      <input id="ent-auto-itens" value="${ambientes}" placeholder="Ex: Cozinha completa, Quarto Master..." style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:9px;outline:none">
+    </div>
+
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px">Observações</label>
+      <textarea id="ent-auto-obs" placeholder="Acesso, portaria, elevador..." style="width:100%;min-height:60px;background:#1e1e1e;border:1px solid #333;border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;padding:9px;outline:none;resize:vertical"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button id="ent-auto-skip" style="flex:1;padding:12px;background:transparent;border:1px solid #333;border-radius:8px;color:#888;font-size:13px;cursor:pointer">Pular por agora</button>
+      <button id="ent-auto-ok" style="flex:2;padding:12px;background:var(--green);color:#0d0d0d;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🚚 Criar entrega</button>
+    </div>`;
+
+  div.querySelector('#ent-auto-skip').onclick = () => document.body.removeChild(ov);
+  div.querySelector('#ent-auto-ok').onclick = async () => {
+    const data = div.querySelector('#ent-auto-data').value;
+    const cliente2 = div.querySelector('#ent-auto-cliente').value.trim();
+    if (!data || !cliente2) { toast('Preencha cliente e data'); return; }
+
+    const btn = div.querySelector('#ent-auto-ok');
+    btn.disabled=true; btn.textContent='⏳ Criando...';
+
+    const entrega = {
+      id: 'ENT'+Date.now(),
+      cliente: cliente2,
+      endereco: div.querySelector('#ent-auto-endereco').value.trim(),
+      responsavel: div.querySelector('#ent-auto-resp').value,
+      hora: div.querySelector('#ent-auto-hora').value,
+      itens: div.querySelector('#ent-auto-itens').value.trim(),
+      obs: div.querySelector('#ent-auto-obs').value.trim(),
+      data, concluida: false,
+      criadoEm: new Date().toISOString(),
+      projetoId: prod.projetoId||''
+    };
+
+    if (!DB.entregas) DB.entregas = [];
+    DB.entregas.push(entrega);
+    try {
+      await sbFetch('entregas?on_conflict=id','POST',[{
+        id:entrega.id, cliente:entrega.cliente, endereco:entrega.endereco,
+        responsavel:entrega.responsavel, hora:entrega.hora, itens:entrega.itens,
+        obs:entrega.obs, data:entrega.data, concluida:false,
+        criado_em:entrega.criadoEm
+      }],'resolution=merge-duplicates');
+      renderEntrega(); updateBadges();
+      toast('✓ Entrega criada para ' + formatDate(data));
+      document.body.removeChild(ov);
+    } catch(e) {
+      toast('Erro: '+e.message);
+      btn.disabled=false; btn.textContent='🚚 Criar entrega';
+    }
+  };
+
+  ov.appendChild(div);
+  ov.addEventListener('click', e=>{ if(e.target===ov) document.body.removeChild(ov); });
+  document.body.appendChild(ov);
+}
+
 async function confirmarQuadro(prodId, quadro) {
   const p = (DB.producao||[]).find(x=>x.id===prodId);
   if (!p) return;
@@ -10092,6 +10200,12 @@ async function confirmarQuadro(prodId, quadro) {
       DB.tarefas.splice(idx, 1);
       sbFetch('tarefas?id=eq.'+tarefaId, 'DELETE').catch(()=>{});
     }
+  }
+  // Abrir modal de entrega quando recebido pela fábrica (não assistência)
+  if (quadro === 'recebidoFabrica' && !p.isAssistencia) {
+    const proj = DB.projetos.find(x=>x.id===p.projetoId);
+    const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+    setTimeout(() => abrirModalEntregaAuto(p, proj, lead), 400);
   }
   // Marcar como "ok" — o campo confirmedAt serve de flag
   // Também atualiza etapa geral do prod
