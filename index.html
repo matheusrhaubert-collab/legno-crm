@@ -4576,6 +4576,7 @@ async function loadFromSupabase() {
       projetoId: i.projeto_id||'', producaoId: i.producao_id||'',
       ambientesDetalhados: i.ambientes_detalhados||[],
       tel: i.tel||'', email: i.email||'',
+      checklistAmbientes: (i.checklist_ambientes && typeof i.checklist_ambientes === 'object' && !Array.isArray(i.checklist_ambientes)) ? i.checklist_ambientes : {},
     }));
 
     renderAll();
@@ -8807,55 +8808,218 @@ const CHECKLIST_INSTALACAO_PADRAO = [
   {titulo:'Acabamento', descricao:'5️⃣ Acabamento final — ajustes, limpeza e entrega ao cliente', responsavel:'', foto:null, concluido:false, dataConclusao:null}
 ];
 
-// ── Quadros de etapas inline no card de instalação ──────────────────────────
-function _renderQuadrosInstalacao(inst) {
-  const cl = Array.isArray(inst.checklist) ? inst.checklist
-    : (typeof inst.checklist === 'string' ? JSON.parse(inst.checklist||'[]') : []);
-  // Usa itens do checklist se já existir, senão usa o padrão para exibir
-  const itens = cl.length ? cl : CHECKLIST_INSTALACAO_PADRAO;
-  const nums = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'];
-  const titulos = ['Organizar','Separar IDs','Montar','Nivelar','Acabamento'];
-  const feitos = itens.filter(c=>c.concluido).length;
-  const total = itens.length;
-  const pct = total > 0 ? Math.round(feitos/total*100) : 0;
-  const corProg = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--gold)';
+// ── Quadros de etapas inline no card de instalação — por ambiente ─────────────
+function _getChecklistAmbientes(inst) {
+  // Retorna objeto {nomeAmb: [5 etapas]}
+  if (inst.checklistAmbientes && typeof inst.checklistAmbientes === 'object' && !Array.isArray(inst.checklistAmbientes)) {
+    return inst.checklistAmbientes;
+  }
+  return {};
+}
 
-  const quadros = itens.map((item, idx) => {
-    const done = item.concluido;
-    const titulo = item.titulo || titulos[idx] || `Etapa ${idx+1}`;
-    const num = nums[idx] || `${idx+1}`;
-    const bordaCor = done ? 'var(--green)' : 'var(--border2)';
-    const bgCor = done ? 'rgba(92,184,130,0.08)' : 'var(--bg3)';
-    const fotoHtml = item.foto
-      ? `<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:5px"><img src="${item.foto}" style="width:100%;height:100%;object-fit:cover"></div>`
-      : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;margin-bottom:5px;font-size:20px">${done?'✅':'📷'}</div>`;
-    return `<div onclick="event.stopPropagation();abrirEtapaQuadro('${inst.id}',${idx})"
-      style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:10px;padding:8px 6px;cursor:pointer;transition:all 0.15s;text-align:center">
-      ${fotoHtml}
-      <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${num} ${titulo}</div>
-      ${item.dataConclusao?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${item.dataConclusao}</div>`:''}
+function _getAmbientesInstalacao(inst) {
+  // Lista de nomes de ambientes da instalação
+  if (inst.ambientesDetalhados && inst.ambientesDetalhados.length) {
+    return inst.ambientesDetalhados.map(a => a.nome || a.tipo || a).filter(Boolean);
+  }
+  if (inst.ambientes && inst.ambientes.trim()) {
+    return inst.ambientes.split(/[,;]/).map(s=>s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function _novoChecklistAmb() {
+  return JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
+}
+
+function _renderQuadrosInstalacao(inst) {
+  const ambientes = _getAmbientesInstalacao(inst);
+
+  // Fallback: sem ambientes definidos, mostra checklist global (comportamento antigo)
+  if (!ambientes.length) {
+    const cl = Array.isArray(inst.checklist) ? inst.checklist
+      : (typeof inst.checklist === 'string' ? JSON.parse(inst.checklist||'[]') : []);
+    const itens = cl.length ? cl : CHECKLIST_INSTALACAO_PADRAO;
+    const feitos = itens.filter(c=>c.concluido).length;
+    const total = itens.length;
+    const pct = total > 0 ? Math.round(feitos/total*100) : 0;
+    const corProg = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--gold)';
+    const quadros = itens.map((item, idx) => {
+      const done = item.concluido;
+      const titulo = item.titulo || `Etapa ${idx+1}`;
+      const bordaCor = done ? 'var(--green)' : 'var(--border2)';
+      const bgCor = done ? 'rgba(92,184,130,0.08)' : 'var(--bg3)';
+      const fotoHtml = item.foto
+        ? `<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:5px"><img src="${item.foto}" style="width:100%;height:100%;object-fit:cover"></div>`
+        : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;margin-bottom:5px;font-size:20px">${done?'✅':'📷'}</div>`;
+      return `<div onclick="event.stopPropagation();abrirEtapaQuadro('${inst.id}',${idx})"
+        style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:10px;padding:8px 6px;cursor:pointer;transition:all 0.15s;text-align:center">
+        ${fotoHtml}
+        <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${titulo}</div>
+        ${item.dataConclusao?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${item.dataConclusao}</div>`:''}
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--text3);font-weight:500">Etapas de instalação</span>
+        <span style="font-size:11px;font-weight:600;color:${corProg}">${feitos}/${total}</span>
+      </div>
+      <div style="display:flex;gap:6px">${quadros}</div>
+      <div style="height:3px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-top:6px">
+        <div style="height:100%;width:${pct}%;background:${corProg};border-radius:99px;transition:width 0.4s"></div>
+      </div>
+    </div>`;
+  }
+
+  // ── Por ambiente ──────────────────────────────────────────────────────────
+  const ca = _getChecklistAmbientes(inst);
+
+  // Total geral para barra de resumo
+  let totalGeral = 0, feitosGeral = 0;
+  ambientes.forEach(nome => {
+    const etapas = ca[nome] || CHECKLIST_INSTALACAO_PADRAO;
+    totalGeral += etapas.length;
+    feitosGeral += etapas.filter(c=>c.concluido).length;
+  });
+  const pctGeral = totalGeral > 0 ? Math.round(feitosGeral/totalGeral*100) : 0;
+  const corGeral = pctGeral===100?'var(--green)':pctGeral>50?'var(--amber)':'var(--gold)';
+
+  const blocos = ambientes.map(nomeAmb => {
+    const etapas = ca[nomeAmb] || CHECKLIST_INSTALACAO_PADRAO;
+    const feitos = etapas.filter(c=>c.concluido).length;
+    const total = etapas.length;
+    const pct = total > 0 ? Math.round(feitos/total*100) : 0;
+    const corProg = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--gold)';
+    const ambConcluido = pct === 100;
+
+    const quadros = etapas.map((item, idx) => {
+      const done = item.concluido;
+      const titulo = item.titulo || `Etapa ${idx+1}`;
+      const bordaCor = done ? 'var(--green)' : 'var(--border2)';
+      const bgCor = done ? 'rgba(92,184,130,0.08)' : 'var(--bg3)';
+      const fotoHtml = item.foto
+        ? `<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:4px"><img src="${item.foto}" style="width:100%;height:100%;object-fit:cover"></div>`
+        : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;margin-bottom:4px;font-size:18px">${done?'✅':'📷'}</div>`;
+      return `<div onclick="event.stopPropagation();abrirEtapaAmbiente('${inst.id}','${nomeAmb.replace(/'/g,"\\'")}',${idx})"
+        style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:8px;padding:7px 5px;cursor:pointer;transition:all 0.15s;text-align:center">
+        ${fotoHtml}
+        <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${titulo}</div>
+        ${item.dataConclusao?`<div style="font-size:9px;color:var(--text3);margin-top:1px">${item.dataConclusao}</div>`:''}
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:10px;background:var(--bg3);border:0.5px solid ${ambConcluido?'var(--green)':'var(--border)'};border-radius:10px;padding:10px 10px 8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <span style="font-size:11px;font-weight:600;color:${ambConcluido?'var(--green)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">🏠 ${nomeAmb}</span>
+        <span style="font-size:11px;font-weight:600;color:${corProg};flex-shrink:0">${feitos}/${total} · ${pct}%</span>
+      </div>
+      <div style="display:flex;gap:5px">${quadros}</div>
+      <div style="height:3px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:7px">
+        <div style="height:100%;width:${pct}%;background:${corProg};border-radius:99px;transition:width 0.4s"></div>
+      </div>
     </div>`;
   }).join('');
 
   return `<div style="margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <span style="font-size:11px;color:var(--text3);font-weight:500">Etapas de instalação</span>
-      <span style="font-size:11px;font-weight:600;color:${corProg}">${feitos}/${total}</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:0.4px">Etapas por ambiente</span>
+      <span style="font-size:11px;font-weight:600;color:${corGeral}">${feitosGeral}/${totalGeral} · ${pctGeral}%</span>
     </div>
-    <div style="display:flex;gap:6px">${quadros}</div>
-    <div style="height:3px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-top:6px">
-      <div style="height:100%;width:${pct}%;background:${corProg};border-radius:99px;transition:width 0.4s"></div>
-    </div>
+    ${blocos}
   </div>`;
 }
 
-// ── Overlay de etapa individual ──────────────────────────────────────────────
+// ── Abrir etapa de um ambiente específico ──────────────────────────────────
 let _etapaInstId = null;
 let _etapaIdx = null;
+let _etapaAmbNome = null; // null = modo global (checklist antigo)
 
+function abrirEtapaAmbiente(instId, nomeAmb, idx) {
+  _etapaInstId = instId;
+  _etapaIdx = idx;
+  _etapaAmbNome = nomeAmb;
+
+  const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
+  if (!inst) return;
+
+  // Garante estrutura checklistAmbientes
+  if (!inst.checklistAmbientes || typeof inst.checklistAmbientes !== 'object' || Array.isArray(inst.checklistAmbientes)) {
+    inst.checklistAmbientes = {};
+  }
+  if (!inst.checklistAmbientes[nomeAmb]) {
+    inst.checklistAmbientes[nomeAmb] = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
+  }
+
+  const item = inst.checklistAmbientes[nomeAmb][idx];
+  if (!item) return;
+
+  const ov = document.createElement('div');
+  ov.id = 'etapa-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+  ov.innerHTML = `
+    <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
+      <button onclick="fecharEtapaQuadro()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text)">${item.descricao}</div>
+        <div style="font-size:11px;color:var(--gold2);margin-top:1px">🏠 ${nomeAmb} · ${inst.cliente}</div>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch" id="etapa-body">
+      <div id="etapa-foto-area" onclick="document.getElementById('etapa-foto-input').click()"
+        style="width:100%;max-width:480px;margin:0 auto;aspect-ratio:4/3;border-radius:14px;overflow:hidden;border:1.5px dashed var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg3);position:relative">
+        ${item.foto
+          ? `<img id="etapa-foto-img" src="${item.foto}" style="width:100%;height:100%;object-fit:cover">`
+          : `<div style="text-align:center;color:var(--text3);pointer-events:none"><div style="font-size:48px;margin-bottom:8px">📷</div><div style="font-size:13px">Toque para tirar foto</div></div>`}
+      </div>
+      <input type="file" id="etapa-foto-input" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoEtapa(this)">
+      ${item.foto ? `<button onclick="removerFotoEtapa()" style="width:100%;max-width:480px;margin:0 auto;height:40px;background:transparent;border:0.5px solid var(--border2);border-radius:10px;color:var(--text3);font-size:13px;cursor:pointer">🗑 Remover foto</button>` : ''}
+      <div style="max-width:480px;margin:0 auto;width:100%">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Responsável</label>
+        <input id="etapa-responsavel" value="${item.responsavel||''}" placeholder="Nome do responsável..."
+          oninput="_salvarResponsavelEtapaAmb(this.value)"
+          style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:12px 14px;outline:none;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0;display:flex;gap:10px">
+      <button id="etapa-toggle-btn" onclick="toggleEtapaAmbiente()" style="flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;${item.concluido?'background:rgba(92,184,130,0.15);color:var(--green);border:1px solid rgba(92,184,130,0.4)':'background:var(--gold);color:#0d0d0d'}">
+        ${item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída'}
+      </button>
+    </div>`;
+
+  document.body.appendChild(ov);
+}
+
+function _salvarResponsavelEtapaAmb(val) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
+  const etapas = inst.checklistAmbientes[_etapaAmbNome];
+  if (etapas && etapas[_etapaIdx]) etapas[_etapaIdx].responsavel = val;
+}
+
+async function toggleEtapaAmbiente() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
+  const etapas = inst.checklistAmbientes[_etapaAmbNome];
+  if (!etapas || !etapas[_etapaIdx]) return;
+  const item = etapas[_etapaIdx];
+  item.concluido = !item.concluido;
+  item.dataConclusao = item.concluido ? new Date().toISOString().slice(0,10) : null;
+  item.horaConclusao = item.concluido ? new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null;
+  const btn = document.getElementById('etapa-toggle-btn');
+  if (btn) {
+    btn.style.cssText = item.concluido
+      ? 'flex:1;height:52px;border:1px solid rgba(92,184,130,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)'
+      : 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d';
+    btn.textContent = item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída';
+  }
+  await _salvarEtapa(inst);
+}
+
+// ── Overlay de etapa individual (modo global / checklist antigo) ─────────────
 function abrirEtapaQuadro(instId, idx) {
   _etapaInstId = instId;
   _etapaIdx = idx;
+  _etapaAmbNome = null; // modo global
   const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
   if (!inst) return;
   if (!inst.checklist || !inst.checklist.length) {
@@ -8931,8 +9095,18 @@ async function uploadFotoEtapa(input) {
   const file = input.files[0];
   if (!file) return;
   const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !inst.checklist) return;
-  const item = inst.checklist[_etapaIdx];
+  if (!inst) return;
+
+  // Resolve o item correto (modo por ambiente ou modo global)
+  let item;
+  if (_etapaAmbNome) {
+    if (!inst.checklistAmbientes) inst.checklistAmbientes = {};
+    if (!inst.checklistAmbientes[_etapaAmbNome]) inst.checklistAmbientes[_etapaAmbNome] = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
+    item = inst.checklistAmbientes[_etapaAmbNome][_etapaIdx];
+  } else {
+    if (!inst.checklist) return;
+    item = inst.checklist[_etapaIdx];
+  }
   if (!item) return;
 
   toast('📷 Enviando foto...');
@@ -8940,7 +9114,8 @@ async function uploadFotoEtapa(input) {
     const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
     const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
     const nomePasso = item.titulo || ('etapa'+_etapaIdx);
-    const path = `instalacao/${clean(inst.cliente||'cliente')}/${clean(nomePasso)}/${_etapaIdx}_${Date.now()}.${ext}`;
+    const subPath = _etapaAmbNome ? clean(_etapaAmbNome)+'/'+clean(nomePasso) : clean(nomePasso);
+    const path = `instalacao/${clean(inst.cliente||'cliente')}/${subPath}/${_etapaIdx}_${Date.now()}.${ext}`;
     const ab = await file.arrayBuffer();
     const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
       method:'POST',
@@ -8988,8 +9163,13 @@ function _atualizarFotoEtapaUI(fotoUrl) {
 
 async function removerFotoEtapa() {
   const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !inst.checklist) return;
-  const item = inst.checklist[_etapaIdx];
+  if (!inst) return;
+  let item;
+  if (_etapaAmbNome && inst.checklistAmbientes && inst.checklistAmbientes[_etapaAmbNome]) {
+    item = inst.checklistAmbientes[_etapaAmbNome][_etapaIdx];
+  } else if (inst.checklist) {
+    item = inst.checklist[_etapaIdx];
+  }
   if (!item) return;
   item.foto = null;
   const area = document.getElementById('etapa-foto-area');
@@ -9000,12 +9180,20 @@ async function removerFotoEtapa() {
 
 async function _salvarEtapa(inst) {
   try {
-    const payload = (inst.checklist||[]).map(c => ({
-      titulo: c.titulo||'', descricao: c.descricao, responsavel: c.responsavel||'',
-      concluido: c.concluido, dataConclusao: c.dataConclusao||null,
-      horaConclusao: c.horaConclusao||null, foto: c.foto||null
-    }));
-    await sbFetch('instalacoes?id=eq.'+inst.id, 'PATCH', {checklist: payload});
+    const patch = {};
+    // Salva checklist global (modo antigo)
+    if (inst.checklist && inst.checklist.length) {
+      patch.checklist = inst.checklist.map(c => ({
+        titulo: c.titulo||'', descricao: c.descricao, responsavel: c.responsavel||'',
+        concluido: c.concluido, dataConclusao: c.dataConclusao||null,
+        horaConclusao: c.horaConclusao||null, foto: c.foto||null
+      }));
+    }
+    // Salva checklistAmbientes (novo modo por ambiente)
+    if (inst.checklistAmbientes && typeof inst.checklistAmbientes === 'object') {
+      patch.checklist_ambientes = inst.checklistAmbientes;
+    }
+    await sbFetch('instalacoes?id=eq.'+inst.id, 'PATCH', patch);
     renderInstalacao();
   } catch(e) { toast('⚠ Erro ao salvar: '+e.message); }
 }
