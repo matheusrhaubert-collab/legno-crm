@@ -5705,7 +5705,7 @@ function renderProjetos(filter='') {
               </div>
             `}
             <div style="display:flex;gap:5px;margin-top:auto;padding-top:6px">
-              ${temFotos?`<button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(96,144,208,0.3);color:var(--blue)" onclick="event.stopPropagation();abrirLightbox(${JSON.stringify(fotos.map(f=>f.url||f))},0)">👁️ Visualizar</button>`:''}
+              ${temFotos?`<button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(96,144,208,0.3);color:var(--blue)" data-lb-urls="${encodeURIComponent(JSON.stringify(fotos.map(f=>f.url||f)))}" onclick="event.stopPropagation();abrirLightbox(JSON.parse(decodeURIComponent(this.dataset.lbUrls)),0)">👁️ Visualizar</button>`:''}
               <button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="event.stopPropagation();${travadoFotoOnclick}">${travado?'🔒':'🖼'} ${temFotos?'Adicionar':'Enviar fotos'}</button>
             </div>
           </div>
@@ -13207,6 +13207,9 @@ checkSession();
 </div>
 <script>
 let _lbFotos=[],_lbIdx=0;
+window._lbFotoMap={};
+function _lbSet(k,urls){window._lbFotoMap[k]=urls;}
+function _lbOpen(k){abrirLightbox(window._lbFotoMap[k]||[],0);}
 function abrirLightbox(fotos,idx){_lbFotos=fotos.filter(Boolean);if(!_lbFotos.length)return;_lbIdx=idx||0;document.getElementById('lightbox-overlay').classList.add('open');document.body.style.overflow='hidden';lbMostrar();document.addEventListener('keydown',_lbKey);}
 function fecharLightbox(){document.getElementById('lightbox-overlay').classList.remove('open');document.body.style.overflow='';document.removeEventListener('keydown',_lbKey);}
 function lbMostrar(){const img=document.getElementById('lightbox-img');img.classList.add('fading');setTimeout(()=>{img.src=_lbFotos[_lbIdx];img.onload=()=>img.classList.remove('fading');img.onerror=()=>img.classList.remove('fading');document.getElementById('lb-counter').textContent=(_lbIdx+1)+' / '+_lbFotos.length;const s=_lbFotos.length>1;document.getElementById('lb-prev').style.display=s?'flex':'none';document.getElementById('lb-next').style.display=s?'flex':'none';},120);}
