@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="STUDIO LEGNO CRM">
 <meta name="theme-color" content="#0d0d0d">
 <link rel="manifest" href="manifest.json">
-<!-- CRM v2.1 - 2026-05-11 -->
+<!-- CRM v2.2 - 2026-05-18 — Checklist instalação com 5 etapas padrão -->
 <title>STUDIO LEGNO CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -8801,11 +8801,24 @@ async function confirmarEnvioProducao() {
 let _checklistInstId = null;
 let _checklistItems = []; // local working copy
 
+// Etapas padrão da instalação — pré-carregadas quando o checklist está vazio
+const CHECKLIST_INSTALACAO_PADRAO = [
+  {descricao:'1️⃣ Organizar espaço e ferramentas — colar desenhos na parede e posicionar peças próximas ao ambiente', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {descricao:'2️⃣ Separar os módulos por IDs', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {descricao:'3️⃣ Montar caixas dos módulos — pés, suportes de prateleiras e corrediças', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {descricao:'4️⃣ Nivelar e fixar os móveis na parede', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {descricao:'5️⃣ Acabamento final — ajustes, limpeza e entrega ao cliente', responsavel:'', foto:null, concluido:false, dataConclusao:null}
+];
+
 function abrirChecklist(instId) {
   _checklistInstId = instId;
   const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
   if (!inst) return;
   if (!inst.checklist) inst.checklist = [];
+  // Pré-carrega etapas padrão se o checklist estiver vazio
+  if (!inst.checklist.length) {
+    inst.checklist = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
+  }
   // Work on a deep copy — never lose edits due to background sync
   _checklistItems = JSON.parse(JSON.stringify(inst.checklist));
 
