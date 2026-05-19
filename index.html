@@ -3437,8 +3437,13 @@ function abrirContrato(projetoId) {
     +'<div style="font-size:12px;color:var(--text3);margin-bottom:20px">'+p.nome+'</div>'
 
     +'<div style="background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.15);border-radius:10px;padding:14px;margin-bottom:16px">'
-    +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--text3)">Valor do contrato</span><span style="font-size:14px;font-weight:700;color:var(--gold2)">'+fmtV(precoFinal)+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--text3)">Condição</span><span style="font-size:12px;color:var(--text2)">'+(p.condicaoTipo==='avista'?'À vista':p.condicaoTipo==='financiado'?'Financiado':'Parcelado')+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Valor do contrato</span><span style="font-size:10px;color:var(--text3);font-style:italic">editável</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<span style="font-size:16px;color:var(--gold2);font-weight:700">$</span>'
+    +'<input id="ct-valor" type="number" step="0.01" min="0" value="'+precoFinal.toFixed(2)+'" style="flex:1;background:#1a1a1a;border:1px solid rgba(201,169,110,0.4);border-radius:8px;color:var(--gold2);font-size:18px;font-weight:700;padding:8px 12px;outline:none;font-family:DM Mono,monospace">'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:12px;color:var(--text3)">Condição</span><span style="font-size:12px;color:var(--text2)">'+(p.condicaoTipo==='avista'?'À vista':p.condicaoTipo==='financiado'?'Financiado':'Parcelado')+'</span></div>'
+    +(precoFinal !== (precoFinalAmb||0) && precoFinalAmb > 0 ? '' : precoFinal <= 0 ? '<div style="font-size:11px;color:var(--red);margin-top:6px">⚠ Valor zero — insira o valor negociado com o cliente</div>' : '')
     +'</div>'
 
     +'<div style="margin-bottom:16px"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px">Idioma do contrato</label>'
@@ -3472,8 +3477,14 @@ function abrirContrato(projetoId) {
   div.querySelector('#ct-cancel').onclick = () => document.body.removeChild(ov);
   div.querySelector('#ct-gerar').onclick = () => {
     const dataContrato = div.querySelector('#ct-data-contrato').value;
+    const valorOverride = parseFloat(div.querySelector('#ct-valor')?.value||'0')||0;
+    if (valorOverride <= 0) { 
+      const el = div.querySelector('#ct-valor');
+      if (el) { el.style.borderColor='var(--red)'; el.focus(); }
+      return;
+    }
     document.body.removeChild(ov);
-    gerarContratoHTML(projetoId, langSel, dataContrato);
+    gerarContratoHTML(projetoId, langSel, dataContrato, valorOverride);
   };
 
   ov.appendChild(div);
@@ -3481,16 +3492,16 @@ function abrirContrato(projetoId) {
   document.body.appendChild(ov);
 }
 
-async function gerarContratoHTML(projetoId, lang, dataContrato) {
+async function gerarContratoHTML(projetoId, lang, dataContrato, valorOverride) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
   const lead = DB.leads.find(l=>l.id===p.leadId);
   if (!lead) return;
   const ambientes = lead.ambientesBriefing||[];
   const prazos = p.prazos||{};
-  // Valor do contrato = soma dos valores de venda por ambiente (editados manualmente)
+  // Valor do contrato: override do modal > soma ambientes > fallback projeto
   const precoFinalAmb = ambientes.reduce((s,a) => s + (a.finValorManual||a.finPrecoFinal||0), 0);
-  const precoFinal = precoFinalAmb || p.finPrecoFinal || p.condicaoPrecoFinal || 0;
+  const precoFinal = valorOverride > 0 ? valorOverride : (precoFinalAmb || p.condicaoPrecoFinal || p.finPrecoFinal || 0);
   const tipo = p.condicaoTipo||'parcelado';
   const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[
     {label:'Deposit',pct:20},{label:'Measurement & Approval',pct:30},{label:'Delivery',pct:30},{label:'Final / Installation',pct:20}
@@ -8972,15 +8983,22 @@ function _renderQuadrosInstalacao(inst) {
       const done = item.concluido;
       const titulo = item.titulo || `Etapa ${idx+1}`;
       const bordaCor = done ? 'var(--green)' : 'var(--border2)';
-      const bgCor = done ? 'rgba(92,184,130,0.08)' : 'var(--bg3)';
-      const fotoHtml = item.foto
-        ? `<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:4px"><img src="${item.foto}" style="width:100%;height:100%;object-fit:cover"></div>`
-        : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;margin-bottom:4px;font-size:18px">${done?'✅':'📷'}</div>`;
+      const bgCor = done ? 'rgba(92,184,130,0.1)' : 'var(--bg3)';
+      // Ícone central: número ou check
+      const iconeHtml = done
+        ? `<div style="width:36px;height:36px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:18px;color:#0d0d0d;font-weight:700">✓</div>`
+        : `<div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:14px;font-weight:700;color:var(--text3)">${idx+1}</div>`;
+      const infoHtml = done && item.confirmedBy
+        ? `<div style="font-size:8px;color:var(--green);margin-top:2px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.confirmedBy}</div>
+           <div style="font-size:8px;color:var(--text3)">${item.dataConclusao||''} ${item.horaConclusao||''}</div>`
+        : done
+        ? `<div style="font-size:8px;color:var(--text3);margin-top:2px">${item.dataConclusao||''}</div>`
+        : '';
       return `<div onclick="event.stopPropagation();abrirEtapaAmbiente('${inst.id}','${nomeAmb.replace(/'/g,"\\'")}',${idx})"
-        style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:8px;padding:7px 5px;cursor:pointer;transition:all 0.15s;text-align:center">
-        ${fotoHtml}
-        <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${titulo}</div>
-        ${item.dataConclusao?`<div style="font-size:9px;color:var(--text3);margin-top:1px">${item.dataConclusao}</div>`:''}
+        style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:8px;padding:10px 5px 8px;cursor:pointer;transition:all 0.15s;text-align:center">
+        ${iconeHtml}
+        <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px">${titulo}</div>
+        ${infoHtml}
       </div>`;
     }).join('');
 
@@ -9029,66 +9047,201 @@ function abrirEtapaAmbiente(instId, nomeAmb, idx) {
   const item = inst.checklistAmbientes[nomeAmb][idx];
   if (!item) return;
 
+  const usuarioNome = usuarioAtual?.nome || usuarioAtual?.email || 'Usuário';
+
   const ov = document.createElement('div');
   ov.id = 'etapa-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+
+  const jaFeito = item.concluido && item.foto;
+
   ov.innerHTML = `
+    <!-- Header -->
     <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
       <button onclick="fecharEtapaQuadro()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text)">${item.descricao}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text)">${item.titulo||'Etapa '+(idx+1)}</div>
         <div style="font-size:11px;color:var(--gold2);margin-top:1px">🏠 ${nomeAmb} · ${inst.cliente}</div>
       </div>
+      ${item.concluido ? `<div style="background:var(--green-dim);border:1px solid rgba(92,184,130,0.4);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--green)">✓ Concluída</div>` : ''}
     </div>
-    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch" id="etapa-body">
-      <div id="etapa-foto-area" onclick="document.getElementById('etapa-foto-input').click()"
-        style="width:100%;max-width:480px;margin:0 auto;aspect-ratio:4/3;border-radius:14px;overflow:hidden;border:1.5px dashed var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg3);position:relative">
-        ${item.foto
-          ? `<img id="etapa-foto-img" src="${item.foto}" style="width:100%;height:100%;object-fit:cover">`
-          : `<div style="text-align:center;color:var(--text3);pointer-events:none"><div style="font-size:48px;margin-bottom:8px">📷</div><div style="font-size:13px">Toque para tirar foto</div></div>`}
+
+    <!-- Body -->
+    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch">
+
+      <!-- Descrição da etapa -->
+      <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">O que fazer</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.7">${item.descricao}</div>
       </div>
-      <input type="file" id="etapa-foto-input" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoEtapa(this)">
-      ${item.foto ? `<button onclick="removerFotoEtapa()" style="width:100%;max-width:480px;margin:0 auto;height:40px;background:transparent;border:0.5px solid var(--border2);border-radius:10px;color:var(--text3);font-size:13px;cursor:pointer">🗑 Remover foto</button>` : ''}
-      <div style="max-width:480px;margin:0 auto;width:100%">
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Responsável</label>
-        <input id="etapa-responsavel" value="${item.responsavel||''}" placeholder="Nome do responsável..."
+
+      ${item.concluido && item.confirmedBy ? `
+      <!-- Info de conclusão -->
+      <div style="background:var(--green-dim);border:1px solid rgba(92,184,130,0.3);border-radius:10px;padding:14px 16px">
+        <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">✓ Confirmada por</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text)">${item.confirmedBy}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:3px">${item.dataConclusao||''} às ${item.horaConclusao||''}</div>
+        ${item.foto ? `<div style="margin-top:12px;border-radius:8px;overflow:hidden;max-height:200px"><img src="${item.foto}" style="width:100%;object-fit:cover"></div>` : ''}
+      </div>` : ''}
+
+      ${!item.concluido ? `
+      <!-- Zona de foto — OBRIGATÓRIA -->
+      <div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">📷 Foto obrigatória para confirmar</div>
+        <div id="etapa-foto-area" onclick="document.getElementById('etapa-foto-input').click()"
+          style="width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;border:2px dashed var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg3);position:relative;transition:border-color 0.2s">
+          <div id="etapa-foto-placeholder" style="text-align:center;color:var(--text3);pointer-events:none">
+            <div style="font-size:40px;margin-bottom:8px">📷</div>
+            <div style="font-size:13px;font-weight:500">Toque para fotografar</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">Obrigatório para confirmar etapa</div>
+          </div>
+        </div>
+        <input type="file" id="etapa-foto-input" accept="image/*" capture="environment" style="display:none" onchange="previewFotoEtapaAmb(this)">
+        <div id="etapa-foto-preview-wrap" style="display:none;margin-top:8px;position:relative">
+          <img id="etapa-foto-preview-img" style="width:100%;border-radius:10px;max-height:260px;object-fit:cover">
+          <button onclick="limparFotoEtapaAmb()" style="position:absolute;top:8px;right:8px;width:30px;height:30px;background:rgba(0,0,0,0.7);border:none;border-radius:50%;color:#fff;font-size:14px;cursor:pointer">✕</button>
+          <div style="margin-top:6px;padding:8px 12px;background:var(--green-dim);border:1px solid rgba(92,184,130,0.3);border-radius:8px;font-size:12px;color:var(--green)">✓ Foto pronta — clique em Confirmar</div>
+        </div>
+      </div>
+
+      <!-- Responsável -->
+      <div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Responsável</div>
+        <input id="etapa-responsavel" value="${item.responsavel||usuarioNome}" placeholder="Nome do responsável..."
           oninput="_salvarResponsavelEtapaAmb(this.value)"
           style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:12px 14px;outline:none;box-sizing:border-box">
-      </div>
+      </div>` : ''}
+
     </div>
+
+    <!-- Footer -->
     <div style="padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0;display:flex;gap:10px">
-      <button id="etapa-toggle-btn" onclick="toggleEtapaAmbiente()" style="flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;${item.concluido?'background:rgba(92,184,130,0.15);color:var(--green);border:1px solid rgba(92,184,130,0.4)':'background:var(--gold);color:#0d0d0d'}">
-        ${item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída'}
-      </button>
+      ${item.concluido ? `
+        <button onclick="desfazerEtapaAmbiente()" style="flex:1;height:52px;border:1px solid rgba(224,96,96,0.4);border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;background:rgba(224,96,96,0.08);color:var(--red)">
+          ↩ Desfazer
+        </button>
+      ` : `
+        <button id="etapa-confirmar-btn" onclick="confirmarEtapaAmbiente()" disabled
+          style="flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:not-allowed;background:var(--bg4);color:var(--text3);transition:all 0.2s" title="Tire uma foto primeiro">
+          📷 Tire a foto primeiro
+        </button>
+      `}
     </div>`;
 
   document.body.appendChild(ov);
 }
 
-function _salvarResponsavelEtapaAmb(val) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
-  const etapas = inst.checklistAmbientes[_etapaAmbNome];
-  if (etapas && etapas[_etapaIdx]) etapas[_etapaIdx].responsavel = val;
+// Preview local da foto antes de fazer upload
+window._etapaFotoFile = null;
+
+function previewFotoEtapaAmb(input) {
+  const file = input.files[0];
+  if (!file) return;
+  window._etapaFotoFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const area = document.getElementById('etapa-foto-area');
+    const placeholder = document.getElementById('etapa-foto-placeholder');
+    const wrap = document.getElementById('etapa-foto-preview-wrap');
+    const img = document.getElementById('etapa-foto-preview-img');
+    if (placeholder) placeholder.style.display = 'none';
+    if (area) area.style.display = 'none';
+    if (img) img.src = e.target.result;
+    if (wrap) wrap.style.display = 'block';
+    // Ativa botão confirmar
+    const btn = document.getElementById('etapa-confirmar-btn');
+    if (btn) {
+      btn.disabled = false;
+      btn.style.cssText = 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d;transition:all 0.2s';
+      btn.textContent = '✓ Confirmar etapa';
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
-async function toggleEtapaAmbiente() {
+function limparFotoEtapaAmb() {
+  window._etapaFotoFile = null;
+  const area = document.getElementById('etapa-foto-area');
+  const placeholder = document.getElementById('etapa-foto-placeholder');
+  const wrap = document.getElementById('etapa-foto-preview-wrap');
+  if (area) area.style.display = '';
+  if (placeholder) placeholder.style.display = '';
+  if (wrap) wrap.style.display = 'none';
+  const btn = document.getElementById('etapa-confirmar-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.style.cssText = 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:not-allowed;background:var(--bg4);color:var(--text3);transition:all 0.2s';
+    btn.textContent = '📷 Tire a foto primeiro';
+  }
+  const input = document.getElementById('etapa-foto-input');
+  if (input) input.value = '';
+}
+
+async function confirmarEtapaAmbiente() {
+  if (!window._etapaFotoFile) { toast('📷 Tire a foto da etapa antes de confirmar'); return; }
   const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
   if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
   const etapas = inst.checklistAmbientes[_etapaAmbNome];
   if (!etapas || !etapas[_etapaIdx]) return;
   const item = etapas[_etapaIdx];
-  item.concluido = !item.concluido;
-  item.dataConclusao = item.concluido ? new Date().toISOString().slice(0,10) : null;
-  item.horaConclusao = item.concluido ? new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null;
-  const btn = document.getElementById('etapa-toggle-btn');
-  if (btn) {
-    btn.style.cssText = item.concluido
-      ? 'flex:1;height:52px;border:1px solid rgba(92,184,130,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)'
-      : 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d';
-    btn.textContent = item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída';
+
+  const btn = document.getElementById('etapa-confirmar-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+
+  const now = new Date();
+  const responsavelInput = document.getElementById('etapa-responsavel');
+  const responsavelVal = responsavelInput?.value?.trim() || usuarioAtual?.nome || usuarioAtual?.email || 'Usuário';
+
+  // Upload da foto
+  let fotoUrl = null;
+  try {
+    const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
+    const ext = (window._etapaFotoFile.name.split('.').pop()||'jpg').toLowerCase();
+    const path = `instalacao/${clean(inst.cliente||'cliente')}/${clean(_etapaAmbNome)}/${clean(item.titulo||'etapa'+_etapaIdx)}_${Date.now()}.${ext}`;
+    const ab = await window._etapaFotoFile.arrayBuffer();
+    const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
+      method:'POST',
+      headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':window._etapaFotoFile.type||'image/jpeg','x-upsert':'true'},
+      body: ab
+    });
+    fotoUrl = resp.ok ? `${SB_URL}/storage/v1/object/public/imagens/${path}` : null;
+  } catch(e) {}
+
+  // Se upload falhou, usa base64 como fallback
+  if (!fotoUrl) {
+    const img = document.getElementById('etapa-foto-preview-img');
+    fotoUrl = img?.src || null;
   }
+
+  item.concluido = true;
+  item.foto = fotoUrl;
+  item.dataConclusao = now.toISOString().slice(0,10);
+  item.horaConclusao = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  item.confirmedBy = responsavelVal;
+  item.confirmedAt = now.toISOString();
+  item.responsavel = responsavelVal;
+
+  window._etapaFotoFile = null;
   await _salvarEtapa(inst);
+  fecharEtapaQuadro();
+  toast(`✓ Etapa "${item.titulo||'Etapa '+(idx+1)}" confirmada por ${responsavelVal}!`);
+}
+
+async function desfazerEtapaAmbiente() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
+  const etapas = inst.checklistAmbientes[_etapaAmbNome];
+  if (!etapas || !etapas[_etapaIdx]) return;
+  const item = etapas[_etapaIdx];
+  item.concluido = false;
+  item.foto = null;
+  item.dataConclusao = null;
+  item.horaConclusao = null;
+  item.confirmedBy = null;
+  item.confirmedAt = null;
+  await _salvarEtapa(inst);
+  fecharEtapaQuadro();
+  toast('↩ Etapa desfeita.');
 }
 
 // ── Overlay de etapa individual (modo global / checklist antigo) ─────────────
