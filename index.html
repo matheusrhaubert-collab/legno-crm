@@ -7010,15 +7010,12 @@ function renderInstalacao(filter='') {
       ${i.ambientes?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px">🏠 ${i.ambientes}</div>`:''}
       ${(i.tel||i.email)?`<div style="font-size:11px;color:var(--text3);margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap">${i.tel?`<span>📞 ${i.tel}</span>`:''} ${i.email?`<span>✉ ${i.email}</span>`:''}</div>`:''}
 ${_renderFotosInstalacao(i)}
-      <!-- Checklist progress -->
-      ${clTotal>0?`<div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px"><span>Checklist</span><span>${clFeitos}/${clTotal}</span></div>
-        <div style="height:4px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(clFeitos/clTotal*100)}%;background:${clFeitos===clTotal?'var(--green)':'var(--gold)'};border-radius:99px"></div></div>
-      </div>`:''}
+      <!-- Quadros de etapas -->
+      ${_renderQuadrosInstalacao(i)}
       <!-- Actions row 1 -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
         ${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3);text-decoration:none">🗺 Rota</a>`:''}
-        <button class="btn btn-sm" style="color:var(--amber);border-color:rgba(212,148,74,0.3)" onclick="event.stopPropagation();abrirChecklist('${i.id}')">☑ Checklist${clTotal?` (${clFeitos}/${clTotal})`:''}</button>
+        <button class="btn btn-sm" style="color:var(--text3);border-color:rgba(255,255,255,0.1)" onclick="event.stopPropagation();abrirChecklist('${i.id}')">📋 Relatório Final</button>
         ${!i.concluida?`<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();concluirInstalacao('${i.id}')">✓ Concluir</button>`:''}
       </div>
       <!-- Actions row 2 -->
@@ -8803,13 +8800,217 @@ let _checklistItems = []; // local working copy
 
 // Etapas padrão da instalação — pré-carregadas quando o checklist está vazio
 const CHECKLIST_INSTALACAO_PADRAO = [
-  {descricao:'1️⃣ Organizar espaço e ferramentas — colar desenhos na parede e posicionar peças próximas ao ambiente', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {descricao:'2️⃣ Separar os módulos por IDs', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {descricao:'3️⃣ Montar caixas dos módulos — pés, suportes de prateleiras e corrediças', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {descricao:'4️⃣ Nivelar e fixar os móveis na parede', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {descricao:'5️⃣ Acabamento final — ajustes, limpeza e entrega ao cliente', responsavel:'', foto:null, concluido:false, dataConclusao:null}
+  {titulo:'Organizar', descricao:'1️⃣ Organizar espaço e ferramentas — colar desenhos na parede e posicionar peças próximas ao ambiente', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {titulo:'Separar IDs', descricao:'2️⃣ Separar os módulos por IDs', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {titulo:'Montar caixas', descricao:'3️⃣ Montar caixas dos módulos — pés, suportes de prateleiras e corrediças', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {titulo:'Nivelar e fixar', descricao:'4️⃣ Nivelar e fixar os móveis na parede', responsavel:'', foto:null, concluido:false, dataConclusao:null},
+  {titulo:'Acabamento', descricao:'5️⃣ Acabamento final — ajustes, limpeza e entrega ao cliente', responsavel:'', foto:null, concluido:false, dataConclusao:null}
 ];
 
+// ── Quadros de etapas inline no card de instalação ──────────────────────────
+function _renderQuadrosInstalacao(inst) {
+  const cl = Array.isArray(inst.checklist) ? inst.checklist
+    : (typeof inst.checklist === 'string' ? JSON.parse(inst.checklist||'[]') : []);
+  // Usa itens do checklist se já existir, senão usa o padrão para exibir
+  const itens = cl.length ? cl : CHECKLIST_INSTALACAO_PADRAO;
+  const nums = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'];
+  const titulos = ['Organizar','Separar IDs','Montar','Nivelar','Acabamento'];
+  const feitos = itens.filter(c=>c.concluido).length;
+  const total = itens.length;
+  const pct = total > 0 ? Math.round(feitos/total*100) : 0;
+  const corProg = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--gold)';
+
+  const quadros = itens.map((item, idx) => {
+    const done = item.concluido;
+    const titulo = item.titulo || titulos[idx] || `Etapa ${idx+1}`;
+    const num = nums[idx] || `${idx+1}`;
+    const bordaCor = done ? 'var(--green)' : 'var(--border2)';
+    const bgCor = done ? 'rgba(92,184,130,0.08)' : 'var(--bg3)';
+    const fotoHtml = item.foto
+      ? `<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:5px"><img src="${item.foto}" style="width:100%;height:100%;object-fit:cover"></div>`
+      : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;margin-bottom:5px;font-size:20px">${done?'✅':'📷'}</div>`;
+    return `<div onclick="event.stopPropagation();abrirEtapaQuadro('${inst.id}',${idx})"
+      style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:10px;padding:8px 6px;cursor:pointer;transition:all 0.15s;text-align:center">
+      ${fotoHtml}
+      <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${num} ${titulo}</div>
+      ${item.dataConclusao?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${item.dataConclusao}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `<div style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--text3);font-weight:500">Etapas de instalação</span>
+      <span style="font-size:11px;font-weight:600;color:${corProg}">${feitos}/${total}</span>
+    </div>
+    <div style="display:flex;gap:6px">${quadros}</div>
+    <div style="height:3px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-top:6px">
+      <div style="height:100%;width:${pct}%;background:${corProg};border-radius:99px;transition:width 0.4s"></div>
+    </div>
+  </div>`;
+}
+
+// ── Overlay de etapa individual ──────────────────────────────────────────────
+let _etapaInstId = null;
+let _etapaIdx = null;
+
+function abrirEtapaQuadro(instId, idx) {
+  _etapaInstId = instId;
+  _etapaIdx = idx;
+  const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
+  if (!inst) return;
+  if (!inst.checklist || !inst.checklist.length) {
+    inst.checklist = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
+  }
+
+  const item = inst.checklist[idx];
+  if (!item) return;
+
+  const ov = document.createElement('div');
+  ov.id = 'etapa-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+  ov.innerHTML = `
+    <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
+      <button onclick="fecharEtapaQuadro()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text)">${item.descricao}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px">${inst.cliente}</div>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch" id="etapa-body">
+      <!-- Foto -->
+      <div id="etapa-foto-area" onclick="document.getElementById('etapa-foto-input').click()"
+        style="width:100%;max-width:480px;margin:0 auto;aspect-ratio:4/3;border-radius:14px;overflow:hidden;border:1.5px dashed var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg3);position:relative">
+        ${item.foto
+          ? `<img id="etapa-foto-img" src="${item.foto}" style="width:100%;height:100%;object-fit:cover">`
+          : `<div style="text-align:center;color:var(--text3);pointer-events:none"><div style="font-size:48px;margin-bottom:8px">📷</div><div style="font-size:13px">Toque para tirar foto</div></div>`}
+      </div>
+      <input type="file" id="etapa-foto-input" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoEtapa(this)">
+      ${item.foto ? `<button onclick="removerFotoEtapa()" style="width:100%;max-width:480px;margin:0 auto;height:40px;background:transparent;border:0.5px solid var(--border2);border-radius:10px;color:var(--text3);font-size:13px;cursor:pointer">🗑 Remover foto</button>` : ''}
+      <!-- Responsável -->
+      <div style="max-width:480px;margin:0 auto;width:100%">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Responsável</label>
+        <input id="etapa-responsavel" value="${item.responsavel||''}" placeholder="Nome do responsável..." oninput="(DB.instalacoes.find(x=>x.id==='${instId}')?.checklist||[])[${idx}] && (DB.instalacoes.find(x=>x.id==='${instId}').checklist[${idx}].responsavel=this.value)"
+          style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:12px 14px;outline:none;box-sizing:border-box">
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0;display:flex;gap:10px">
+      <button id="etapa-toggle-btn" onclick="toggleEtapaQuadro()" style="flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;${item.concluido?'background:rgba(92,184,130,0.15);color:var(--green);border:1px solid rgba(92,184,130,0.4)':'background:var(--gold);color:#0d0d0d'}">
+        ${item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída'}
+      </button>
+    </div>`;
+
+  document.body.appendChild(ov);
+}
+
+function fecharEtapaQuadro() {
+  const ov = document.getElementById('etapa-overlay');
+  if (ov) document.body.removeChild(ov);
+  renderInstalacao();
+}
+
+async function toggleEtapaQuadro() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !inst.checklist) return;
+  const item = inst.checklist[_etapaIdx];
+  if (!item) return;
+  item.concluido = !item.concluido;
+  item.dataConclusao = item.concluido ? new Date().toISOString().slice(0,10) : null;
+  item.horaConclusao = item.concluido ? new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null;
+  const btn = document.getElementById('etapa-toggle-btn');
+  if (btn) {
+    btn.style.cssText = item.concluido
+      ? 'flex:1;height:52px;border:1px solid rgba(92,184,130,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)'
+      : 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d';
+    btn.textContent = item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída';
+  }
+  await _salvarEtapa(inst);
+}
+
+async function uploadFotoEtapa(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !inst.checklist) return;
+  const item = inst.checklist[_etapaIdx];
+  if (!item) return;
+
+  toast('📷 Enviando foto...');
+  try {
+    const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
+    const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+    const nomePasso = item.titulo || ('etapa'+_etapaIdx);
+    const path = `instalacao/${clean(inst.cliente||'cliente')}/${clean(nomePasso)}/${_etapaIdx}_${Date.now()}.${ext}`;
+    const ab = await file.arrayBuffer();
+    const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
+      method:'POST',
+      headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':file.type||'image/jpeg','x-upsert':'true'},
+      body: ab
+    });
+    if (resp.ok) {
+      item.foto = `${SB_URL}/storage/v1/object/public/imagens/${path}`;
+    } else {
+      const reader = new FileReader();
+      reader.onload = e => { item.foto = e.target.result; _atualizarFotoEtapaUI(item.foto); };
+      reader.readAsDataURL(file);
+      toast('✓ Foto carregada!');
+      return;
+    }
+  } catch(e) {
+    const reader = new FileReader();
+    reader.onload = e => { item.foto = e.target.result; _atualizarFotoEtapaUI(item.foto); };
+    reader.readAsDataURL(file);
+    toast('✓ Foto carregada!');
+    return;
+  }
+  // Mark as concluded after photo
+  item.concluido = true;
+  const _now = new Date();
+  item.dataConclusao = _now.toISOString().slice(0,10);
+  item.horaConclusao = _now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  _atualizarFotoEtapaUI(item.foto);
+  input.value = '';
+  toast('✓ Foto salva!');
+  await _salvarEtapa(inst);
+  // Atualiza botão
+  const btn = document.getElementById('etapa-toggle-btn');
+  if (btn) {
+    btn.style.cssText = 'flex:1;height:52px;border:1px solid rgba(92,184,130,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)';
+    btn.textContent = '✓ Concluída — desfazer';
+  }
+}
+
+function _atualizarFotoEtapaUI(fotoUrl) {
+  const area = document.getElementById('etapa-foto-area');
+  if (!area) return;
+  area.innerHTML = `<img id="etapa-foto-img" src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover">`;
+}
+
+async function removerFotoEtapa() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !inst.checklist) return;
+  const item = inst.checklist[_etapaIdx];
+  if (!item) return;
+  item.foto = null;
+  const area = document.getElementById('etapa-foto-area');
+  if (area) area.innerHTML = `<div style="text-align:center;color:var(--text3);pointer-events:none"><div style="font-size:48px;margin-bottom:8px">📷</div><div style="font-size:13px">Toque para tirar foto</div></div>`;
+  await _salvarEtapa(inst);
+  toast('Foto removida.');
+}
+
+async function _salvarEtapa(inst) {
+  try {
+    const payload = (inst.checklist||[]).map(c => ({
+      titulo: c.titulo||'', descricao: c.descricao, responsavel: c.responsavel||'',
+      concluido: c.concluido, dataConclusao: c.dataConclusao||null,
+      horaConclusao: c.horaConclusao||null, foto: c.foto||null
+    }));
+    await sbFetch('instalacoes?id=eq.'+inst.id, 'PATCH', {checklist: payload});
+    renderInstalacao();
+  } catch(e) { toast('⚠ Erro ao salvar: '+e.message); }
+}
+
+// ── Checklist completo (relatório de pendências) ─────────────────────────────
 function abrirChecklist(instId) {
   _checklistInstId = instId;
   const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
@@ -8830,7 +9031,7 @@ function abrirChecklist(instId) {
     <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
       <button onclick="fecharChecklist()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">☑ Checklist</div>
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📋 Relatório Final</div>
         <div style="font-size:11px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.cliente}</div>
       </div>
       <button onclick="adicionarItemChecklist()" style="height:40px;padding:0 16px;background:var(--gold);color:#0d0d0d;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0">+ Item</button>
@@ -8838,7 +9039,7 @@ function abrirChecklist(instId) {
     <div id="checklist-lista" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
     <div style="padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0">
       <div id="checklist-progresso" style="margin-bottom:12px"></div>
-      <button onclick="salvarChecklist()" style="width:100%;height:52px;background:var(--gold);color:#0d0d0d;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.3px">💾 Salvar checklist</button>
+      <button onclick="salvarChecklist()" style="width:100%;height:52px;background:var(--gold);color:#0d0d0d;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.3px">💾 Salvar relatório</button>
     </div>
   `;
 
@@ -11450,17 +11651,9 @@ function mobRenderInstalacao(el) {
           ${i.data?`<span>📅 ${formatDate(i.data)}${i.hora?' '+i.hora:''}</span>`:''}
           ${i.responsavel?`<span>👤 ${i.responsavel}</span>`:''}
         </div>
-        ${total > 0 ? `
-        <div style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px">
-            <span>Checklist</span><span>${feitos}/${total} (${pct}%)</span>
-          </div>
-          <div style="height:4px;background:var(--bg3);border-radius:99px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:${pct===100?'var(--green)':'var(--gold)'};border-radius:99px"></div>
-          </div>
-        </div>` : ''}
+        ${_renderQuadrosInstalacao(i)}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <button onclick="abrirChecklist('${i.id}')" style="flex:1;height:44px;background:rgba(212,148,74,0.15);border:1px solid rgba(212,148,74,0.4);border-radius:10px;color:var(--amber);font-size:14px;font-weight:600;cursor:pointer">☑ Checklist${total?` (${feitos}/${total})`:''}</button>
+          <button onclick="abrirChecklist('${i.id}')" style="flex:1;height:44px;background:rgba(255,255,255,0.04);border:0.5px solid var(--border2);border-radius:10px;color:var(--text3);font-size:13px;font-weight:600;cursor:pointer">📋 Relatório Final</button>
           ${mapsUrl?`<a href="${mapsUrl}" target="_blank" style="height:44px;padding:0 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;color:var(--blue);font-size:14px;display:flex;align-items:center;text-decoration:none">🗺</a>`:''}
           ${!i.concluida?`<button onclick="concluirInstalacao('${i.id}');mobGoPage('instalacao')" style="height:44px;padding:0 14px;background:rgba(92,184,130,0.15);border:1px solid rgba(92,184,130,0.4);border-radius:10px;color:var(--green);font-size:14px;cursor:pointer">✓</button>`:''}
         </div>
