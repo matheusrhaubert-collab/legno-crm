@@ -8888,11 +8888,16 @@ let _checklistItems = []; // local working copy
 
 // Etapas padrão da instalação — pré-carregadas quando o checklist está vazio
 const CHECKLIST_INSTALACAO_PADRAO = [
-  {titulo:'Organizar', descricao:'1️⃣ Organizar espaço e ferramentas — colar desenhos na parede e posicionar peças próximas ao ambiente', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {titulo:'Separar IDs', descricao:'2️⃣ Separar os módulos por IDs', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {titulo:'Montar caixas', descricao:'3️⃣ Montar caixas dos módulos — pés, suportes de prateleiras e corrediças', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {titulo:'Nivelar e fixar', descricao:'4️⃣ Nivelar e fixar os móveis na parede', responsavel:'', foto:null, concluido:false, dataConclusao:null},
-  {titulo:'Acabamento', descricao:'5️⃣ Acabamento final — ajustes, limpeza e entrega ao cliente', responsavel:'', foto:null, concluido:false, dataConclusao:null}
+  {titulo:'Organizar', descricao:'Organizar espaço e ferramentas — colar desenhos na parede e posicionar peças próximas ao ambiente', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
+   subitens:[{label:'Espaço limpo e desobstruído',ok:false},{label:'Desenhos colados na parede',ok:false},{label:'Ferramentas organizadas',ok:false},{label:'Peças posicionadas por ambiente',ok:false}]},
+  {titulo:'Separar IDs', descricao:'Separar os módulos por IDs e conferir peças contra o projeto', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
+   subitens:[{label:'Todos os módulos identificados',ok:false},{label:'IDs conferidos com o projeto',ok:false},{label:'Peças faltantes registradas',ok:false}]},
+  {titulo:'Montar caixas', descricao:'Montar caixas dos módulos — pés, suportes de prateleiras e corrediças', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
+   subitens:[{label:'Caixas montadas corretamente',ok:false},{label:'Pés e suportes instalados',ok:false},{label:'Corrediças posicionadas',ok:false},{label:'Prateleiras encaixadas',ok:false}]},
+  {titulo:'Nivelar e fixar', descricao:'Nivelar e fixar os móveis na parede com esquadro e nível', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
+   subitens:[{label:'Módulos nivelados horizontalmente',ok:false},{label:'Fixação realizada com parafusos adequados',ok:false},{label:'Estrutura firme e segura',ok:false},{label:'Alinhamento conferido com esquadro',ok:false}]},
+  {titulo:'Acabamento', descricao:'Acabamento final — frontais, puxadores, ajustes, limpeza e entrega ao cliente', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
+   subitens:[{label:'Frontais e portas instalados',ok:false},{label:'Puxadores fixados',ok:false},{label:'Ajustes finos realizados',ok:false},{label:'Ambiente limpo e entregue',ok:false}]}
 ];
 
 // ── Quadros de etapas inline no card de instalação — por ambiente ─────────────
@@ -9036,195 +9041,298 @@ function abrirEtapaAmbiente(instId, nomeAmb, idx) {
   const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
   if (!inst) return;
 
-  // Garante estrutura checklistAmbientes
   if (!inst.checklistAmbientes || typeof inst.checklistAmbientes !== 'object' || Array.isArray(inst.checklistAmbientes)) {
     inst.checklistAmbientes = {};
   }
   if (!inst.checklistAmbientes[nomeAmb]) {
     inst.checklistAmbientes[nomeAmb] = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
   }
+  // Garante que subitens existam nas etapas já criadas
+  inst.checklistAmbientes[nomeAmb].forEach((it, i) => {
+    if (!it.subitens && CHECKLIST_INSTALACAO_PADRAO[i]?.subitens) {
+      it.subitens = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO[i].subitens));
+    }
+    if (!it.subitens) it.subitens = [];
+  });
 
-  const item = inst.checklistAmbientes[nomeAmb][idx];
+  const etapas = inst.checklistAmbientes[nomeAmb];
+  const item = etapas[idx];
   if (!item) return;
-
+  const total = etapas.length;
   const usuarioNome = usuarioAtual?.nome || usuarioAtual?.email || 'Usuário';
+
+  // Barra de progresso geral
+  const feitosGeral = etapas.filter(e=>e.concluido).length;
+  const pctGeral = Math.round(feitosGeral/total*100);
+
+  // Subitens
+  const subitens = item.subitens || [];
 
   const ov = document.createElement('div');
   ov.id = 'etapa-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;overflow:hidden';
-
-  const jaFeito = item.concluido && item.foto;
+  ov.style.cssText = 'position:fixed;inset:0;background:#0d0d0d;z-index:9999;display:flex;flex-direction:column;overflow:hidden;font-family:"DM Sans",sans-serif';
 
   ov.innerHTML = `
-    <!-- Header -->
-    <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
-      <button onclick="fecharEtapaQuadro()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text)">${item.titulo||'Etapa '+(idx+1)}</div>
-        <div style="font-size:11px;color:var(--gold2);margin-top:1px">🏠 ${nomeAmb} · ${inst.cliente}</div>
+  <!-- ── TOP BAR ── -->
+  <div style="background:#111;border-bottom:0.5px solid rgba(255,255,255,0.07);padding:0 16px;height:calc(54px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <button onclick="fecharEtapaQuadro()" style="width:36px;height:36px;background:rgba(255,255,255,0.06);border:none;border-radius:10px;color:#aaa;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">‹</button>
+    <div style="flex:1;min-width:0;text-align:center">
+      <div style="font-size:14px;font-weight:600;color:#f2ede8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeAmb}</div>
+      <div style="font-size:11px;color:#5a5654;margin-top:1px">${inst.cliente}</div>
+    </div>
+    <div style="width:36px;height:36px;flex-shrink:0"></div>
+  </div>
+
+  <!-- ── SCROLL BODY ── -->
+  <div id="etapa-overlay-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">
+
+    <!-- Cabeçalho da etapa -->
+    <div style="padding:20px 20px 0">
+      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600">Etapa ${idx+1} de ${total}</div>
+      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:500;color:#f2ede8;line-height:1.3;margin-bottom:4px">${item.titulo}</div>
+      <div style="font-size:13px;color:#8a8480;line-height:1.6;margin-bottom:16px">${item.descricao}</div>
+
+      <!-- Navegação de etapas — bolinhas -->
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">
+        ${etapas.map((e,i)=>{
+          const ativa = i===idx;
+          const feita = e.concluido;
+          const cor = feita?'var(--green)':ativa?'var(--gold)':'rgba(255,255,255,0.12)';
+          const txtCor = feita||ativa?'#0d0d0d':'#555';
+          const bg = feita?'var(--green)':ativa?'var(--gold)':'rgba(255,255,255,0.06)';
+          const linha = i < etapas.length-1 ? `<div style="flex:1;height:2px;background:${feita?'var(--green)':'rgba(255,255,255,0.08)'};min-width:12px"></div>` : '';
+          return `<div style="display:flex;align-items:center;flex-shrink:0">
+            <button onclick="abrirEtapaAmbiente('${inst.id}','${nomeAmb.replace(/'/g,"\\'")}',${i})"
+              style="width:32px;height:32px;border-radius:50%;background:${bg};border:none;color:${ativa||feita?'#0d0d0d':'#666'};font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+              ${feita?'✓':(i+1)}
+            </button>
+            ${ativa?`<div style="font-size:9px;color:var(--gold);margin-left:2px;margin-right:2px;white-space:nowrap">✓</div>`:''}
+          </div>${linha}`;
+        }).join('')}
       </div>
-      ${item.concluido ? `<div style="background:var(--green-dim);border:1px solid rgba(92,184,130,0.4);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--green)">✓ Concluída</div>` : ''}
+
+      <!-- Progress pill -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+        <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${pctGeral}%;background:var(--gold);border-radius:99px;transition:width 0.4s"></div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace;flex-shrink:0">${pctGeral}% Geral</div>
+      </div>
     </div>
 
-    <!-- Body -->
-    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch">
-
-      <!-- Descrição da etapa -->
-      <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">O que fazer</div>
-        <div style="font-size:13px;color:var(--text);line-height:1.7">${item.descricao}</div>
+    <!-- ── FOTOS: Antes / Depois ── -->
+    <div style="padding:0 20px 20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:600;color:#f2ede8">Fotos da etapa</span>
+        <span style="font-size:11px;color:${item.concluido?'var(--green)':'var(--red)'};font-weight:600">${item.concluido?'✓ Registradas':'Obrigatório'}</span>
       </div>
-
-      ${item.concluido && item.confirmedBy ? `
-      <!-- Info de conclusão -->
-      <div style="background:var(--green-dim);border:1px solid rgba(92,184,130,0.3);border-radius:10px;padding:14px 16px">
-        <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">✓ Confirmada por</div>
-        <div style="font-size:14px;font-weight:600;color:var(--text)">${item.confirmedBy}</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:3px">${item.dataConclusao||''} às ${item.horaConclusao||''}</div>
-        ${item.foto ? `<div style="margin-top:12px;border-radius:8px;overflow:hidden;max-height:200px"><img src="${item.foto}" style="width:100%;object-fit:cover"></div>` : ''}
-      </div>` : ''}
-
-      ${!item.concluido ? `
-      <!-- Zona de foto — OBRIGATÓRIA -->
-      <div>
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">📷 Foto obrigatória para confirmar</div>
-        <div id="etapa-foto-area" onclick="document.getElementById('etapa-foto-input').click()"
-          style="width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;border:2px dashed var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg3);position:relative;transition:border-color 0.2s">
-          <div id="etapa-foto-placeholder" style="text-align:center;color:var(--text3);pointer-events:none">
-            <div style="font-size:40px;margin-bottom:8px">📷</div>
-            <div style="font-size:13px;font-weight:500">Toque para fotografar</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">Obrigatório para confirmar etapa</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <!-- Antes -->
+        <div>
+          <div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Antes</div>
+          <div id="foto-antes-area" onclick="${item.concluido?'':\"document.getElementById('foto-antes-input').click()\"}"
+            style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px ${item.fotoAntes?'solid rgba(201,169,110,0.4)':'dashed rgba(255,255,255,0.12)'};display:flex;align-items:center;justify-content:center;cursor:${item.concluido?'default':'pointer'};position:relative">
+            ${item.fotoAntes
+              ? `<img src="${item.fotoAntes}" style="width:100%;height:100%;object-fit:cover">`
+              : `<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">📷</div><div style="font-size:10px;color:#555">Toque para foto</div></div>`}
           </div>
+          <input type="file" id="foto-antes-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoAntes(this)">
         </div>
-        <input type="file" id="etapa-foto-input" accept="image/*" capture="environment" style="display:none" onchange="previewFotoEtapaAmb(this)">
-        <div id="etapa-foto-preview-wrap" style="display:none;margin-top:8px;position:relative">
-          <img id="etapa-foto-preview-img" style="width:100%;border-radius:10px;max-height:260px;object-fit:cover">
-          <button onclick="limparFotoEtapaAmb()" style="position:absolute;top:8px;right:8px;width:30px;height:30px;background:rgba(0,0,0,0.7);border:none;border-radius:50%;color:#fff;font-size:14px;cursor:pointer">✕</button>
-          <div style="margin-top:6px;padding:8px 12px;background:var(--green-dim);border:1px solid rgba(92,184,130,0.3);border-radius:8px;font-size:12px;color:var(--green)">✓ Foto pronta — clique em Confirmar</div>
+        <!-- Depois -->
+        <div>
+          <div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Depois</div>
+          <div id="foto-depois-area" onclick="${item.concluido?'':\"document.getElementById('foto-depois-input').click()\"}"
+            style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px ${item.fotoDepois?'solid rgba(92,184,130,0.4)':'dashed rgba(255,255,255,0.12)'};display:flex;align-items:center;justify-content:center;cursor:${item.concluido?'default':'pointer'};position:relative">
+            ${item.fotoDepois
+              ? `<img src="${item.fotoDepois}" style="width:100%;height:100%;object-fit:cover">`
+              : `<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">📷</div><div style="font-size:10px;color:#555">Toque para foto</div></div>`}
+          </div>
+          <input type="file" id="foto-depois-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoDepois(this)">
         </div>
       </div>
-
-      <!-- Responsável -->
-      <div>
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Responsável</div>
-        <input id="etapa-responsavel" value="${item.responsavel||usuarioNome}" placeholder="Nome do responsável..."
-          oninput="_salvarResponsavelEtapaAmb(this.value)"
-          style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:12px 14px;outline:none;box-sizing:border-box">
-      </div>` : ''}
-
     </div>
 
-    <!-- Footer -->
-    <div style="padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0;display:flex;gap:10px">
-      ${item.concluido ? `
-        <button onclick="desfazerEtapaAmbiente()" style="flex:1;height:52px;border:1px solid rgba(224,96,96,0.4);border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;background:rgba(224,96,96,0.08);color:var(--red)">
-          ↩ Desfazer
-        </button>
-      ` : `
-        <button id="etapa-confirmar-btn" onclick="confirmarEtapaAmbiente()" disabled
-          style="flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:not-allowed;background:var(--bg4);color:var(--text3);transition:all 0.2s" title="Tire uma foto primeiro">
-          📷 Tire a foto primeiro
-        </button>
-      `}
-    </div>`;
+    <!-- ── CHECKLIST DA ETAPA ── -->
+    <div style="padding:0 20px 20px">
+      <div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:10px">Checklist da etapa</div>
+      <div id="subitens-lista" style="display:flex;flex-direction:column;gap:6px">
+        ${subitens.map((s,si)=>`
+          <div onclick="${item.concluido?'':(`_toggleSubitem(${si})`)}" id="subitem-${si}"
+            style="display:flex;align-items:center;gap:12px;background:${s.ok?'rgba(92,184,130,0.08)':'rgba(255,255,255,0.04)'};border:1px solid ${s.ok?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.07)'};border-radius:10px;padding:13px 14px;cursor:${item.concluido?'default':'pointer'};transition:all 0.15s">
+            <div style="width:22px;height:22px;border-radius:6px;background:${s.ok?'var(--green)':'transparent'};border:2px solid ${s.ok?'var(--green)':'rgba(255,255,255,0.2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">
+              ${s.ok?'<span style="color:#0d0d0d;font-size:13px;font-weight:700">✓</span>':''}
+            </div>
+            <span style="font-size:13px;color:${s.ok?'#8a8480':'#f2ede8'};${s.ok?'text-decoration:line-through':''};line-height:1.4">${s.label}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- ── OBSERVAÇÕES ── -->
+    <div style="padding:0 20px 20px">
+      <div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:8px">Observações <span style="font-size:11px;color:#555;font-weight:400">(opcional)</span></div>
+      <textarea id="etapa-obs" maxlength="200" placeholder="Adicione observações sobre a etapa..."
+        ${item.concluido?'readonly':''}
+        oninput="document.getElementById('obs-count').textContent=this.value.length+'/200'"
+        style="width:100%;min-height:80px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#f2ede8;font-size:13px;font-family:'DM Sans',sans-serif;padding:12px 14px;outline:none;resize:none;box-sizing:border-box;${item.concluido?'opacity:0.5':''}${item.concluido?';cursor:default':''}">${item.obs||''}</textarea>
+      <div style="text-align:right;font-size:11px;color:#555;margin-top:4px"><span id="obs-count">${(item.obs||'').length}/200</span></div>
+    </div>
+
+    <!-- Info de quem confirmou (se concluída) -->
+    ${item.concluido&&item.confirmedBy?`
+    <div style="margin:0 20px 20px;background:rgba(92,184,130,0.06);border:1px solid rgba(92,184,130,0.2);border-radius:12px;padding:14px 16px">
+      <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Confirmada por</div>
+      <div style="font-size:15px;font-weight:600;color:#f2ede8">${item.confirmedBy}</div>
+      <div style="font-size:12px;color:#8a8480;margin-top:3px">${item.dataConclusao||''} às ${item.horaConclusao||''}</div>
+    </div>`:''}
+
+    <div style="height:env(safe-area-inset-bottom,16px)"></div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div id="etapa-footer" style="padding:12px 20px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:#111;border-top:0.5px solid rgba(255,255,255,0.07);flex-shrink:0">
+    ${item.concluido ? `
+      <div style="display:flex;gap:10px">
+        <button onclick="desfazerEtapaAmbiente()" style="flex:1;height:50px;border:1px solid rgba(224,96,96,0.3);border-radius:14px;font-size:13px;font-weight:600;cursor:pointer;background:rgba(224,96,96,0.06);color:var(--red)">↩ Desfazer</button>
+        <button onclick="fecharEtapaQuadro()" style="flex:2;height:50px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)">✓ Etapa concluída</button>
+      </div>
+    ` : `
+      <button id="etapa-confirmar-btn" onclick="confirmarEtapaAmbiente()" disabled
+        style="width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:not-allowed;background:rgba(255,255,255,0.06);color:#555;letter-spacing:0.3px;transition:all 0.25s">
+        ⊙ CONFIRMAR ETAPA
+      </button>
+      <button onclick="fecharEtapaQuadro()" style="width:100%;margin-top:8px;height:36px;border:none;background:transparent;color:#555;font-size:12px;cursor:pointer">Reportar problema</button>
+    `}
+  </div>`;
 
   document.body.appendChild(ov);
+  _verificarPodeConfirmar();
 }
 
-// Preview local da foto antes de fazer upload
-window._etapaFotoFile = null;
+// ── Auxiliares do novo overlay de etapa ──────────────────────────────────────
+function _salvarResponsavelEtapaAmb(val) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
+  const etapas = inst.checklistAmbientes[_etapaAmbNome];
+  if (etapas && etapas[_etapaIdx]) etapas[_etapaIdx].responsavel = val;
+}
 
-function previewFotoEtapaAmb(input) {
-  const file = input.files[0];
-  if (!file) return;
-  window._etapaFotoFile = file;
+function _toggleSubitem(si) {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !_etapaAmbNome) return;
+  const item = inst.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx];
+  if (!item || !item.subitens) return;
+  item.subitens[si].ok = !item.subitens[si].ok;
+  const el = document.getElementById('subitem-'+si);
+  const s = item.subitens[si];
+  if (el) {
+    el.style.background = s.ok ? 'rgba(92,184,130,0.08)' : 'rgba(255,255,255,0.04)';
+    el.style.borderColor = s.ok ? 'rgba(92,184,130,0.3)' : 'rgba(255,255,255,0.07)';
+    const box = el.querySelector('div');
+    if (box) {
+      box.style.background = s.ok ? 'var(--green)' : 'transparent';
+      box.style.borderColor = s.ok ? 'var(--green)' : 'rgba(255,255,255,0.2)';
+      box.innerHTML = s.ok ? '<span style="color:#0d0d0d;font-size:13px;font-weight:700">✓</span>' : '';
+    }
+    const spans = el.querySelectorAll('span');
+    const txt = spans[spans.length-1];
+    if (txt) { txt.style.color = s.ok?'#8a8480':'#f2ede8'; txt.style.textDecoration = s.ok?'line-through':'none'; }
+  }
+  _verificarPodeConfirmar();
+}
+
+function _verificarPodeConfirmar() {
+  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+  if (!inst || !_etapaAmbNome) return;
+  const item = inst.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx];
+  if (!item) return;
+  const temFotoDepois = !!(item.fotoDepois || window._etapaFotoDepoisFile);
+  const btn = document.getElementById('etapa-confirmar-btn');
+  if (!btn) return;
+  if (temFotoDepois) {
+    btn.disabled = false;
+    btn.style.cssText = 'width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d;letter-spacing:0.3px;transition:all 0.25s';
+  } else {
+    btn.disabled = true;
+    btn.style.cssText = 'width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:not-allowed;background:rgba(255,255,255,0.06);color:#555;letter-spacing:0.3px;transition:all 0.25s';
+  }
+}
+
+window._etapaFotoAntesFile = null;
+window._etapaFotoDepoisFile = null;
+
+function _previewFotoAntes(input) {
+  const file = input.files[0]; if (!file) return;
+  window._etapaFotoAntesFile = file;
   const reader = new FileReader();
   reader.onload = e => {
-    const area = document.getElementById('etapa-foto-area');
-    const placeholder = document.getElementById('etapa-foto-placeholder');
-    const wrap = document.getElementById('etapa-foto-preview-wrap');
-    const img = document.getElementById('etapa-foto-preview-img');
-    if (placeholder) placeholder.style.display = 'none';
-    if (area) area.style.display = 'none';
-    if (img) img.src = e.target.result;
-    if (wrap) wrap.style.display = 'block';
-    // Ativa botão confirmar
-    const btn = document.getElementById('etapa-confirmar-btn');
-    if (btn) {
-      btn.disabled = false;
-      btn.style.cssText = 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d;transition:all 0.2s';
-      btn.textContent = '✓ Confirmar etapa';
-    }
+    const area = document.getElementById('foto-antes-area');
+    if (area) area.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+    const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+    if (inst?.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx]) inst.checklistAmbientes[_etapaAmbNome][_etapaIdx]._fotoAntesPreview = e.target.result;
+    _verificarPodeConfirmar();
   };
   reader.readAsDataURL(file);
 }
 
-function limparFotoEtapaAmb() {
-  window._etapaFotoFile = null;
-  const area = document.getElementById('etapa-foto-area');
-  const placeholder = document.getElementById('etapa-foto-placeholder');
-  const wrap = document.getElementById('etapa-foto-preview-wrap');
-  if (area) area.style.display = '';
-  if (placeholder) placeholder.style.display = '';
-  if (wrap) wrap.style.display = 'none';
-  const btn = document.getElementById('etapa-confirmar-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.style.cssText = 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:not-allowed;background:var(--bg4);color:var(--text3);transition:all 0.2s';
-    btn.textContent = '📷 Tire a foto primeiro';
-  }
-  const input = document.getElementById('etapa-foto-input');
-  if (input) input.value = '';
+function _previewFotoDepois(input) {
+  const file = input.files[0]; if (!file) return;
+  window._etapaFotoDepoisFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const area = document.getElementById('foto-depois-area');
+    if (area) area.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+    const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
+    if (inst?.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx]) inst.checklistAmbientes[_etapaAmbNome][_etapaIdx]._fotoDepoisPreview = e.target.result;
+    _verificarPodeConfirmar();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function _uploadEtapaFoto(file, instCliente, nomeAmb, titulo, sufixo) {
+  if (!file) return null;
+  try {
+    const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
+    const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+    const path = `instalacao/${clean(instCliente||'cliente')}/${clean(nomeAmb)}/${clean(titulo||'etapa')}_${sufixo}_${Date.now()}.${ext}`;
+    const ab = await file.arrayBuffer();
+    const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
+      method:'POST', headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':file.type||'image/jpeg','x-upsert':'true'}, body: ab
+    });
+    return resp.ok ? `${SB_URL}/storage/v1/object/public/imagens/${path}` : null;
+  } catch(e) { return null; }
 }
 
 async function confirmarEtapaAmbiente() {
-  if (!window._etapaFotoFile) { toast('📷 Tire a foto da etapa antes de confirmar'); return; }
+  if (!window._etapaFotoDepoisFile) { toast('📷 Foto "Depois" é obrigatória para confirmar'); return; }
   const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
   if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
   const etapas = inst.checklistAmbientes[_etapaAmbNome];
   if (!etapas || !etapas[_etapaIdx]) return;
   const item = etapas[_etapaIdx];
-
   const btn = document.getElementById('etapa-confirmar-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
-
+  if (btn) { btn.disabled=true; btn.textContent='⏳ Salvando...'; }
   const now = new Date();
-  const responsavelInput = document.getElementById('etapa-responsavel');
-  const responsavelVal = responsavelInput?.value?.trim() || usuarioAtual?.nome || usuarioAtual?.email || 'Usuário';
-
-  // Upload da foto
-  let fotoUrl = null;
-  try {
-    const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
-    const ext = (window._etapaFotoFile.name.split('.').pop()||'jpg').toLowerCase();
-    const path = `instalacao/${clean(inst.cliente||'cliente')}/${clean(_etapaAmbNome)}/${clean(item.titulo||'etapa'+_etapaIdx)}_${Date.now()}.${ext}`;
-    const ab = await window._etapaFotoFile.arrayBuffer();
-    const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
-      method:'POST',
-      headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':window._etapaFotoFile.type||'image/jpeg','x-upsert':'true'},
-      body: ab
-    });
-    fotoUrl = resp.ok ? `${SB_URL}/storage/v1/object/public/imagens/${path}` : null;
-  } catch(e) {}
-
-  // Se upload falhou, usa base64 como fallback
-  if (!fotoUrl) {
-    const img = document.getElementById('etapa-foto-preview-img');
-    fotoUrl = img?.src || null;
-  }
-
+  const usuarioNome = usuarioAtual?.nome || usuarioAtual?.email || 'Usuário';
+  const obs = document.getElementById('etapa-obs')?.value?.trim() || '';
+  const [urlAntes, urlDepois] = await Promise.all([
+    window._etapaFotoAntesFile ? _uploadEtapaFoto(window._etapaFotoAntesFile, inst.cliente, _etapaAmbNome, item.titulo, 'antes') : Promise.resolve(null),
+    _uploadEtapaFoto(window._etapaFotoDepoisFile, inst.cliente, _etapaAmbNome, item.titulo, 'depois')
+  ]);
+  item.fotoAntes = urlAntes || item._fotoAntesPreview || null;
+  item.fotoDepois = urlDepois || item._fotoDepoisPreview || null;
+  item.foto = item.fotoDepois;
+  item.obs = obs;
   item.concluido = true;
-  item.foto = fotoUrl;
   item.dataConclusao = now.toISOString().slice(0,10);
   item.horaConclusao = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  item.confirmedBy = responsavelVal;
+  item.confirmedBy = usuarioNome;
   item.confirmedAt = now.toISOString();
-  item.responsavel = responsavelVal;
-
-  window._etapaFotoFile = null;
+  item.responsavel = usuarioNome;
+  delete item._fotoAntesPreview; delete item._fotoDepoisPreview;
+  window._etapaFotoAntesFile = null; window._etapaFotoDepoisFile = null;
   await _salvarEtapa(inst);
   fecharEtapaQuadro();
-  toast(`✓ Etapa "${item.titulo||'Etapa '+(idx+1)}" confirmada por ${responsavelVal}!`);
+  toast(`✓ "${item.titulo}" confirmada por ${usuarioNome}!`);
 }
 
 async function desfazerEtapaAmbiente() {
@@ -9233,12 +9341,9 @@ async function desfazerEtapaAmbiente() {
   const etapas = inst.checklistAmbientes[_etapaAmbNome];
   if (!etapas || !etapas[_etapaIdx]) return;
   const item = etapas[_etapaIdx];
-  item.concluido = false;
-  item.foto = null;
-  item.dataConclusao = null;
-  item.horaConclusao = null;
-  item.confirmedBy = null;
-  item.confirmedAt = null;
+  item.concluido = false; item.foto = null; item.fotoAntes = null; item.fotoDepois = null;
+  item.dataConclusao = null; item.horaConclusao = null; item.confirmedBy = null; item.confirmedAt = null;
+  if (item.subitens) item.subitens.forEach(s=>s.ok=false);
   await _salvarEtapa(inst);
   fecharEtapaQuadro();
   toast('↩ Etapa desfeita.');
