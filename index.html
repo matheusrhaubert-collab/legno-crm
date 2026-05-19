@@ -6158,7 +6158,7 @@ async function gerarProposalComIdioma(projetoId, lang, ambientesSelecionados) {
       ...(xmlD.coresFrontais||[])
     ].filter((v,i,a)=>v&&a.indexOf(v)===i);
 
-    const imgs4 = imagens.slice(0,4);
+    const imgs4 = imagens.slice(0,10);
     // Ambiente images are already stored as base64 data URLs (uploaded by user)
     const gridCols = imgs4.length >= 3 ? 3 : imgs4.length === 2 ? 2 : 1;
     const imgHtml = imgs4.length
