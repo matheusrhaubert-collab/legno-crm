@@ -614,8 +614,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <span class="search-icon">⌕</span>
           <input type="search" placeholder="Buscar cliente ou endereço..." oninput="filterPage('instalacao',this.value)" id="search-instalacao">
         </div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="filtros-instalacao">
+          <button class="btn btn-sm filtro-rapido active" data-filtro-inst="tudo"    onclick="setFiltroInstalacao('tudo')">Tudo</button>
+          <button class="btn btn-sm filtro-rapido"        data-filtro-inst="pendente" onclick="setFiltroInstalacao('pendente')">⏳ Pendentes</button>
+          <button class="btn btn-sm filtro-rapido"        data-filtro-inst="producao" onclick="setFiltroInstalacao('producao')" style="color:var(--blue)">🏭 Em produção</button>
+          <button class="btn btn-sm filtro-rapido"        data-filtro-inst="concluida" onclick="setFiltroInstalacao('concluida')" style="color:var(--green)">✓ Concluídas</button>
+        </div>
         <div class="sec-header">
-          <span class="sec-title">Instalações agendadas</span>
+          <span class="sec-title" id="inst-sec-title">Instalações agendadas</span>
           <button class="btn btn-primary btn-sm" onclick="openModal('novaInstalacao')">＋ Nova instalação</button>
         </div>
         <div id="list-instalacao"></div>
@@ -998,6 +1004,7 @@ let currentContratoId = null;
 let currentApresId = null;
 let uploadFiles = [];
 let filterTexts = {leads:'',projetos:'',agenda:'',producao:'',perdidos:'',concluidos:'',entrega:'',instalacao:''};
+let _filtroInstalacaoStatus = 'tudo';
 
 
 
@@ -4631,6 +4638,11 @@ async function pushProjeto(p) {
     contrato_assinado_em: p.contratoAssinadoEm||null,
     desconto_projeto: p.descontoProjeto||0,
     data_envio_producao: p.dataEnvioProducao||'',
+    condicao_etapas: JSON.stringify(p.condicaoEtapas||[]),
+    condicao_desconto: p.condicaoDesconto||0,
+    condicao_juros: p.condicaoJuros||0,
+    condicao_parcelas: p.condicaoParcelas||1,
+    condicao_down_pct: p.condicaoDownPct||20,
   };
   try {
     await sbFetch('projetos?on_conflict=id', 'POST', [{..._base,..._extras}], 'resolution=merge-duplicates');
@@ -4779,6 +4791,11 @@ function mapProjeto(p) {
     finPagamentos: (()=>{ try { return typeof p.fin_pagamentos==='string' ? JSON.parse(p.fin_pagamentos) : (p.fin_pagamentos||[]); } catch(e){ return []; } })(),
     checklistEntrega: (()=>{ try { return typeof p.checklist_entrega==='string' ? JSON.parse(p.checklist_entrega) : (p.checklist_entrega||[]); } catch(e){ return []; } })(),
     condicaoTipo: p.condicao_tipo||'parcelado',
+    condicaoEtapas: (()=>{try{return JSON.parse(p.condicao_etapas||'[]')}catch{return []}})(),
+    condicaoDesconto: p.condicao_desconto||0,
+    condicaoJuros: p.condicao_juros||0,
+    condicaoParcelas: p.condicao_parcelas||1,
+    condicaoDownPct: p.condicao_down_pct||20,
     condicaoPrecoFinal: p.condicao_preco_final||0,
     pdfProposta: (p.proposta_html||p.proposta_data) ? 'local:'+p.id : '',
     pdfPropostaData: p.proposta_data||'',
@@ -7140,12 +7157,32 @@ async function enviarReposicaoPeca(inst, proj, lead, div, ov) {
   }
 }
 
+function setFiltroInstalacao(f) {
+  _filtroInstalacaoStatus = f;
+  document.querySelectorAll('[data-filtro-inst]').forEach(b => {
+    b.classList.toggle('active', b.dataset.filtroInst === f);
+  });
+  const labels = {tudo:'Instalações agendadas', pendente:'Instalações pendentes', producao:'Em produção', concluida:'Concluídas'};
+  const el = document.getElementById('inst-sec-title');
+  if(el) el.textContent = labels[f]||'Instalações agendadas';
+  renderInstalacao();
+}
+
 function renderInstalacao(filter='') {
   _filterInstalacao = filter || filterTexts.instalacao || '';
   const f = _filterInstalacao.toLowerCase();
   const hoje = new Date().toISOString().slice(0,10);
   const items = (DB.instalacoes||[]).filter(i => {
-    return !f || (i.cliente||'').toLowerCase().includes(f) || (i.endereco||'').toLowerCase().includes(f);
+    if (f && !(i.cliente||'').toLowerCase().includes(f) && !(i.endereco||'').toLowerCase().includes(f)) return false;
+    const st = _filtroInstalacaoStatus || 'tudo';
+    if (st === 'concluida') return i.concluida;
+    if (st === 'pendente')  return !i.concluida;
+    if (st === 'producao') {
+      if (i.concluida) return false;
+      const proj = DB.projetos.find(x=>x.id===i.projetoId);
+      return proj && proj.status === 'producao';
+    }
+    return true;
   }).sort((a,b) => {
     if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
     return (a.data||'').localeCompare(b.data||'');
@@ -10438,6 +10475,16 @@ function abrirCondicoes(projetoId) {
     let precoFinal = precoBase;
     if (tipo==='avista') precoFinal = precoBase * (1 - desc/100);
     if (tipo==='financiado') precoFinal = precoBase * Math.pow(1+juros/100, parcelas);
+
+    // Capture current etapa edits before re-render so values persist
+    div.querySelectorAll('[data-etapa-label]').forEach(inp => {
+      const i = parseInt(inp.dataset.etapaLabel);
+      if (etapasAtuais[i]) etapasAtuais[i].label = inp.value;
+    });
+    div.querySelectorAll('[data-etapa-pct]').forEach(inp => {
+      const i = parseInt(inp.dataset.etapaPct);
+      if (etapasAtuais[i]) etapasAtuais[i].pct = parseFloat(inp.value)||0;
+    });
 
     // Build etapas for parcelado
     const etapas = etapasAtuais;
