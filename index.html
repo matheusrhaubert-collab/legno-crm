@@ -3842,11 +3842,60 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
     const norm = _stripPfx(coreName).split(/\s+/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join('-').replace(/[^a-zA-Z0-9\-]/g,'');
     return `${_sbUrl}/storage/v1/object/public/cores/${norm}.jpg`;
   };
-  const materiaisHTML = ambientes.map(a => {
+  // Helper: gera descrição do XML nas 3 línguas a partir dos dados do ambiente
+  const _xmlDescricao = (a, lngCode) => {
+    const xmlD = a.xmlDados || {};
+    const c = xmlD.contagem || {};
+    const partes = [];
+    // Contagem de peças
+    const contagens = [];
+    if (c.cabinets) contagens.push(lngCode==='en'?`${c.cabinets} cabinet${c.cabinets>1?'s':''}`:lngCode==='es'?`${c.cabinets} gabinete${c.cabinets>1?'s':''}`:lngCode==='pt'?`${c.cabinets} gabinete${c.cabinets>1?'s':''}`:'' );
+    if (c.gavetas) contagens.push(lngCode==='en'?`${c.gavetas} drawer${c.gavetas>1?'s':''}`:lngCode==='es'?`${c.gavetas} cajón${c.gavetas>1?'es':''}`:lngCode==='pt'?`${c.gavetas} gaveta${c.gavetas>1?'s':''}`:'' );
+    if (c.portas) contagens.push(lngCode==='en'?`${c.portas} door${c.portas>1?'s':''}`:lngCode==='es'?`${c.portas} puerta${c.portas>1?'s':''}`:lngCode==='pt'?`${c.portas} porta${c.portas>1?'s':''}`:'' );
+    if (c.paineis) contagens.push(lngCode==='en'?`${c.paineis} panel${c.paineis>1?'s':''}`:lngCode==='es'?`${c.paineis} panel${c.paineis>1?'es':''}`:lngCode==='pt'?`${c.paineis} painel${c.paineis>1?'s':''}`:'' );
+    if (c.ripado) contagens.push(lngCode==='en'?`${c.ripado} slat${c.ripado>1?'s':''}`:lngCode==='es'?`${c.ripado} listón${c.ripado>1?'es':''}`:lngCode==='pt'?`${c.ripado} ripado${c.ripado>1?'s':''}`:'' );
+    if (c.vidro) contagens.push(lngCode==='en'?`${c.vidro} glass door${c.vidro>1?'s':''}`:lngCode==='es'?`${c.vidro} puerta${c.vidro>1?'s':''} de vidrio`:lngCode==='pt'?`${c.vidro} porta${c.vidro>1?'s':''} de vidro`:'' );
+    if (c.metrosLED) contagens.push(`${c.metrosLED}m LED`);
+    if (contagens.length) partes.push(contagens.join(', '));
+    // Cores por categoria
+    const labelCaixa = lngCode==='en'?'Boxes':lngCode==='es'?'Cajas':'Caixas';
+    const labelFrontal = lngCode==='en'?'Frontals':lngCode==='es'?'Frontales':'Frontais';
+    const labelPainel = lngCode==='en'?'Panels':lngCode==='es'?'Paneles':'Painéis';
+    const coresPaineis = xmlD.coresPaineis||a.coresPaineis||[];
+    const coresBox = xmlD.coresBox||a.coresBox||[];
+    const coresFrontais = xmlD.coresFrontais||a.coresFrontais||[];
+    if (coresPaineis.length) partes.push(`${labelPainel}: ${coresPaineis.map(_stripPfx).join(', ')}`);
+    if (coresBox.length) partes.push(`${labelCaixa}: ${coresBox.map(_stripPfx).join(', ')}`);
+    if (coresFrontais.length) partes.push(`${labelFrontal}: ${coresFrontais.map(_stripPfx).join(', ')}`);
+    // Descrição manual do briefing como fallback
+    if (!partes.length && a.descricao) return a.descricao;
+    return partes.join(' · ') || a.descricao || '';
+  };
+
+  const _labelFinishes = lang==='en'?'Finishes & Colors':lang==='pt'?'Acabamentos & Cores':'Acabados & Colores';
+  const _labelObs = lang==='en'?'Notes':lang==='pt'?'Observações':'Observaciones';
+  const _labelSpec = lang==='en'?'Specifications':lang==='pt'?'Especificações':'Especificaciones';
+
+  const materiaisHTML = ambientes.map((a, idx) => {
     const xmlD = a.xmlDados || {};
     const cores = [...new Set([...(xmlD.coresPaineis||a.coresPaineis||[]),...(xmlD.coresFrontais||a.coresFrontais||[]),...(xmlD.coresBox||a.coresBox||[])])].filter(Boolean);
-    const xmlVal = xmlD.valorTotal ? fmtV(xmlD.valorTotalNum||0) : '';
+    // ── VALOR DE VENDA (manual > finPrecoFinal, não mais xmlDados.valorTotal) ──
+    const valorVenda = a.finValorManual || a.finPrecoFinal || 0;
+    const valorVendaFmt = valorVenda > 0 ? fmtV(valorVenda) : '—';
     const imagens = (a.imagens||[]);
+    // ── OBSERVAÇÃO DO BRIEFING ──
+    const obsHtml = (a.obs||'').trim() ? `
+      <tr><td colspan="3" style="padding:4px 12px 10px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8a7450;margin-bottom:4px">${_labelObs}</div>
+        <div style="font-size:12px;color:#555;line-height:1.6;white-space:pre-line">${(a.obs||'').trim()}</div>
+      </td></tr>` : '';
+    // ── DESCRIÇÃO DO XML (trilíngue) ──
+    const xmlDescText = _xmlDescricao(a, lang);
+    const xmlDescHtml = xmlDescText ? `
+      <tr><td colspan="3" style="padding:4px 12px 10px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8a7450;margin-bottom:4px">${_labelSpec}</div>
+        <div style="font-size:12px;color:#333;line-height:1.7;white-space:pre-line">${xmlDescText}</div>
+      </td></tr>` : '';
     const fotosHtml = imagens.length ? `
       <tr><td colspan="3" style="padding:0 12px 16px">
         ${imagens.map((img,i)=>`
@@ -3856,7 +3905,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
       </td></tr>` : '';
     const coresHtml = cores.length ? `
       <tr><td colspan="3" style="padding:0 12px 14px">
-        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;margin-bottom:8px">Finishes & Colors</div>
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;margin-bottom:8px">${_labelFinishes}</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           ${cores.map(c=>`
             <div style="text-align:center;width:80px">
@@ -3867,12 +3916,34 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
             </div>`).join('')}
         </div>
       </td></tr>` : '';
-    return `<tr>
-      <td style="padding:10px 12px 6px;font-weight:600;color:#1a1a1a;vertical-align:top">${a.nome||a.tipo}</td>
-      <td style="padding:10px 12px 6px;color:#333;vertical-align:top">${cores.length?cores.join(', '):'—'}</td>
-      <td style="padding:10px 12px 6px;text-align:right;font-weight:600;color:#1a1a1a;vertical-align:top;white-space:nowrap">${xmlVal}</td>
-    </tr>${fotosHtml}${coresHtml}<tr><td colspan="3" style="border-bottom:1px solid #eee;padding:0"></td></tr>`;
+    return `<tr style="background:${idx%2===0?'#fff':'#faf8f5'}">
+      <td style="padding:12px 12px 6px;font-weight:700;color:#1a1a1a;vertical-align:top;font-size:14px">${a.nome||a.tipo}</td>
+      <td style="padding:12px 12px 6px;color:#555;vertical-align:top;font-size:12px">${cores.length?cores.map(_stripPfx).join(', '):'—'}</td>
+      <td style="padding:12px 12px 6px;text-align:right;font-weight:700;color:#1a1a1a;vertical-align:top;white-space:nowrap;font-size:14px">${valorVendaFmt}</td>
+    </tr>${obsHtml}${xmlDescHtml}${fotosHtml}${coresHtml}<tr><td colspan="3" style="border-bottom:1.5px solid #e0d5c0;padding:0"></td></tr>`;
   }).join('');
+
+  // ── Índice de ambientes com valor de venda para a Seção 2 ──
+  const indiceAmbientesHTML = ambientes.length ? `
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:12px">
+      <thead><tr>
+        <th style="background:#f8f6f0;color:#8a7450;padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #e0d5c0">${lang==='en'?'Room/Space':lang==='pt'?'Ambiente':'Ambiente'}</th>
+        <th style="background:#f8f6f0;color:#8a7450;padding:6px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #e0d5c0">${lang==='en'?'Sale Price':lang==='pt'?'Valor de Venda':'Precio de Venta'}</th>
+      </tr></thead>
+      <tbody>
+        ${ambientes.map((a,i) => {
+          const vv = a.finValorManual || a.finPrecoFinal || 0;
+          return `<tr>
+            <td style="padding:7px 10px;color:#333;border-bottom:1px solid #f0ede6">${a.nome||a.tipo}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:600;color:#1a1a1a;border-bottom:1px solid #f0ede6">${vv>0?fmtV(vv):'—'}</td>
+          </tr>`;
+        }).join('')}
+        <tr style="background:#1a1a1a">
+          <td style="padding:8px 10px;color:#c9a96e;font-weight:700">${lang==='en'?'Total':lang==='pt'?'Total':'Total'}</td>
+          <td style="padding:8px 10px;text-align:right;color:#c9a96e;font-weight:700">${fmtV(precoFinal)}</td>
+        </tr>
+      </tbody>
+    </table>` : '';
 
   // Build payment schedule
   let payRows = '';
@@ -4024,6 +4095,11 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
     </table>
     <div class="notice" style="background:#fff9f0;border:1px solid #f0d090;border-radius:4px;padding:12px;font-size:12px;color:#7a5c00;margin-top:8px">${t.s2down||''}</div>
     <p style="margin-top:8px">${t.s2note}</p>
+    ${indiceAmbientesHTML ? `
+    <div style="margin-top:18px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#8a7450;margin-bottom:8px;font-weight:700">${lang==='en'?'Price breakdown by room':lang==='pt'?'Detalhamento de valores por ambiente':'Desglose de valores por ambiente'}</div>
+      ${indiceAmbientesHTML}
+    </div>` : ''}
   </div>
 
   ${timelineHTML}
@@ -4136,7 +4212,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
     <div class="exhibit-sub">${t.project}: ${p.nome}</div>
     ${ambientes.length ? `
       <table class="scope">
-        <thead><tr><th>${lang==='en'?'Room/Space':lang==='pt'?'Ambiente':'Ambiente'}</th><th>${lang==='en'?'Finish/Color':lang==='pt'?'Acabamento':'Acabado'}</th><th style="text-align:right">${lang==='en'?'Value':lang==='pt'?'Valor':'Valor'}</th></tr></thead>
+        <thead><tr><th>${lang==='en'?'Room/Space':lang==='pt'?'Ambiente':'Ambiente'}</th><th>${lang==='en'?'Finish/Color':lang==='pt'?'Acabamento':'Acabado'}</th><th style="text-align:right">${lang==='en'?'Sale Price':lang==='pt'?'Valor de Venda':'Precio de Venta'}</th></tr></thead>
         <tbody>${materiaisHTML}</tbody>
         <tr><td class="pay-total" colspan="2">${t.total}</td><td class="pay-total" style="text-align:right">${fmtV(precoFinal)}</td></tr>
       </table>` : ''}
