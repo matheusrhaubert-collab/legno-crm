@@ -1181,6 +1181,20 @@ function _prepararAmbContext(projetoId, nomeAmb) {
   _coresSelecionadas = _ambObj.cores ? [..._ambObj.cores] : [];
 }
 
+// ── Dispatcher seguro para ações de ambiente (evita quebra de aspas no onclick) ──
+function _ambAction(key, acao, extra) {
+  if (!window._ambNomeMap || !window._ambNomeMap[key]) {
+    toast('Erro: ambiente não encontrado'); return;
+  }
+  const {pid, nome} = window._ambNomeMap[key];
+  if (acao === 'abrir')      abrirAmbiente(pid, nome);
+  else if (acao === 'xml')   abrirXMLDireto(pid, nome);
+  else if (acao === 'foto')  abrirFotosDireto(pid, nome);
+  else if (acao === 'editar') editarValorVendaAmb(pid, nome);
+  else if (acao === 'mini')  abrirMiniFinanceiro(pid, nome);
+  else if (acao === 'removerFoto') removerFotoAmbienteCard(pid, nome, extra);
+}
+
 function abrirXMLDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   const _pLock = DB.projetos.find(x=>x.id===projetoId);
@@ -5547,8 +5561,17 @@ function renderProjetos(filter='') {
       const aMargPct = aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
       const travado = !!(p.propostaTravada && !isAdmin());
-      const travadoXmlOnclick = travado ? `_pedirDesbloqueioRapido('${p.id}',function(){abrirXMLDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')})` : `abrirXMLDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')`;
-      const travadoFotoOnclick = travado ? `_pedirDesbloqueioRapido('${p.id}',function(){abrirFotosDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')})` : `abrirFotosDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')`;
+      // Registra nome do ambiente num map global para evitar quebra de aspas no onclick
+      if (!window._ambNomeMap) window._ambNomeMap = {};
+      const _ambKey = p.id + '||' + (a.nome||a.tipo);
+      window._ambNomeMap[_ambKey] = {pid: p.id, nome: a.nome||a.tipo};
+      const _esc = encodeURIComponent(a.nome||a.tipo);
+      const travadoXmlOnclick = travado
+        ? '_pedirDesbloqueioRapido(\''+p.id+'\',function(){_ambAction(\''+_ambKey+'\',\'xml\')})'
+        : '_ambAction(\''+_ambKey+'\',\'xml\')';
+      const travadoFotoOnclick = travado
+        ? '_pedirDesbloqueioRapido(\''+p.id+'\',function(){_ambAction(\''+_ambKey+'\',\'foto\')})'
+        : '_ambAction(\''+_ambKey+'\',\'foto\')';
       const isComplemento = p.isComplemento || p.status==='complemento';
       return `
       <div style="background:var(--bg2);border:0.5px solid ${isComplemento?'var(--amber)':'var(--border)'};border-radius:var(--radius);margin-bottom:14px;overflow:hidden;${isComplemento?'animation:complementoPulse 1.6s ease-in-out infinite':''}">
@@ -5562,7 +5585,7 @@ function renderProjetos(filter='') {
           </div>
           <div style="display:flex;gap:6px">
 
-            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">Abrir →</button>
+            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();_ambAction('${_ambKey}','abrir')">Abrir →</button>
           </div>
         </div>
 
@@ -5640,7 +5663,7 @@ function renderProjetos(filter='') {
               </div>
             `}
             <div style="display:flex;gap:4px;margin-top:auto;padding-top:8px">
-              <button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(92,184,130,0.3);color:${travado?'var(--text3)':'var(--green)'}" ${travado?'disabled':''} onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'📐'} ${temXml?'Atualizar':'Importar'}</button>
+              <button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(92,184,130,0.3);color:${travado?'var(--text3)':'var(--green)'}" ${travado?'disabled':''} onclick="event.stopPropagation();_ambAction('${_ambKey}','xml')">${travado?'🔒':'📐'} ${temXml?'Atualizar':'Importar'}</button>
               ${temXml?`<button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();_prepararAmbContext('${p.id}','${a.nome||a.tipo}');verXML()">🔍 Ver dados</button>`:''}
             </div>
           </div>
@@ -5659,7 +5682,7 @@ function renderProjetos(filter='') {
                 ${fotos.slice(0,4).map((f,fi)=>`
                   <div style="position:relative">
                     <img src="${f.url||f}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" onerror="this.style.display='none'">
-                    <button onclick="event.stopPropagation();removerFotoAmbienteCard('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}',${fi})"
+                    <button onclick="event.stopPropagation();_ambAction('${_ambKey}','removerFoto',${fi})"
                       style="position:absolute;top:3px;right:3px;width:22px;height:22px;background:rgba(0,0,0,0.75);border:none;border-radius:50%;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">🗑</button>
                   </div>`).join('')}
               </div>
@@ -5671,7 +5694,7 @@ function renderProjetos(filter='') {
                 <div style="font-size:10px;color:var(--text3);margin-top:3px">Adicione renders ou fotos do projeto</div>
               </div>
             `}
-            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:6px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="abrirFotosDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'🖼'} ${temFotos?'Adicionar fotos':'Enviar fotos'}</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:6px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="_ambAction('${_ambKey}','foto')">${travado?'🔒':'🖼'} ${temFotos?'Adicionar fotos':'Enviar fotos'}</button>
           </div>
 
           <!-- FINANCEIRO -->
@@ -5688,7 +5711,7 @@ function renderProjetos(filter='') {
                     <div style="font-size:10px;color:var(--text3)">Valor de venda${a.finValorManual>0?' <span style="color:var(--amber);font-size:9px">✎ manual</span>':''}</div>
                     <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
                   </div>
-                  <button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>
+                  <button onclick="event.stopPropagation();_ambAction('${_ambKey}','editar')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>
                 </div>
                 ${valorPromobAmb>0?`
                 <div style="margin-bottom:6px">
@@ -5705,11 +5728,11 @@ function renderProjetos(filter='') {
               `:`
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
                   <div style="font-size:11px;color:var(--text3)">Sem dados — insira o valor manualmente</div>
-                  <button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-left:8px">✎ Editar</button>
+                  <button onclick="event.stopPropagation();_ambAction('${_ambKey}','editar')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-left:8px">✎ Editar</button>
                 </div>
               `}
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro completo</button>
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();abrirMiniFinanceiro('${p.id}','${a.nome||a.tipo}')">📈 Resumo do ambiente</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();_ambAction('${_ambKey}','mini')">📈 Resumo do ambiente</button>
             `:`
               <div style="text-align:center;padding:16px 0">
                 <div style="font-size:28px;margin-bottom:8px">🔒</div>
