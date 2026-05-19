@@ -5688,7 +5688,7 @@ function renderProjetos(filter='') {
                     <div style="font-size:10px;color:var(--text3)">Valor de venda${a.finValorManual>0?' <span style="color:var(--amber);font-size:9px">✎ manual</span>':''}</div>
                     <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
                   </div>
-                  ${!travado?`<button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>`:''}
+                  ${`<button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>`}
                 </div>
                 ${valorPromobAmb>0?`
                 <div style="margin-bottom:6px">
@@ -8322,7 +8322,10 @@ function toast(msg, dur=3500) {
 let _finProjetoId = null;
 function editarValorVendaAmb(projetoId, nomeAmb) {
   const p = DB.projetos.find(x=>x.id===projetoId);
-  if (p?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado'); return; }
+  if (p?.propostaTravada && !isAdmin()) {
+    _pedirDesbloqueioRapido(projetoId, function(){ editarValorVendaAmb(projetoId, nomeAmb); });
+    return;
+  }
   _prepararAmbContext(projetoId, nomeAmb);
   const atual = _ambObj.finValorManual || _ambObj.finPrecoFinal || '';
   const ov = document.createElement('div');
