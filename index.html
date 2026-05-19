@@ -1184,7 +1184,10 @@ function _prepararAmbContext(projetoId, nomeAmb) {
 function abrirXMLDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   const _pLock = DB.projetos.find(x=>x.id===projetoId);
-  if (_pLock?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado — proposta já aprovada'); return; }
+  if (_pLock?.propostaTravada && !isAdmin()) {
+    _pedirDesbloqueioRapido(projetoId, function() { abrirXMLDireto(projetoId, nomeAmb); });
+    return;
+  }
   _prepararAmbContext(projetoId, nomeAmb);
   // Recria o input para garantir que onchange dispara mesmo com o mesmo arquivo
   const old = document.getElementById('xml-direto-input');
@@ -1198,7 +1201,10 @@ function abrirXMLDireto(projetoId, nomeAmb) {
 function abrirFotosDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   const _pLock = DB.projetos.find(x=>x.id===projetoId);
-  if (_pLock?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado — proposta já aprovada'); return; }
+  if (_pLock?.propostaTravada && !isAdmin()) {
+    _pedirDesbloqueioRapido(projetoId, function() { abrirFotosDireto(projetoId, nomeAmb); });
+    return;
+  }
   _prepararAmbContext(projetoId, nomeAmb);
   const old = document.getElementById('fotos-direto-input');
   const novo = old.cloneNode(true);
@@ -1211,7 +1217,7 @@ function abrirFotosDireto(projetoId, nomeAmb) {
 function abrirAmbiente(projetoId, nomeAmb) {
   const _pAmb = DB.projetos.find(x=>x.id===projetoId);
   if (_pAmb?.propostaTravada && !isAdmin()) {
-    toast('🔒 Ambientes travados após aprovação da proposta');
+    _pedirDesbloqueioRapido(projetoId, function() { abrirAmbiente(projetoId, nomeAmb); });
     return;
   }
   _ambProjetoId = projetoId;
@@ -2063,7 +2069,8 @@ async function gerarDescricaoIA() {
 async function salvarAmbienteDetalhe() {
   const _projLockA = DB.projetos.find(p=>p.id===_ambProjetoId);
   if (_projLockA?.propostaTravada && !isAdmin()) {
-    toast('🔒 Projeto travado — proposta já aprovada'); return;
+    _pedirDesbloqueioRapido(_ambProjetoId, salvarAmbienteDetalhe);
+    return;
   }
   // Visual feedback on button
   const _btnSalvar = document.querySelector('#modal-ambiente .btn-primary');
@@ -2081,8 +2088,9 @@ async function salvarAmbienteDetalhe() {
     if (idx>=0) {
       lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
     } else {
+      // Ambiente novo — adicionar ao array
+      lead.ambientesBriefing.push({...(_ambObj||{}), nome: _ambNome, tipo: _ambObj?.tipo||_ambNome});
       if (_btnSalvar) { _btnSalvar.disabled = false; _btnSalvar.innerHTML = '💾 Salvar'; }
-      toast('Erro: ambiente não encontrado — feche e abra novamente'); return;
     }
   }
   // Push lead with updated ambiente to Supabase
@@ -5507,6 +5515,8 @@ function renderProjetos(filter='') {
       const aMargPct = aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
       const travado = !!(p.propostaTravada && !isAdmin());
+      const travadoXmlOnclick = travado ? `_pedirDesbloqueioRapido('${p.id}',function(){abrirXMLDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')})` : `abrirXMLDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')`;
+      const travadoFotoOnclick = travado ? `_pedirDesbloqueioRapido('${p.id}',function(){abrirFotosDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')})` : `abrirFotosDireto('${p.id}','${(a.nome||a.tipo).replace(/'/g,"\\'")}')`;
       const isComplemento = p.isComplemento || p.status==='complemento';
       return `
       <div style="background:var(--bg2);border:0.5px solid ${isComplemento?'var(--amber)':'var(--border)'};border-radius:var(--radius);margin-bottom:14px;overflow:hidden;${isComplemento?'animation:complementoPulse 1.6s ease-in-out infinite':''}">
@@ -5560,7 +5570,7 @@ function renderProjetos(filter='') {
           </div>
 
           <!-- XML -->
-          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirXMLDireto('${p.id}','${a.nome||a.tipo}')`}">
+          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travadoXmlOnclick}">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📐</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">XML Promob</span>
@@ -5604,7 +5614,7 @@ function renderProjetos(filter='') {
           </div>
 
           <!-- FOTOS -->
-          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirFotosDireto('${p.id}','${a.nome||a.tipo}')`}">
+          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travadoFotoOnclick}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:15px">🖼</span>
@@ -8064,15 +8074,7 @@ function updateAmbientesSelect() {
 }
 
 function handleFiles(files) {
-  // Check if this upload is for a locked project
-  const _clienteSel = document.getElementById('imgCliente')?.value;
-  if (_clienteSel) {
-    const _pImg = DB.projetos.find(x=>x.leadId===_clienteSel||x.id===_clienteSel);
-    if (_pImg?.propostaTravada && !isAdmin()) {
-      toast('🔒 Projeto travado — não é possível enviar imagens'); return;
-    }
-  }
-
+  // Locked projects: allow upload (admin or via quick unlock handled at button level)
   Array.from(files).forEach(f => {
     if (f.type === 'application/pdf') {
       handlePDF(f);
@@ -10584,6 +10586,45 @@ async function _confirmarAceitarProposta(projetoId) {
     renderProjetos();
     toast('🔒 Proposta aceita e processos travados!');
   } catch(e) { toast('Erro: ' + e.message); }
+}
+
+// ── Desbloqueio rápido: pede confirmação e executa callback ──────────────────
+function _pedirDesbloqueioRapido(projetoId, callback) {
+  const p = DB.projetos.find(x=>x.id===projetoId);
+  if (!p) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = '<div style="background:#141414;border:1px solid rgba(212,148,74,0.4);border-radius:16px;padding:28px;max-width:380px;width:100%">'
+    +'<div style="font-size:18px;margin-bottom:6px">🔒 Projeto travado</div>'
+    +'<div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px">'
+    +'O projeto <strong>'+p.nome+'</strong> tem proposta aprovada.<br>'
+    +'Para editar, desbloquear permanentemente ou continuar apenas desta vez:'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +'<button id="qdbl-continuar" style="padding:12px;background:var(--amber);color:#0d0d0d;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">⚡ Continuar mesmo assim (sessão)</button>'
+    +'<button id="qdbl-permanente" style="padding:12px;background:transparent;border:1px solid var(--red);border-radius:10px;font-size:14px;color:var(--red);cursor:pointer;font-weight:600">🔓 Desbloquear permanentemente</button>'
+    +'<button id="qdbl-cancelar" style="padding:12px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:13px;color:#888;cursor:pointer">Cancelar</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#qdbl-continuar').onclick = function() {
+    document.body.removeChild(ov);
+    // Desbloqueia temporariamente só para esta operação
+    const original = p.propostaTravada;
+    p.propostaTravada = false;
+    try { callback(); } finally {
+      // Restaura após um tick para que a operação async complete
+      setTimeout(function() { p.propostaTravada = original; }, 3000);
+    }
+  };
+  ov.querySelector('#qdbl-permanente').onclick = function() {
+    document.body.removeChild(ov);
+    desbloquearProposta(projetoId);
+  };
+  ov.querySelector('#qdbl-cancelar').onclick = function() {
+    document.body.removeChild(ov);
+  };
+  ov.addEventListener('click', function(e) { if(e.target===ov) document.body.removeChild(ov); });
 }
 
 function desbloquearProposta(projetoId) {
