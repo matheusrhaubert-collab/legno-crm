@@ -10619,15 +10619,24 @@ function abrirCondicoes(projetoId) {
       };
     });
 
-    // Live recalc for inputs
+    // Live recalc for NON-etapa number inputs (desc, juros, parcelas, down) — safe to re-render
     div.querySelectorAll('input[type=number]').forEach(inp => {
-      inp.oninput = render;
+      if (!inp.dataset.etapaPct) inp.oninput = render;
     });
 
-    // Live recalc for etapa pct inputs
+    // Etapa pct inputs: only update total + value display, never re-render (would reset cursor)
     div.querySelectorAll('[data-etapa-pct]').forEach(inp => {
       inp.oninput = () => {
-        const total = Array.from(div.querySelectorAll('[data-etapa-pct]')).reduce((s,i)=>s+(parseFloat(i.value)||0),0);
+        const i = parseInt(inp.dataset.etapaPct);
+        const pct = parseFloat(inp.value) || 0;
+        // Update the value display span next to this input
+        const row = inp.closest('div[style*="display:flex"]');
+        if (row) {
+          const span = row.querySelector('span');
+          if (span) span.textContent = '$ ' + (precoBase * pct / 100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+        }
+        // Update total
+        const total = Array.from(div.querySelectorAll('[data-etapa-pct]')).reduce((s,el)=>s+(parseFloat(el.value)||0),0);
         const lbl = div.querySelector('#pct-total');
         if(lbl){ lbl.textContent='Total: '+total+'%'; lbl.style.color=total===100?'var(--green)':'var(--red)'; }
       };
