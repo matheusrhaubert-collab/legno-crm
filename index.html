@@ -9072,139 +9072,140 @@ function abrirEtapaAmbiente(instId, nomeAmb, idx) {
   ov.id = 'etapa-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:#0d0d0d;z-index:9999;display:flex;flex-direction:column;overflow:hidden;font-family:"DM Sans",sans-serif';
 
-  ov.innerHTML = `
-  <!-- ── TOP BAR ── -->
-  <div style="background:#111;border-bottom:0.5px solid rgba(255,255,255,0.07);padding:0 16px;height:calc(54px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);display:flex;align-items:center;gap:12px;flex-shrink:0">
-    <button onclick="fecharEtapaQuadro()" style="width:36px;height:36px;background:rgba(255,255,255,0.06);border:none;border-radius:10px;color:#aaa;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">‹</button>
-    <div style="flex:1;min-width:0;text-align:center">
-      <div style="font-size:14px;font-weight:600;color:#f2ede8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeAmb}</div>
-      <div style="font-size:11px;color:#5a5654;margin-top:1px">${inst.cliente}</div>
-    </div>
-    <div style="width:36px;height:36px;flex-shrink:0"></div>
-  </div>
+  // Gera HTML das bolinhas de navegação
+  const dotsHtml = etapas.map(function(e,i) {
+    const ativa = i===idx;
+    const feita = e.concluido;
+    const bg = feita?'var(--green)':ativa?'var(--gold)':'rgba(255,255,255,0.06)';
+    const cor = feita||ativa?'#0d0d0d':'#666';
+    const linha = i < etapas.length-1 ? '<div style="flex:1;height:2px;background:'+(feita?'var(--green)':'rgba(255,255,255,0.08)')+';min-width:8px"></div>' : '';
+    return '<div style="display:flex;align-items:center;flex-shrink:0">'
+      +'<button onclick="abrirEtapaAmbiente(\''+inst.id+'\',\''+nomeAmb.replace(/'/g,"\\'")+'\','+i+')"'
+      +' style="width:30px;height:30px;border-radius:50%;background:'+bg+';border:none;color:'+cor+';font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">'
+      +(feita?'&#10003;':(i+1))
+      +'</button></div>'+linha;
+  }).join('');
+  const dotsHtmlFinal = dotsHtml
+    .replace(/\\'/g,"'")
+    .replace(/abrirEtapaAmbiente\(\\'([^']+)\\',\\'([^']+)\\',(\d+)\)/g, function(m,a,b,c){ return "abrirEtapaAmbiente('"+a+"','"+b+"',"+c+")"; });
 
-  <!-- ── SCROLL BODY ── -->
-  <div id="etapa-overlay-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">
+  // Gera HTML dos subitens
+  const subitemsHtml = subitens.map(function(s,si) {
+    const bg = s.ok?'rgba(92,184,130,0.08)':'rgba(255,255,255,0.04)';
+    const brd = s.ok?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.07)';
+    const boxBg = s.ok?'var(--green)':'transparent';
+    const boxBrd = s.ok?'var(--green)':'rgba(255,255,255,0.2)';
+    const check = s.ok?'<span style="color:#0d0d0d;font-size:13px;font-weight:700">&#10003;</span>':'';
+    const txtCor = s.ok?'#8a8480':'#f2ede8';
+    const txtDec = s.ok?'text-decoration:line-through':'';
+    const onclk = item.concluido?'':'_toggleSubitem('+si+')';
+    return '<div onclick="'+onclk+'" id="subitem-'+si+'"'
+      +' style="display:flex;align-items:center;gap:12px;background:'+bg+';border:1px solid '+brd+';border-radius:10px;padding:13px 14px;cursor:'+(item.concluido?'default':'pointer')+';transition:all 0.15s">'
+      +'<div style="width:22px;height:22px;border-radius:6px;background:'+boxBg+';border:2px solid '+boxBrd+';display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">'+check+'</div>'
+      +'<span style="font-size:13px;color:'+txtCor+';'+txtDec+';line-height:1.4">'+s.label+'</span>'
+      +'</div>';
+  }).join('');
 
-    <!-- Cabeçalho da etapa -->
-    <div style="padding:20px 20px 0">
-      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600">Etapa ${idx+1} de ${total}</div>
-      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:500;color:#f2ede8;line-height:1.3;margin-bottom:4px">${item.titulo}</div>
-      <div style="font-size:13px;color:#8a8480;line-height:1.6;margin-bottom:16px">${item.descricao}</div>
+  const fotoAntesContent = item.fotoAntes
+    ? '<img src="'+item.fotoAntes+'" style="width:100%;height:100%;object-fit:cover">'
+    : '<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">&#128247;</div><div style="font-size:10px;color:#555">Toque para foto</div></div>';
+  const fotoAntesOnclick = item.concluido ? '' : 'document.getElementById(\'foto-antes-input\').click()';
+  const fotoAntesBrd = item.fotoAntes ? 'solid rgba(201,169,110,0.4)' : 'dashed rgba(255,255,255,0.12)';
+  const fotoDepoisContent = item.fotoDepois
+    ? '<img src="'+item.fotoDepois+'" style="width:100%;height:100%;object-fit:cover">'
+    : '<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">&#128247;</div><div style="font-size:10px;color:#555">Toque para foto</div></div>';
+  const fotoDepoisOnclick = item.concluido ? '' : 'document.getElementById(\'foto-depois-input\').click()';
+  const fotoDepoisBrd = item.fotoDepois ? 'solid rgba(92,184,130,0.4)' : 'dashed rgba(255,255,255,0.12)';
+  const infoConfirmHtml = (item.concluido && item.confirmedBy)
+    ? '<div style="margin:0 20px 20px;background:rgba(92,184,130,0.06);border:1px solid rgba(92,184,130,0.2);border-radius:12px;padding:14px 16px">'
+      +'<div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Confirmada por</div>'
+      +'<div style="font-size:15px;font-weight:600;color:#f2ede8">'+item.confirmedBy+'</div>'
+      +'<div style="font-size:12px;color:#8a8480;margin-top:3px">'+(item.dataConclusao||'')+' &agrave;s '+(item.horaConclusao||'')+'</div>'
+      +'</div>'
+    : '';
+  const footerHtml = item.concluido
+    ? '<div style="display:flex;gap:10px">'
+      +'<button onclick="desfazerEtapaAmbiente()" style="flex:1;height:50px;border:1px solid rgba(224,96,96,0.3);border-radius:14px;font-size:13px;font-weight:600;cursor:pointer;background:rgba(224,96,96,0.06);color:var(--red)">&#8617; Desfazer</button>'
+      +'<button onclick="fecharEtapaQuadro()" style="flex:2;height:50px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)">&#10003; Conclu&iacute;da</button>'
+      +'</div>'
+    : '<button id="etapa-confirmar-btn" onclick="confirmarEtapaAmbiente()" disabled'
+      +' style="width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:not-allowed;background:rgba(255,255,255,0.06);color:#555;letter-spacing:0.3px;transition:all 0.25s">'
+      +'&#9898; CONFIRMAR ETAPA'
+      +'</button>'
+      +'<button onclick="fecharEtapaQuadro()" style="width:100%;margin-top:8px;height:36px;border:none;background:transparent;color:#555;font-size:12px;cursor:pointer">Cancelar</button>';
 
-      <!-- Navegação de etapas — bolinhas -->
-      <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">
-        ${etapas.map((e,i)=>{
-          const ativa = i===idx;
-          const feita = e.concluido;
-          const cor = feita?'var(--green)':ativa?'var(--gold)':'rgba(255,255,255,0.12)';
-          const txtCor = feita||ativa?'#0d0d0d':'#555';
-          const bg = feita?'var(--green)':ativa?'var(--gold)':'rgba(255,255,255,0.06)';
-          const linha = i < etapas.length-1 ? `<div style="flex:1;height:2px;background:${feita?'var(--green)':'rgba(255,255,255,0.08)'};min-width:12px"></div>` : '';
-          return `<div style="display:flex;align-items:center;flex-shrink:0">
-            <button onclick="abrirEtapaAmbiente('${inst.id}','${nomeAmb.replace(/'/g,"\\'")}',${i})"
-              style="width:32px;height:32px;border-radius:50%;background:${bg};border:none;color:${ativa||feita?'#0d0d0d':'#666'};font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
-              ${feita?'✓':(i+1)}
-            </button>
-            ${ativa?`<div style="font-size:9px;color:var(--gold);margin-left:2px;margin-right:2px;white-space:nowrap">✓</div>`:''}
-          </div>${linha}`;
-        }).join('')}
-      </div>
-
-      <!-- Progress pill -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
-        <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden">
-          <div style="height:100%;width:${pctGeral}%;background:var(--gold);border-radius:99px;transition:width 0.4s"></div>
-        </div>
-        <div style="font-size:12px;font-weight:700;color:var(--gold);font-family:'DM Mono',monospace;flex-shrink:0">${pctGeral}% Geral</div>
-      </div>
-    </div>
-
-    <!-- ── FOTOS: Antes / Depois ── -->
-    <div style="padding:0 20px 20px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-size:13px;font-weight:600;color:#f2ede8">Fotos da etapa</span>
-        <span style="font-size:11px;color:${item.concluido?'var(--green)':'var(--red)'};font-weight:600">${item.concluido?'✓ Registradas':'Obrigatório'}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <!-- Antes -->
-        <div>
-          <div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Antes</div>
-          <div id="foto-antes-area" onclick="${item.concluido?'':\"document.getElementById('foto-antes-input').click()\"}"
-            style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px ${item.fotoAntes?'solid rgba(201,169,110,0.4)':'dashed rgba(255,255,255,0.12)'};display:flex;align-items:center;justify-content:center;cursor:${item.concluido?'default':'pointer'};position:relative">
-            ${item.fotoAntes
-              ? `<img src="${item.fotoAntes}" style="width:100%;height:100%;object-fit:cover">`
-              : `<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">📷</div><div style="font-size:10px;color:#555">Toque para foto</div></div>`}
-          </div>
-          <input type="file" id="foto-antes-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoAntes(this)">
-        </div>
-        <!-- Depois -->
-        <div>
-          <div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Depois</div>
-          <div id="foto-depois-area" onclick="${item.concluido?'':\"document.getElementById('foto-depois-input').click()\"}"
-            style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px ${item.fotoDepois?'solid rgba(92,184,130,0.4)':'dashed rgba(255,255,255,0.12)'};display:flex;align-items:center;justify-content:center;cursor:${item.concluido?'default':'pointer'};position:relative">
-            ${item.fotoDepois
-              ? `<img src="${item.fotoDepois}" style="width:100%;height:100%;object-fit:cover">`
-              : `<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">📷</div><div style="font-size:10px;color:#555">Toque para foto</div></div>`}
-          </div>
-          <input type="file" id="foto-depois-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoDepois(this)">
-        </div>
-      </div>
-    </div>
-
-    <!-- ── CHECKLIST DA ETAPA ── -->
-    <div style="padding:0 20px 20px">
-      <div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:10px">Checklist da etapa</div>
-      <div id="subitens-lista" style="display:flex;flex-direction:column;gap:6px">
-        ${subitens.map((s,si)=>`
-          <div onclick="${item.concluido?'':(`_toggleSubitem(${si})`)}" id="subitem-${si}"
-            style="display:flex;align-items:center;gap:12px;background:${s.ok?'rgba(92,184,130,0.08)':'rgba(255,255,255,0.04)'};border:1px solid ${s.ok?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.07)'};border-radius:10px;padding:13px 14px;cursor:${item.concluido?'default':'pointer'};transition:all 0.15s">
-            <div style="width:22px;height:22px;border-radius:6px;background:${s.ok?'var(--green)':'transparent'};border:2px solid ${s.ok?'var(--green)':'rgba(255,255,255,0.2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">
-              ${s.ok?'<span style="color:#0d0d0d;font-size:13px;font-weight:700">✓</span>':''}
-            </div>
-            <span style="font-size:13px;color:${s.ok?'#8a8480':'#f2ede8'};${s.ok?'text-decoration:line-through':''};line-height:1.4">${s.label}</span>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <!-- ── OBSERVAÇÕES ── -->
-    <div style="padding:0 20px 20px">
-      <div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:8px">Observações <span style="font-size:11px;color:#555;font-weight:400">(opcional)</span></div>
-      <textarea id="etapa-obs" maxlength="200" placeholder="Adicione observações sobre a etapa..."
-        ${item.concluido?'readonly':''}
-        oninput="document.getElementById('obs-count').textContent=this.value.length+'/200'"
-        style="width:100%;min-height:80px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#f2ede8;font-size:13px;font-family:'DM Sans',sans-serif;padding:12px 14px;outline:none;resize:none;box-sizing:border-box;${item.concluido?'opacity:0.5':''}${item.concluido?';cursor:default':''}">${item.obs||''}</textarea>
-      <div style="text-align:right;font-size:11px;color:#555;margin-top:4px"><span id="obs-count">${(item.obs||'').length}/200</span></div>
-    </div>
-
-    <!-- Info de quem confirmou (se concluída) -->
-    ${item.concluido&&item.confirmedBy?`
-    <div style="margin:0 20px 20px;background:rgba(92,184,130,0.06);border:1px solid rgba(92,184,130,0.2);border-radius:12px;padding:14px 16px">
-      <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Confirmada por</div>
-      <div style="font-size:15px;font-weight:600;color:#f2ede8">${item.confirmedBy}</div>
-      <div style="font-size:12px;color:#8a8480;margin-top:3px">${item.dataConclusao||''} às ${item.horaConclusao||''}</div>
-    </div>`:''}
-
-    <div style="height:env(safe-area-inset-bottom,16px)"></div>
-  </div>
-
-  <!-- ── FOOTER ── -->
-  <div id="etapa-footer" style="padding:12px 20px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:#111;border-top:0.5px solid rgba(255,255,255,0.07);flex-shrink:0">
-    ${item.concluido ? `
-      <div style="display:flex;gap:10px">
-        <button onclick="desfazerEtapaAmbiente()" style="flex:1;height:50px;border:1px solid rgba(224,96,96,0.3);border-radius:14px;font-size:13px;font-weight:600;cursor:pointer;background:rgba(224,96,96,0.06);color:var(--red)">↩ Desfazer</button>
-        <button onclick="fecharEtapaQuadro()" style="flex:2;height:50px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)">✓ Etapa concluída</button>
-      </div>
-    ` : `
-      <button id="etapa-confirmar-btn" onclick="confirmarEtapaAmbiente()" disabled
-        style="width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:not-allowed;background:rgba(255,255,255,0.06);color:#555;letter-spacing:0.3px;transition:all 0.25s">
-        ⊙ CONFIRMAR ETAPA
-      </button>
-      <button onclick="fecharEtapaQuadro()" style="width:100%;margin-top:8px;height:36px;border:none;background:transparent;color:#555;font-size:12px;cursor:pointer">Reportar problema</button>
-    `}
-  </div>`;
+  ov.innerHTML =
+    '<div style="background:#111;border-bottom:0.5px solid rgba(255,255,255,0.07);padding:0 16px;height:calc(54px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);display:flex;align-items:center;gap:12px;flex-shrink:0">'
+    +'<button onclick="fecharEtapaQuadro()" style="width:36px;height:36px;background:rgba(255,255,255,0.06);border:none;border-radius:10px;color:#aaa;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">&#8249;</button>'
+    +'<div style="flex:1;min-width:0;text-align:center">'
+    +'<div style="font-size:14px;font-weight:600;color:#f2ede8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nomeAmb+'</div>'
+    +'<div style="font-size:11px;color:#5a5654;margin-top:1px">'+inst.cliente+'</div>'
+    +'</div>'
+    +(item.concluido?'<div style="background:rgba(92,184,130,0.12);border:1px solid rgba(92,184,130,0.4);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--green);flex-shrink:0">&#10003;</div>':'<div style="width:36px"></div>')
+    +'</div>'
+    +'<div id="etapa-overlay-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">'
+    +'<div style="padding:20px 20px 0">'
+    +'<div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600">Etapa '+(idx+1)+' de '+total+'</div>'
+    +'<div style="font-family:Playfair Display,serif;font-size:22px;font-weight:500;color:#f2ede8;line-height:1.3;margin-bottom:4px">'+item.titulo+'</div>'
+    +'<div style="font-size:13px;color:#8a8480;line-height:1.6;margin-bottom:16px">'+item.descricao+'</div>'
+    +'<div style="display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">'+dotsHtmlFinal+'</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">'
+    +'<div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden">'
+    +'<div style="height:100%;width:'+pctGeral+'%;background:var(--gold);border-radius:99px;transition:width 0.4s"></div>'
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--gold);flex-shrink:0">'+pctGeral+'% Geral</div>'
+    +'</div></div>'
+    +'<div style="padding:0 20px 20px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    +'<span style="font-size:13px;font-weight:600;color:#f2ede8">Fotos da etapa</span>'
+    +'<span style="font-size:11px;color:'+(item.concluido?'var(--green)':'var(--red)')+';font-weight:600">'+(item.concluido?'&#10003; Registradas':'Obrigat&oacute;rio')+'</span>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +'<div>'
+    +'<div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Antes</div>'
+    +'<div id="foto-antes-area" onclick="'+fotoAntesOnclick+'"'
+    +' style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px '+fotoAntesBrd+';display:flex;align-items:center;justify-content:center;cursor:'+(item.concluido?'default':'pointer')+';position:relative">'
+    +fotoAntesContent+'</div>'
+    +'<input type="file" id="foto-antes-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoAntes(this)">'
+    +'</div>'
+    +'<div>'
+    +'<div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Depois</div>'
+    +'<div id="foto-depois-area" onclick="'+fotoDepoisOnclick+'"'
+    +' style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px '+fotoDepoisBrd+';display:flex;align-items:center;justify-content:center;cursor:'+(item.concluido?'default':'pointer')+';position:relative">'
+    +fotoDepoisContent+'</div>'
+    +'<input type="file" id="foto-depois-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoDepois(this)">'
+    +'</div>'
+    +'</div></div>'
+    +'<div style="padding:0 20px 20px">'
+    +'<div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:10px">Checklist da etapa</div>'
+    +'<div id="subitens-lista" style="display:flex;flex-direction:column;gap:6px">'+subitemsHtml+'</div>'
+    +'</div>'
+    +'<div style="padding:0 20px 20px">'
+    +'<div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:8px">Observa&ccedil;&otilde;es <span style="font-size:11px;color:#555;font-weight:400">(opcional)</span></div>'
+    +'<textarea id="etapa-obs" maxlength="200" placeholder="Adicione observa&ccedil;&otilde;es sobre a etapa..." '+(item.concluido?'readonly':'')+' oninput="document.getElementById(\'obs-count\').textContent=this.value.length+\'/200\'"'
+    +' style="width:100%;min-height:80px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#f2ede8;font-size:13px;font-family:DM Sans,sans-serif;padding:12px 14px;outline:none;resize:none;box-sizing:border-box">'+(item.obs||'')+'</textarea>'
+    +'<div style="text-align:right;font-size:11px;color:#555;margin-top:4px"><span id="obs-count">'+((item.obs||'').length)+'/200</span></div>'
+    +'</div>'
+    +infoConfirmHtml
+    +'<div style="height:16px"></div>'
+    +'</div>'
+    +'<div style="padding:12px 20px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:#111;border-top:0.5px solid rgba(255,255,255,0.07);flex-shrink:0">'
+    +footerHtml
+    +'</div>';
 
   document.body.appendChild(ov);
+  // Event delegation para bolinhas de navegação
+  ov.addEventListener('click', function(ev) {
+    const btn = ev.target.closest('[data-etapa-nav]');
+    if (btn) {
+      const i = parseInt(btn.dataset.etapanav || btn.getAttribute('data-etapa-nav'));
+      const iid = btn.getAttribute('data-nav-inst');
+      const amb = btn.getAttribute('data-nav-amb');
+      if (!isNaN(i) && iid && amb) abrirEtapaAmbiente(iid, amb, i);
+    }
+  });
+  _verificarPodeConfirmar();
+
   _verificarPodeConfirmar();
 }
 
