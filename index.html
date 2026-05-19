@@ -10076,8 +10076,9 @@ function abrirCondicoes(projetoId) {
   }
   const lead = DB.leads.find(l=>l.id===p.leadId);
   const ambientes = lead?.ambientesBriefing || [];
-  const precoBaseXML = ambientes.reduce((s,a) => s + (a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0), 0);
-  const precoBase = precoBaseXML || p.finPrecoFinal || 0;
+  // Usa valor de venda (editado manualmente), não o valor do Promob/XML
+  const precoBaseVenda = ambientes.reduce((s,a) => s + (a.finValorManual || a.finPrecoFinal || 0), 0);
+  const precoBase = precoBaseVenda || p.condicaoPrecoFinal || p.finPrecoFinal || 0;
   const etapasPadrao = [{label:'Entrada',pct:20},{label:'Medição e conferência',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
   const etapasAtuais = p.condicaoEtapas&&p.condicaoEtapas.length ? p.condicaoEtapas : etapasPadrao;
   const tipoAtual = p.condicaoTipo||'parcelado';
