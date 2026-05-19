@@ -5688,7 +5688,7 @@ function renderProjetos(filter='') {
                     <div style="font-size:10px;color:var(--text3)">Valor de venda${a.finValorManual>0?' <span style="color:var(--amber);font-size:9px">✎ manual</span>':''}</div>
                     <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
                   </div>
-                  ${`<button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>`}
+                  <button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>
                 </div>
                 ${valorPromobAmb>0?`
                 <div style="margin-bottom:6px">
@@ -5702,7 +5702,12 @@ function renderProjetos(filter='') {
                     <span style="font-size:9px;padding:1px 5px;border-radius:99px;background:${aMargPct>=30?'rgba(92,184,130,0.12)':aMargPct>=15?'var(--amber-dim)':'var(--red-dim)'};color:${aFinCor};font-weight:700">${aMargPct.toFixed(1)}%</span>
                   </div>
                 </div>
-              `:'<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Sem dados</div>'}
+              `:`
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
+                  <div style="font-size:11px;color:var(--text3)">Sem dados — insira o valor manualmente</div>
+                  <button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-left:8px">✎ Editar</button>
+                </div>
+              `}
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro completo</button>
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();abrirMiniFinanceiro('${p.id}','${a.nome||a.tipo}')">📈 Resumo do ambiente</button>
             `:`
