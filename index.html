@@ -5561,17 +5561,16 @@ function renderProjetos(filter='') {
       const aMargPct = aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
       const travado = !!(p.propostaTravada && !isAdmin());
-      // Registra nome do ambiente num map global para evitar quebra de aspas no onclick
+      // Registra no map global com chave numérica — seguro para qualquer nome
       if (!window._ambNomeMap) window._ambNomeMap = {};
-      const _ambKey = p.id + '||' + (a.nome||a.tipo);
+      const _ambKey = '_' + (window._ambNomeMapIdx = (window._ambNomeMapIdx||0) + 1);
       window._ambNomeMap[_ambKey] = {pid: p.id, nome: a.nome||a.tipo};
-      const _esc = encodeURIComponent(a.nome||a.tipo);
       const travadoXmlOnclick = travado
-        ? '_pedirDesbloqueioRapido(\''+p.id+'\',function(){_ambAction(\''+_ambKey+'\',\'xml\')})'
-        : '_ambAction(\''+_ambKey+'\',\'xml\')';
+        ? '_pedirDesbloqueioRapido(\'' + p.id + '\',function(){_ambAction(\'' + _ambKey + '\',\'xml\')})'
+        : '_ambAction(\'' + _ambKey + '\',\'xml\')';
       const travadoFotoOnclick = travado
-        ? '_pedirDesbloqueioRapido(\''+p.id+'\',function(){_ambAction(\''+_ambKey+'\',\'foto\')})'
-        : '_ambAction(\''+_ambKey+'\',\'foto\')';
+        ? '_pedirDesbloqueioRapido(\'' + p.id + '\',function(){_ambAction(\'' + _ambKey + '\',\'foto\')})'
+        : '_ambAction(\'' + _ambKey + '\',\'foto\')';
       const isComplemento = p.isComplemento || p.status==='complemento';
       return `
       <div style="background:var(--bg2);border:0.5px solid ${isComplemento?'var(--amber)':'var(--border)'};border-radius:var(--radius);margin-bottom:14px;overflow:hidden;${isComplemento?'animation:complementoPulse 1.6s ease-in-out infinite':''}">
