@@ -1287,32 +1287,38 @@ async function verPromob3D(projetoId, nomeAmb) {
   if (!path) { toast('Nenhum .promob carregado para este ambiente'); return; }
   toast('Carregando visualizador 3D...');
   try {
-    // Baixar o arquivo .promob do Supabase
     const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${path}`, {
       headers: { 'Authorization': `Bearer ${SB_KEY}` }
     });
     if (!resp.ok) { toast('Erro ao carregar .promob'); return; }
     const blob = await resp.blob();
     const url = URL.createObjectURL(blob);
-    // Abrir o viewer em nova janela passando a URL via postMessage
-    const win = window.open('promob_viewer.html', '_blank');
-    if (!win) { toast('Popup bloqueado — permita popups para este site'); return; }
-    // Aguardar o viewer carregar e enviar o blob
-    const onMsg = (e) => {
-      if (e.source === win && e.data === 'promob_viewer_ready') {
-        win.postMessage({ type: 'load_promob_url', url }, '*');
-        window.removeEventListener('message', onMsg);
-      }
+    // Abrir modal interno
+    const modal = document.getElementById('modal-3d');
+    const iframe = document.getElementById('iframe-3d');
+    const titulo = document.getElementById('modal-3d-titulo');
+    titulo.textContent = `🧊 ${nomeAmb || 'Visualizador 3D'}`;
+    modal.style.display = 'flex';
+    // Enviar arquivo quando iframe estiver pronto
+    const sendFile = () => {
+      iframe.contentWindow.postMessage({ type: 'load_promob_url', url }, '*');
     };
-    window.addEventListener('message', onMsg);
-    // Fallback: enviar após 3s se não receber ready
-    setTimeout(() => {
-      win.postMessage({ type: 'load_promob_url', url }, '*');
-      window.removeEventListener('message', onMsg);
-    }, 3000);
+    if (iframe.contentDocument?.readyState === 'complete') {
+      setTimeout(sendFile, 500);
+    } else {
+      iframe.onload = () => setTimeout(sendFile, 500);
+    }
   } catch(e) {
     toast('Erro: ' + e.message);
   }
+}
+
+function fechar3D() {
+  const modal = document.getElementById('modal-3d');
+  modal.style.display = 'none';
+  // Recarregar iframe para limpar estado
+  const iframe = document.getElementById('iframe-3d');
+  iframe.src = iframe.src;
 }
 
 function abrirFotosDireto(projetoId, nomeAmb) {
@@ -4437,6 +4443,19 @@ function salvarAssinatura(projId){
   }).then(()=>{alert('${lang==='en'?'Contract signed and saved!':lang==='pt'?'Contrato assinado e salvo!':'Contrato firmado y guardado!'}');}).catch(()=>{});
 }
 ${'</scr'+'ipt>'}
+
+<!-- Modal Viewer 3D -->
+<div id="modal-3d" style="display:none;position:fixed;inset:0;z-index:9999;background:#0c0c0a;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);background:#111108">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">🧊</span>
+      <span id="modal-3d-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2);font-size:16px">Visualizador 3D</span>
+    </div>
+    <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+  </div>
+  <iframe id="iframe-3d" src="promob_viewer.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+</div>
+
 </body>
 </html>`;
 
@@ -6538,6 +6557,19 @@ ${(()=>{
 
 <!-- MODAL CONFIRMAR PRODUÇÃO -->
 
+
+
+<!-- Modal Viewer 3D -->
+<div id="modal-3d" style="display:none;position:fixed;inset:0;z-index:9999;background:#0c0c0a;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);background:#111108">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">🧊</span>
+      <span id="modal-3d-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2);font-size:16px">Visualizador 3D</span>
+    </div>
+    <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+  </div>
+  <iframe id="iframe-3d" src="promob_viewer.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+</div>
 
 </body>
 </html>`;
@@ -13360,6 +13392,19 @@ function lbNav(dir){_lbIdx=(_lbIdx+dir+_lbFotos.length)%_lbFotos.length;lbMostra
 function _lbKey(e){if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);if(e.key==='Escape')fecharLightbox();}
 (function(){let sx=0;const el=document.getElementById('lightbox-overlay');el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX},{passive:true});el.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>50)lbNav(dx<0?1:-1);},{passive:true});})();
 </script>
+
+
+<!-- Modal Viewer 3D -->
+<div id="modal-3d" style="display:none;position:fixed;inset:0;z-index:9999;background:#0c0c0a;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);background:#111108">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">🧊</span>
+      <span id="modal-3d-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2);font-size:16px">Visualizador 3D</span>
+    </div>
+    <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+  </div>
+  <iframe id="iframe-3d" src="promob_viewer.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+</div>
 
 </body>
 </html>
