@@ -630,11 +630,19 @@ function buildScene(data){
     let dw, dh, dd, offX, offY, offZ;
 
     if(p.type==='panel'){
-      // Painéis diretos (sem IID): mapeamento padrão W→X, H→Y, D→Z
-      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
-      offX = -dw/2;
-      offY =  dh/2;
-      offZ =  dd/2;
+      // Detectar orientação pelo nome do agDesc ou pelas dimensões
+      // _ve_ ou IID-based: W=espessura(X_promob→Z_three), H=altura, D=profundidade(→X_three)
+      // _ho_ ou H<W&&H<D: H=espessura(Z_promob→Y_three), W=largura(→X_three), D=profundidade(→Z_three)
+      const _isHoriz = p.ag.includes('_ho_') || (p.h <= p.w && p.h <= p.d && p.h < 50);
+      if(_isHoriz){
+        // Horizontal: W→X, H→Y(espessura), D→Z
+        dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+        offX = -dw/2; offY = dh/2; offZ = dd/2;
+      } else {
+        // Vertical: D→X(profundidade), H→Y(altura), W→Z(espessura)
+        dw = pu(p.d); dh = pu(p.h); dd = pu(p.w);
+        offX = -dw/2; offY = dh/2; offZ = dw/2;
+      }
     } else {
       const nx = p.nx||0;
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
@@ -682,8 +690,9 @@ function rebuildPecas(){
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
     let dw, dh, dd, offX, offY, offZ;
     if(p.type==='panel'){
-      dw = pu(p.d); dh = pu(p.h); dd = pu(p.w);
-      offX = -dw/2; offY = dh/2; offZ = dw/2;
+      const _isHoriz = p.ag.includes('_ho_') || (p.h <= p.w && p.h <= p.d && p.h < 50);
+      if(_isHoriz){ dw=pu(p.w); dh=pu(p.h); dd=pu(p.d); offX=-dw/2; offY=dh/2; offZ=dd/2; }
+      else { dw=pu(p.d); dh=pu(p.h); dd=pu(p.w); offX=-dw/2; offY=dh/2; offZ=dw/2; }
     } else {
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
       if(p.rot===270||p.rot===-90){
