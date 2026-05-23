@@ -817,8 +817,10 @@ document.addEventListener('drop',e=>{
 });
 
 // Receber .promob via postMessage do CRM
+let _promobLoaded = false;
 window.addEventListener('message', async (e) => {
-  if (e.data?.type === 'load_promob_url') {
+  if (e.data?.type === 'load_promob_url' && !_promobLoaded) {
+    _promobLoaded = true;
     try {
       const resp = await fetch(e.data.url);
       const buf = await resp.arrayBuffer();
@@ -829,7 +831,14 @@ window.addEventListener('message', async (e) => {
     }
   }
 });
-if(window.opener) window.opener.postMessage('promob_viewer_ready','*');
+// Avisar o CRM repetidamente até receber o arquivo
+if(window.opener) {
+  let _readyCount = 0;
+  const _readyInt = setInterval(() => {
+    if (_promobLoaded || _readyCount++ > 20) { clearInterval(_readyInt); return; }
+    window.opener.postMessage('promob_viewer_ready', '*');
+  }, 300);
+}
 </script>
 </body>
 </html>
