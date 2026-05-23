@@ -315,9 +315,32 @@ function extractPecas(root, room){
 
   const infList = root.querySelectorAll('INFORMACOES[TYPE="MODULO"]');
   infList.forEach(info => {
+    const infoId = info.getAttribute('ID')||'';
     const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
-    if(!iid) return;
 
+    // Painéis diretos: ID da própria INFORMACOES começa com lg_mk_mk_pd_pa (sem IDENTIFICADORINFAGRITEM)
+    if(infoId.startsWith('lg_mk_mk_pd_pa') && !iid){
+      const pb = info.querySelector(':scope > POSICAOINSERCAO > PONTOBASE');
+      const px = pb ? fv(pb.getAttribute('X')) : 0;
+      const py = pb ? fv(pb.getAttribute('Y')) : 0;
+      const pz = pb ? fv(pb.getAttribute('Z')) : 0;
+      const idim = info.querySelector(':scope > INSERTDIMENSION');
+      if(!idim) return;
+      const w = fv(idim.getAttribute('WIDTH'));
+      const h = fv(idim.getAttribute('HEIGHT'));
+      const d = fv(idim.getAttribute('DEPTH'));
+      if(w<=1 && h<=1 && d<=1) return;
+      const key = `${Math.round(px)}_${Math.round(py)}_${Math.round(pz)}_${Math.round(w)}_${Math.round(h)}_${Math.round(d)}_${infoId}`;
+      if(seen.has(key)) return;
+      seen.add(key);
+      pecas.push({ ag:infoId, desc:infoId, type:'panel',
+        px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
+        w:Math.round(w), h:Math.round(h), d:Math.round(d),
+        nx:0, ny:0, nz:1, rot:90, inverted:false });
+      return;
+    }
+
+    if(!iid) return;
     const ag = iid.getAttribute('ID')||'';
     const agDesc = iid.getAttribute('IDAGREGADO')||'';
     const rep = iid.getAttribute('NUMERODAREPETICAO')||'';
@@ -529,12 +552,11 @@ function buildScene(data){
     let dw, dh, dd, offX, offY, offZ;
 
     if(p.type==='panel'){
-      // Painéis: W=espessura(19mm)=Three.Z, H=altura=Three.Y, D=profundidade=Three.X
-      // PONTOBASE = (X_min, Y_max, Z_min): offX=-D/2, offY=+H/2, offZ=+D/2
-      dw = pu(p.d); dh = pu(p.h); dd = pu(p.w);
+      // Painéis diretos (sem IID): mapeamento padrão W→X, H→Y, D→Z
+      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
       offX = -dw/2;
       offY =  dh/2;
-      offZ =  dw/2;  // posicionar no meio da profundidade (D), não W
+      offZ =  dd/2;
     } else {
       const nx = p.nx||0;
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
