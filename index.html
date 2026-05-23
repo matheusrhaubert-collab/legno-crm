@@ -1255,8 +1255,8 @@ async function carregarPromob(event) {
     const clean = s => s.replace(/[^a-zA-Z0-9._-]/g,'_');
     const promobPath = `${clean(_lSaveP?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
     const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${promobPath}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' },
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${SB_KEY_SERVICE}`, 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' },
       body: buf
     });
     if (resp.ok) {
@@ -1288,7 +1288,7 @@ async function verPromob3D(projetoId, nomeAmb) {
   toast('Baixando projeto 3D...');
   try {
     const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${path}`, {
-      headers: { 'Authorization': `Bearer ${SB_KEY}` }
+      headers: { 'Authorization': `Bearer ${SB_KEY_SERVICE}` }
     });
     if (!resp.ok) { toast('Erro ao carregar .promob'); return; }
     const buf = await resp.arrayBuffer();
