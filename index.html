@@ -1262,18 +1262,34 @@ async function carregarPromob(event) {
     if (resp.ok) {
       _ambObj.promobStoragePath = promobPath;
       _ambObj.promobNome = file.name;
-      // Salvar no lead igual ao padrão do carregarXML
+      // Salvar no lead
       const _pSave2 = DB.projetos.find(x=>x.id===_ambProjetoId);
       const _lSave2 = DB.leads.find(l=>l.id===_pSave2?.leadId);
-      if (_lSave2?.ambientesBriefing) {
-        const idx2 = _lSave2.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
-        if (idx2>=0) { _lSave2.ambientesBriefing[idx2] = {..._lSave2.ambientesBriefing[idx2], ..._ambObj}; }
-        try { await pushLead(_lSave2); renderProjetos(); } catch(e) {}
+      if (_lSave2) {
+        if (!_lSave2.ambientesBriefing) _lSave2.ambientesBriefing = [];
+        // Buscar por nome, tipo, ou _ambIdx
+        let idx2 = _lSave2.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
+        if (idx2 < 0 && _ambIdx >= 0) idx2 = _ambIdx;
+        if (idx2 >= 0) {
+          _lSave2.ambientesBriefing[idx2] = {..._lSave2.ambientesBriefing[idx2], ..._ambObj};
+        } else {
+          // Criar entrada se não encontrou
+          _lSave2.ambientesBriefing.push({..._ambObj, nome: _ambNome});
+          idx2 = _lSave2.ambientesBriefing.length - 1;
+        }
+        try {
+          await pushLead(_lSave2);
+          renderProjetos();
+          toast('✓ .promob salvo e sincronizado!');
+        } catch(e) {
+          toast('✓ .promob no storage, erro ao salvar no banco: ' + e.message);
+        }
+      } else {
+        toast('✓ .promob enviado (sem lead vinculado para salvar)');
       }
-      toast('✓ .promob salvo! Clique em "🧊 Ver 3D" para visualizar.');
     } else {
-      const err = await resp.text();
-      toast('Erro ao enviar .promob: ' + err);
+      const errText = await resp.text();
+      toast('Erro no upload: ' + errText);
     }
   } catch(e) {
     toast('Erro: ' + e.message);
