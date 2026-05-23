@@ -1293,33 +1293,26 @@ async function verPromob3D(projetoId, nomeAmb) {
     if (!resp.ok) { toast('Erro ao carregar .promob'); return; }
     const blob = await resp.blob();
     const url = URL.createObjectURL(blob);
-    // Abrir modal interno
-    const modal = document.getElementById('modal-3d');
-    const iframe = document.getElementById('iframe-3d');
-    const titulo = document.getElementById('modal-3d-titulo');
-    titulo.textContent = `🧊 ${nomeAmb || 'Visualizador 3D'}`;
-    modal.style.display = 'flex';
-    // Enviar arquivo quando iframe estiver pronto
-    const sendFile = () => {
-      iframe.contentWindow.postMessage({ type: 'load_promob_url', url }, '*');
+    // Abrir viewer em nova aba e enviar o arquivo via postMessage
+    const win = window.open('promob_viewer.html', '_blank');
+    if (!win) { toast('Popup bloqueado — permita popups para este site'); return; }
+    const onMsg = (e) => {
+      if (e.source === win && e.data === 'promob_viewer_ready') {
+        win.postMessage({ type: 'load_promob_url', url }, '*');
+        window.removeEventListener('message', onMsg);
+      }
     };
-    if (iframe.contentDocument?.readyState === 'complete') {
-      setTimeout(sendFile, 500);
-    } else {
-      iframe.onload = () => setTimeout(sendFile, 500);
-    }
+    window.addEventListener('message', onMsg);
+    setTimeout(() => {
+      win.postMessage({ type: 'load_promob_url', url }, '*');
+      window.removeEventListener('message', onMsg);
+    }, 3000);
   } catch(e) {
     toast('Erro: ' + e.message);
   }
 }
 
-function fechar3D() {
-  const modal = document.getElementById('modal-3d');
-  modal.style.display = 'none';
-  // Recarregar iframe para limpar estado
-  const iframe = document.getElementById('iframe-3d');
-  iframe.src = iframe.src;
-}
+function fechar3D() {}
 
 function abrirFotosDireto(projetoId, nomeAmb) {
   event.stopPropagation();
@@ -4453,7 +4446,7 @@ ${'</scr'+'ipt>'}
     </div>
     <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
   </div>
-  <iframe id="iframe-3d" src="promob_viewer.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+  <iframe id="iframe-3d" src="promob_viewer.html" allow="webgl; webgl2" style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
 </body>
@@ -6568,7 +6561,7 @@ ${(()=>{
     </div>
     <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
   </div>
-  <iframe id="iframe-3d" src="promob_viewer.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+  <iframe id="iframe-3d" src="promob_viewer.html" allow="webgl; webgl2" style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
 </body>
@@ -13403,7 +13396,7 @@ function _lbKey(e){if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNa
     </div>
     <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
   </div>
-  <iframe id="iframe-3d" src="promob_viewer.html" style="flex:1;border:none;width:100%;height:100%"></iframe>
+  <iframe id="iframe-3d" src="promob_viewer.html" allow="webgl; webgl2" style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
 </body>
