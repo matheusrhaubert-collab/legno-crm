@@ -249,8 +249,8 @@ function classifyType(desc, agDesc){
   if(agDesc.startsWith('raiz_COMP')||d.includes('flat door')||d.includes('co_mo_fr')||d.includes('frente')) return 'door';
   // Laterais — pa_pa_ve = chapa lateral vertical
   if(d.includes('pa_pa_ve')||d.includes('side left')||d.includes('side right')) return 'side';
-  // Painéis — todo pa_pa que não é ve (pa_pa_ho, pa_pa_pl, etc), tamponamento, panel 19mm, toekick
-  if(d.includes('pa_pa')||d.includes('tamponamento')||d.includes('toekick')||
+  // Painéis — lg_mk_mk_pd_pa (qualquer variante), pa_pa, tamponamento, toekick, etc
+  if(agDesc.startsWith('lg_mk_mk_pd_pa')||d.includes('pa_pa')||d.includes('tamponamento')||d.includes('toekick')||
      d.includes('doble panel')||d.includes('fi_fi')||
      (d.includes('panel') && !d.includes('installation'))) return 'panel';
   // Prateleiras horizontais
@@ -320,9 +320,9 @@ function extractPecas(root, room){
     const agDesc = iid.getAttribute('IDAGREGADO')||'';
     const rep = iid.getAttribute('NUMERODAREPETICAO')||'';
     const agDesc0 = iid.getAttribute('IDAGREGADO')||'';
-    const _isPaPaEarly = agDesc0.startsWith('lg_mk_mk_pd_pa_pa');
+    const _isPaPaEarly = agDesc0.startsWith('lg_mk_mk_pd_pa');
     const _isPaPanel = _isPaPaEarly; // definido cedo para uso em qualquer ponto
-    // pa_pa: aceitar todas as repetições (não filtrar por rep)
+    // pa_pa e variantes: aceitar todas as repetições (não filtrar por rep)
     if(!_isPaPaEarly && rep && rep !== '1') return;
     // INVERTED: na tag INFORMACOES (não em ATTRIBUTE)
     const inverted = (info.getAttribute('INVERTED')||'').toLowerCase() === 'true';
