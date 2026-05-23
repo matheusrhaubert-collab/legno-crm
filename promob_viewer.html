@@ -138,6 +138,8 @@ canvas{display:block;width:100%;height:100%}
       </div>
       <div class="sec">Filtros por tipo</div>
       <div id="filter-list"></div>
+      <div class="sec" id="sec-cores" style="margin-top:10px;display:none">Filtros por cor</div>
+      <div id="filter-cores"></div>
     </div>
   </div>
   <div id="canvas-wrap">
@@ -148,6 +150,7 @@ canvas{display:block;width:100%;height:100%}
       <button class="vb" id="btn-front" onclick="setView('front')">Frente</button>
       <button class="vb" id="btn-side" onclick="setView('side')">Lateral</button>
       <button class="vb" id="btn-explode" onclick="toggleExplode()">Explodir</button>
+      <button class="vb" id="btn-show-all" onclick="showAllMeshes()" style="display:none">👁 Mostrar ocultas (<span id="hidden-count">0</span>)</button>
     </div>
     <div id="ib">Arrastar: girar · Scroll: zoom · Btn direito: pan · Hover: peça</div>
     <div id="tip"><div class="tn" id="tt-n"></div><div class="td" id="tt-d"></div><div class="tr" id="tt-r"></div></div>
@@ -484,6 +487,7 @@ let camTX=0,camTY=0,camTZ=0;
 let isDrag=false,isRight=false,lastX=0,lastY=0;
 let sceneGroup,allMeshes=[];
 let typeVisible={};
+let hiddenMeshes=new Set();
 let exploded=false;
 let currentData=null;
 
@@ -611,7 +615,7 @@ function buildScene(data){
   let count=0;
   pecas.forEach(p=>{
     if(!typeVisible[p.type]) return;
-    const _mvk2=p.type+'::'+(p.modelType||''); if(matVisible[_mvk2]===false) return;
+    const _mvk2=p.modelType||''; if(_mvk2 && matVisible[_mvk2]===false) return;
     const cor=CORES[p.type]||CORES.unknown;
     const pos=p2t(p.px,p.py,p.pz,room);
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
@@ -657,12 +661,14 @@ function rebuildPecas(){
   if(!currentData) return;
   const toRm=[]; sceneGroup.children.forEach(c=>{if(c.userData.type)toRm.push(c);}); toRm.forEach(c=>sceneGroup.remove(c));
   allMeshes=[];
+  hiddenMeshes.clear();
+  updateHiddenBadge();
   const {room,pecas}=currentData;
   const EXPLODE_Y={cabinet:0,bottom:-0.15,shelf:0.15,door:0.45,panel:-0.3,stretcher:-0.2,filler:0.2,unknown:0,side:0};
   let count=0;
   pecas.forEach(p=>{
     if(!typeVisible[p.type]) return;
-    const _mvk=p.type+'::'+(p.modelType||''); if(matVisible[_mvk]===false) return;
+    const _mvk=p.modelType||''; if(_mvk && matVisible[_mvk]===false) return;
     const cor=CORES[p.type]||CORES.unknown;
     const pos=p2t(p.px,p.py,p.pz,room);
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
@@ -704,46 +710,45 @@ function buildFilters(pecas){
   const counts={};
   pecas.forEach(p=>counts[p.type]=(counts[p.type]||0)+1);
 
-  // Agrupamento de materiais por tipo
-  const matByType={};
-  pecas.forEach(p=>{
-    if(!matByType[p.type]) matByType[p.type]={};
-    const mk = p.modelType||'';
-    if(!matByType[p.type][mk]) matByType[p.type][mk]={count:0};
-    matByType[p.type][mk].count++;
-  });
-
+  // ── FILTROS POR TIPO ──
   const el=document.getElementById('filter-list');
   el.innerHTML=Object.entries(TYPE_LABELS).map(([type,label])=>{
     const n=counts[type]||0;
     if(!n) return '';
-
-    // Sub-itens de material
-    const mats = matByType[type]||{};
-    const matKeys = Object.keys(mats);
-    const hasMultipleMats = matKeys.length > 1 || (matKeys.length===1 && matKeys[0]!=='');
-
-    const matItems = hasMultipleMats ? matKeys.map(mk=>{
-      const file = MATERIAL_MAP[mk];
-      const url = file ? SB_URL_CORES+file : null;
-      const visKey = type+'::'+mk;
-      if(matVisible[visKey]===undefined) matVisible[visKey]=true;
-      const thumb = url
-        ? `<div class="mat-thumb" style="background-image:url('${url}');background-size:cover;width:22px;height:22px;border-radius:3px;flex-shrink:0;border:0.5px solid rgba(255,255,255,0.15)"></div>`
-        : `<div class="mat-thumb" style="background:${(CORES[type]||CORES.unknown).hex};width:22px;height:22px;border-radius:3px;flex-shrink:0"></div>`;
-      const matLabel = file ? file.replace('.jpg','') : (mk||'Sem material');
-      return `<div class="fi mat-sub ${matVisible[visKey]?'on':''}" onclick="toggleMat('${type}','${mk}',event)" style="padding:4px 7px;margin-left:8px">
-        ${thumb}
-        <div class="fn"><div class="fna" style="font-size:10px">${matLabel}</div><div class="fdm">${mats[mk].count} peças</div></div>
-        <span class="eye">${matVisible[visKey]?'👁':'○'}</span>
-      </div>`;
-    }).join('') : '';
-
     return `<div class="fi ${typeVisible[type]?'on':''}" onclick="toggleType('${type}')">
       <div class="fd" style="background:${(CORES[type]||CORES.unknown).hex}"></div>
       <div class="fn"><div class="fna">${label}</div><div class="fdm">${n} peças</div></div>
       <span class="eye">${typeVisible[type]?'👁':'○'}</span>
-    </div>${matItems}`;
+    </div>`;
+  }).join('');
+
+  // ── FILTROS POR COR ──
+  const matCounts={};
+  pecas.forEach(p=>{
+    const mk=p.modelType||'';
+    if(!matCounts[mk]) matCounts[mk]=0;
+    matCounts[mk]++;
+  });
+
+  const allMks = Object.keys(matCounts).filter(mk=>mk!=='');
+  const elC=document.getElementById('filter-cores');
+  const secC=document.getElementById('sec-cores');
+  if(allMks.length===0){ elC.innerHTML=''; secC.style.display='none'; return; }
+  secC.style.display='';
+
+  elC.innerHTML=allMks.sort().map(mk=>{
+    const file=MATERIAL_MAP[mk];
+    const url=file?SB_URL_CORES+file:null;
+    if(matVisible[mk]===undefined) matVisible[mk]=true;
+    const thumb=url
+      ? `<div style="background-image:url('${url}');background-size:cover;width:26px;height:26px;border-radius:4px;flex-shrink:0;border:0.5px solid rgba(255,255,255,0.15)"></div>`
+      : `<div style="background:#8090a0;width:26px;height:26px;border-radius:4px;flex-shrink:0"></div>`;
+    const label=file?file.replace('.jpg',''):(mk||'Sem cor');
+    return `<div class="fi ${matVisible[mk]?'on':''}" onclick="toggleMat('${mk}')">
+      ${thumb}
+      <div class="fn"><div class="fna">${label}</div><div class="fdm">${matCounts[mk]} peças</div></div>
+      <span class="eye">${matVisible[mk]?'👁':'○'}</span>
+    </div>`;
   }).join('');
 }
 
@@ -753,10 +758,8 @@ function toggleType(type){
   rebuildPecas();
 }
 
-function toggleMat(type, mk, e){
-  e.stopPropagation();
-  const visKey = type+'::'+mk;
-  matVisible[visKey] = !matVisible[visKey];
+function toggleMat(mk){
+  matVisible[mk] = !matVisible[mk];
   buildFilters(currentData.pecas);
   rebuildPecas();
 }
@@ -765,6 +768,17 @@ function toggleExplode(){
   exploded=!exploded;
   document.getElementById('btn-explode').className='vb'+(exploded?' active':'');
   rebuildPecas();
+}
+function showAllMeshes(){
+  hiddenMeshes.forEach(m=>m.visible=true);
+  hiddenMeshes.clear();
+  updateHiddenBadge();
+}
+function updateHiddenBadge(){
+  const btn=document.getElementById('btn-show-all');
+  const cnt=document.getElementById('hidden-count');
+  if(hiddenMeshes.size>0){btn.style.display='';cnt.textContent=hiddenMeshes.size;}
+  else btn.style.display='none';
 }
 
 // ── CÂMERA ────────────────────────────────────────────────────────────────
@@ -824,6 +838,19 @@ function setupEvents(){
     camDist=Math.max(0.3,Math.min(50,camDist+e.deltaY*0.008));
     updateCamera();e.preventDefault();
   },{passive:false});
+  wrap.addEventListener('dblclick',e=>{
+    const rect=wrap.getBoundingClientRect();
+    mv2.x=((e.clientX-rect.left)/rect.width)*2-1;
+    mv2.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    ray.setFromCamera(mv2,camera);
+    const hits=ray.intersectObjects(allMeshes,false);
+    if(hits.length){
+      const mesh=hits[0].object;
+      mesh.visible=false;
+      hiddenMeshes.add(mesh);
+      updateHiddenBadge();
+    }
+  });
   let t0d=0;
   wrap.addEventListener('touchstart',e=>{
     if(e.touches.length===1){isDrag=true;isRight=false;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
