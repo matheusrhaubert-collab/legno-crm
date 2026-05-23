@@ -336,7 +336,25 @@ function extractPecas(root, room){
       let panelModelType = '';
       const panelModelEl = info.querySelector('MODELS MODEL');
       if(panelModelEl) panelModelType = panelModelEl.getAttribute('IDMODELTYPE')||'';
-      pecas.push({ ag:infoId, desc:infoId, type:'panel', modelType:panelModelType,
+      // Fallback: buscar em sub-módulos se vazio
+      if(!panelModelType){
+        const subModel = info.querySelector('INFORMACOESCOLECAO MODELS MODEL');
+        if(subModel) panelModelType = subModel.getAttribute('IDMODELTYPE')||'';
+      }
+      // Descrição legível para painéis diretos
+      let panelDesc = infoId;
+      const panelDescAttr = info.querySelector('ATTRIBUTE[ID="DESCRIPTION"]');
+      if(panelDescAttr){
+        let pv = panelDescAttr.getAttribute('VALUE')||'';
+        if(pv){
+          panelDesc = pv
+            .replace(/\$W\$/g, Math.round(fv(info.querySelector(':scope > INSERTDIMENSION')?.getAttribute('WIDTH')||0)))
+            .replace(/\$H\$/g, Math.round(fv(info.querySelector(':scope > INSERTDIMENSION')?.getAttribute('HEIGHT')||0)))
+            .replace(/\$D\$/g, Math.round(fv(info.querySelector(':scope > INSERTDIMENSION')?.getAttribute('DEPTH')||0)))
+            .replace(/@[^@]+@/g,'').trim();
+        }
+      }
+      pecas.push({ ag:infoId, desc:panelDesc, type:'panel', modelType:panelModelType,
         px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
         w:Math.round(w), h:Math.round(h), d:Math.round(d),
         nx:0, ny:0, nz:1, rot:90, inverted:false });
@@ -593,6 +611,7 @@ function buildScene(data){
   let count=0;
   pecas.forEach(p=>{
     if(!typeVisible[p.type]) return;
+    const _mvk2=p.type+'::'+(p.modelType||''); if(matVisible[_mvk2]===false) return;
     const cor=CORES[p.type]||CORES.unknown;
     const pos=p2t(p.px,p.py,p.pz,room);
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
@@ -643,6 +662,7 @@ function rebuildPecas(){
   let count=0;
   pecas.forEach(p=>{
     if(!typeVisible[p.type]) return;
+    const _mvk=p.type+'::'+(p.modelType||''); if(matVisible[_mvk]===false) return;
     const cor=CORES[p.type]||CORES.unknown;
     const pos=p2t(p.px,p.py,p.pz,room);
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
@@ -676,23 +696,67 @@ function rebuildPecas(){
   document.getElementById('sv-pecas').textContent=count;
 }
 
+// Visibilidade por material
+let matVisible = {};
+
 function buildFilters(pecas){
+  // Contagem por tipo
   const counts={};
   pecas.forEach(p=>counts[p.type]=(counts[p.type]||0)+1);
+
+  // Agrupamento de materiais por tipo
+  const matByType={};
+  pecas.forEach(p=>{
+    if(!matByType[p.type]) matByType[p.type]={};
+    const mk = p.modelType||'';
+    if(!matByType[p.type][mk]) matByType[p.type][mk]={count:0};
+    matByType[p.type][mk].count++;
+  });
+
   const el=document.getElementById('filter-list');
   el.innerHTML=Object.entries(TYPE_LABELS).map(([type,label])=>{
     const n=counts[type]||0;
     if(!n) return '';
+
+    // Sub-itens de material
+    const mats = matByType[type]||{};
+    const matKeys = Object.keys(mats);
+    const hasMultipleMats = matKeys.length > 1 || (matKeys.length===1 && matKeys[0]!=='');
+
+    const matItems = hasMultipleMats ? matKeys.map(mk=>{
+      const file = MATERIAL_MAP[mk];
+      const url = file ? SB_URL_CORES+file : null;
+      const visKey = type+'::'+mk;
+      if(matVisible[visKey]===undefined) matVisible[visKey]=true;
+      const thumb = url
+        ? `<div class="mat-thumb" style="background-image:url('${url}');background-size:cover;width:22px;height:22px;border-radius:3px;flex-shrink:0;border:0.5px solid rgba(255,255,255,0.15)"></div>`
+        : `<div class="mat-thumb" style="background:${(CORES[type]||CORES.unknown).hex};width:22px;height:22px;border-radius:3px;flex-shrink:0"></div>`;
+      const matLabel = file ? file.replace('.jpg','') : (mk||'Sem material');
+      return `<div class="fi mat-sub ${matVisible[visKey]?'on':''}" onclick="toggleMat('${type}','${mk}',event)" style="padding:4px 7px;margin-left:8px">
+        ${thumb}
+        <div class="fn"><div class="fna" style="font-size:10px">${matLabel}</div><div class="fdm">${mats[mk].count} peças</div></div>
+        <span class="eye">${matVisible[visKey]?'👁':'○'}</span>
+      </div>`;
+    }).join('') : '';
+
     return `<div class="fi ${typeVisible[type]?'on':''}" onclick="toggleType('${type}')">
       <div class="fd" style="background:${(CORES[type]||CORES.unknown).hex}"></div>
       <div class="fn"><div class="fna">${label}</div><div class="fdm">${n} peças</div></div>
       <span class="eye">${typeVisible[type]?'👁':'○'}</span>
-    </div>`;
+    </div>${matItems}`;
   }).join('');
 }
 
 function toggleType(type){
   typeVisible[type]=!typeVisible[type];
+  buildFilters(currentData.pecas);
+  rebuildPecas();
+}
+
+function toggleMat(type, mk, e){
+  e.stopPropagation();
+  const visKey = type+'::'+mk;
+  matVisible[visKey] = !matVisible[visKey];
   buildFilters(currentData.pecas);
   rebuildPecas();
 }
