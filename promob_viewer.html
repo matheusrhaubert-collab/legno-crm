@@ -312,15 +312,6 @@ function extractPecas(root, room){
   }
 
 
-  // DEBUG: listar todos os IDAGREGADO que começam com lg_mk_mk_pd_pa
-  const _dbgPa = new Set();
-  for(const info of root.querySelectorAll('INFORMACOES[TYPE="MODULO"]')){
-    const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
-    if(!iid) continue;
-    const ag = iid.getAttribute('IDAGREGADO')||'';
-    if(ag.startsWith('lg_mk_mk_pd_pa')) _dbgPa.add(ag);
-  }
-  console.log('[VIEWER DEBUG] IDs lg_mk_mk_pd_pa encontrados:', [..._dbgPa]);
 
   const infList = root.querySelectorAll('INFORMACOES[TYPE="MODULO"]');
   infList.forEach(info => {
@@ -371,7 +362,7 @@ function extractPecas(root, room){
     const idim = info.querySelector(':scope > INSERTDIMENSION') ||
                  info.querySelector('INSERTDIMENSION');
     if(!idim){
-      if(_isPaPanel) console.log('[PANEL DROPPED] sem INSERTDIMENSION:', agDesc);
+      
       return;
     }
     const w = fv(idim.getAttribute('WIDTH'));
@@ -379,9 +370,9 @@ function extractPecas(root, room){
     const d = fv(idim.getAttribute('DEPTH'));
 
     // 1) Descartar dimensão vazia (container fantasma 1x1x1)
-    if(w<=1 && h<=1 && d<=1){ if(_isPaPanel) console.log('[PANEL DROPPED] dims vazia:', agDesc, w,h,d); return; }
+    if(w<=1 && h<=1 && d<=1){  return; }
     // 2) Descartar 100x100x100 (placeholders de posicionamento, o pai deles é o painel real)
-    if(w>=90&&w<=110 && h>=90&&h<=110 && d>=90&&d<=110){ if(_isPaPanel) console.log('[PANEL DROPPED] placeholder 100x100x100:', agDesc); return; }
+    if(w>=90&&w<=110 && h>=90&&h<=110 && d>=90&&d<=110){  return; }
     // 3) Whitelist: sempre incluir estas famílias independente de qualquer filtro
     const _isComp = agDesc.startsWith('raiz_COMP');
 
@@ -419,7 +410,7 @@ function extractPecas(root, room){
          /^[is]\d{3}\s*-/.test(_descStart)) return;
     }
 
-    if(_isPaPanel) console.log('[PANEL KEPT]', agDesc, 'w:'+w, 'h:'+h, 'd:'+d, 'px:'+Math.round(px), 'py:'+Math.round(py), 'pz:'+Math.round(pz));
+    
     const type = classifyType(desc, agDesc);
 
     // Chave única
@@ -534,41 +525,35 @@ function buildScene(data){
     if(!typeVisible[p.type]) return;
     const cor=CORES[p.type]||CORES.unknown;
     const pos=p2t(p.px,p.py,p.pz,room);
-    // Ajustar dimensões conforme a normal do módulo
-    // Normal ±X (parede lateral): WIDTH está ao longo de Y_promob→Three.X, DEPTH ao longo de X_promob→Three.Z
-    // Normal ±Y ou ±Z (parede fundo/frente): padrão W→X, H→Y, D→Z
-    const nx = p.nx||0, nz = p.nz||1;
-    let dw, dh, dd;
-    if(Math.abs(nx) > 0.5) {
-      // Parede lateral: W ao longo de Z_promob=three.X? Não — verificar empiricamente
-      // Na prática as coordenadas absolutas já resolvem, só precisa das dimensões certas
-      // Para NORMAL(1,0,0): módulo inserido na parede X=xMax
-      //   WIDTH → ao longo de Y_promob → Three.X ✓
-      //   DEPTH → ao longo de X_promob → Three.Z
-      //   HEIGHT → Three.Y ✓
-      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    const expY=exploded?(EXPLODE_Y[p.type]||0):0;
+    let dw, dh, dd, offX, offY, offZ;
+
+    if(p.type==='panel'){
+      // Painéis lg_mk_mk_pd_pa: PONTOBASE = canto (X_min, Y_max, Z_min) do painel
+      // W=espessura→X_promob→Three.Z, H=altura→Z_promob→Three.Y, D=prof→-Y_promob→Three.X
+      dw = pu(p.d); dh = pu(p.h); dd = pu(p.w);
+      offX = -dw/2;  // D vai em -Y_promob = +X_three, PONTOBASE é o início
+      offY =  dh/2;  // H cresce em +Z_promob = +Y_three
+      offZ =  dd/2;  // W cresce em +X_promob = +Z_three
     } else {
+      const nx = p.nx||0;
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+      const dim0 = {x:dw, y:dh, z:dd};
+      // Porta INVERTED / ROT
+      if(p.rot===270||p.rot===-90){
+        offX = p.inverted ? -dw/2 : dw/2;
+        offY = -dh/2;
+      } else {
+        offX = -dw/2;
+        offY = dh/2;
+      }
+      offZ = dd/2;
     }
     const dim = {x:dw, y:dh, z:dd};
-    const expY=exploded?(EXPLODE_Y[p.type]||0):0;
     const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
     const mat=new THREE.MeshLambertMaterial({color:hexInt(cor.hex)});
     const mesh=new THREE.Mesh(geo,mat);
-    // Porta INVERTED: PONTOBASE é o canto direito (WIDTH se expande em -X_three)
-    // Com eixo X invertido (yMax-py):
-    // ROT=90  sem INVERTED: PONTOBASE é canto esquerdo Promob = direito Three → offset -W/2
-    // ROT=270: PONTOBASE é canto superior-direito (WIDTH em -Y, HEIGHT em -Z)
-    // ROT=90 (padrão): PONTOBASE é canto inferior-esquerdo (WIDTH em +Y, HEIGHT em +Z)
-    let offX, offY;
-    if(p.rot===270||p.rot===-90){
-      offX = p.inverted ? -dim.x/2 : dim.x/2;  // X: inverted=esq→dir, normal=dir→esq
-      offY = -dim.y/2;  // Y: pz é o TOPO → center vai para baixo
-    } else {
-      offX = -dim.x/2;  // X invertido: ponto base é direita Three → vai pra esquerda
-      offY = dim.y/2;
-    }
-    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+dim.z/2);
+    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+(offZ||dd/2));
     mesh.castShadow=true; mesh.receiveShadow=true;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
     const eg=new THREE.EdgesGeometry(geo);
