@@ -1250,8 +1250,10 @@ async function carregarPromob(event) {
   toast('Enviando .promob para o Supabase...');
   try {
     const buf = await file.arrayBuffer();
+    const _pSaveP = DB.projetos.find(x=>x.id===_ambProjetoId);
+    const _lSaveP = DB.leads.find(l=>l.id===_pSaveP?.leadId);
     const clean = s => s.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const promobPath = `${clean(_lSave?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
+    const promobPath = `${clean(_lSaveP?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
     const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${promobPath}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' },
