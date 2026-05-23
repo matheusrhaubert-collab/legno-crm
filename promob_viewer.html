@@ -333,7 +333,10 @@ function extractPecas(root, room){
       const key = `${Math.round(px)}_${Math.round(py)}_${Math.round(pz)}_${Math.round(w)}_${Math.round(h)}_${Math.round(d)}_${infoId}`;
       if(seen.has(key)) return;
       seen.add(key);
-      pecas.push({ ag:infoId, desc:infoId, type:'panel',
+      let panelModelType = '';
+      const panelModelEl = info.querySelector('MODELS MODEL');
+      if(panelModelEl) panelModelType = panelModelEl.getAttribute('IDMODELTYPE')||'';
+      pecas.push({ ag:infoId, desc:infoId, type:'panel', modelType:panelModelType,
         px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
         w:Math.round(w), h:Math.round(h), d:Math.round(d),
         nx:0, ny:0, nz:1, rot:90, inverted:false });
@@ -442,7 +445,12 @@ function extractPecas(root, room){
     if(seen.has(key)) return;
     seen.add(key);
 
-    pecas.push({ ag, desc, type,
+    // Extrair IDMODELTYPE para textura
+    let modelType = '';
+    const modelEl = info.querySelector('MODELS MODEL');
+    if(modelEl) modelType = modelEl.getAttribute('IDMODELTYPE')||'';
+
+    pecas.push({ ag, desc, type, modelType,
       px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
       w:Math.round(w), h:Math.round(h), d:Math.round(d),
       nx, ny, nz, rot, inverted });
@@ -462,6 +470,45 @@ let exploded=false;
 let currentData=null;
 
 const hexInt=h=>parseInt(h.replace('#',''),16);
+
+// ── MAPEAMENTO DE MATERIAIS ───────────────────────────────────────────────
+const SB_URL_CORES = 'https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/cores/';
+const MATERIAL_MAP = {
+  'mk_co_wh_2':        'White.jpg',
+  'mk_co_cas_gre_2':   'Cashemere.jpg',
+  'mk_co_fog_gre_2':   'Fog-Grey.jpg',
+  'mk_co_ar_wh_2_3':   'Silver-Grey.jpg',
+  'mk_co_sto_gre_2':   'Stone-Grey.jpg',
+  'mk_co_dia_gre_2':   'Diamond.jpg',
+  'mk_co_rus_red_2':   'Rusty-Red.jpg',
+  'mk_co_ree_gre_2':   'Reed-Green.jpg',
+  'mk_co_pt_4':        'Black.jpg',
+  'mk_co_whi_tos_3':   'White-Tossini.jpg',
+  'mk_co_whi_tos_2_2': 'Fox-Grey-Tossini.jpg',
+  'mk_co_vic_oak_2':   'Vicenza.jpg',
+  'mk_co_ar_wh_2':     'Natural-Carini.jpg',
+  'mk_co_ar_wh_2_5':   'Honey-Carini.jpg',
+  'mk_co_pt_3':        'Natural-Halifax.jpg',
+  'mk_co_ar_wh_2_4':   'Chocolate-Carini.jpg',
+  'mk_co_ar_wh_2_2':   'Beige-Textile.jpg',
+};
+const textureCache = {};
+const texLoader = new THREE.TextureLoader();
+function getMaterial(modelType, hexColor) {
+  const file = MATERIAL_MAP[modelType];
+  if(file){
+    const url = SB_URL_CORES + file;
+    if(!textureCache[url]){
+      textureCache[url] = texLoader.load(url);
+      textureCache[url].wrapS = THREE.RepeatWrapping;
+      textureCache[url].wrapT = THREE.RepeatWrapping;
+    }
+    const tex = textureCache[url];
+    return new THREE.MeshLambertMaterial({ map: tex });
+  }
+  return new THREE.MeshLambertMaterial({ color: hexColor });
+}
+
 const pu=v=>v/1000;
 
 // Converter coords Promob → Three.js
@@ -573,9 +620,10 @@ function buildScene(data){
     }
     const dim = {x:dw, y:dh, z:dd};
     const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
-    const mat=new THREE.MeshLambertMaterial({color:hexInt(cor.hex)});
+    const mat=getMaterial(p.modelType||'', hexInt(cor.hex));
     const mesh=new THREE.Mesh(geo,mat);
     mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
+    if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
     mesh.castShadow=true; mesh.receiveShadow=true;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
     const eg=new THREE.EdgesGeometry(geo);
@@ -615,9 +663,10 @@ function rebuildPecas(){
     }
     const dim = {x:dw, y:dh, z:dd};
     const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
-    const mat=new THREE.MeshLambertMaterial({color:hexInt(cor.hex)});
+    const mat=getMaterial(p.modelType||'', hexInt(cor.hex));
     const mesh=new THREE.Mesh(geo,mat);
     mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
+    if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
     mesh.castShadow=true; mesh.receiveShadow=true;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
     const eg=new THREE.EdgesGeometry(geo);
