@@ -1285,28 +1285,21 @@ async function verPromob3D(projetoId, nomeAmb) {
   _prepararAmbContext(projetoId, nomeAmb);
   const path = _ambObj?.promobStoragePath;
   if (!path) { toast('Nenhum .promob carregado para este ambiente'); return; }
-  toast('Carregando visualizador 3D...');
+  toast('Baixando projeto 3D...');
   try {
     const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${path}`, {
       headers: { 'Authorization': `Bearer ${SB_KEY}` }
     });
     if (!resp.ok) { toast('Erro ao carregar .promob'); return; }
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    // Abrir viewer em nova aba e enviar o arquivo via postMessage
-    const win = window.open('promob_viewer.html', '_blank');
-    if (!win) { toast('Popup bloqueado — permita popups para este site'); return; }
-    const onMsg = (e) => {
-      if (e.source === win && e.data === 'promob_viewer_ready') {
-        win.postMessage({ type: 'load_promob_url', url }, '*');
-        window.removeEventListener('message', onMsg);
-      }
-    };
-    window.addEventListener('message', onMsg);
-    setTimeout(() => {
-      win.postMessage({ type: 'load_promob_url', url }, '*');
-      window.removeEventListener('message', onMsg);
-    }, 3000);
+    const buf = await resp.arrayBuffer();
+    // Salvar no sessionStorage para o viewer pegar
+    const arr = Array.from(new Uint8Array(buf));
+    sessionStorage.setItem('promob_pending', JSON.stringify({
+      data: arr,
+      nome: nomeAmb || 'projeto'
+    }));
+    // Navegar para o viewer na mesma aba — sem popup
+    window.location.href = 'promob_viewer.html?from_crm=1';
   } catch(e) {
     toast('Erro: ' + e.message);
   }
