@@ -7,11 +7,11 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0d0d0d;--bg2:#141412;--bg3:#1c1c1a;--bg4:#242422;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--border3:rgba(255,255,255,0.22);
-  --text:#f2ede8;--text2:#8a8480;--text3:#4a4644;
-  --gold:#c9a96e;--gold2:#e8c98a;--gold-dim:rgba(201,169,110,0.12);
-  --green:#5cb882;--red:#e06060;--blue:#6090d0;
+  --bg:#ffffff;--bg2:#f8f8f6;--bg3:#f0efed;--bg4:#e8e7e4;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);--border3:rgba(0,0,0,0.22);
+  --text:#1a1a1a;--text2:#5a5a58;--text3:#9a9a98;
+  --gold:#c9a96e;--gold2:#a07840;--gold-dim:rgba(201,169,110,0.15);
+  --green:#3a9a5c;--red:#c04040;--blue:#4070b0;
   --radius:10px;--radius-sm:6px;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden}
@@ -22,7 +22,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe 
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   background:var(--bg);transition:background 0.2s;
 }
-#drop-screen.over{background:#0a1a0a}
+#drop-screen.over{background:#f0f8f0}
 #drop-zone{
   width:420px;padding:60px 40px;
   border:1.5px dashed rgba(201,169,110,0.35);border-radius:16px;
@@ -45,9 +45,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe 
 /* ── LOADING ── */
 #loading-screen{
   position:fixed;inset:0;z-index:99;display:none;
-  flex-direction:column;align-items:center;justify-content:center;background:var(--bg);
+  flex-direction:column;align-items:center;justify-content:center;background:#ffffff;
 }
-#loading-bar-wrap{width:280px;height:4px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-bottom:12px}
+#loading-bar-wrap{width:280px;height:4px;background:#e8e8e6;border-radius:99px;overflow:hidden;margin-bottom:12px}
 #loading-bar{height:100%;background:var(--gold);border-radius:99px;width:0%;transition:width 0.2s}
 #loading-text{font-size:12px;color:var(--text2)}
 
@@ -63,15 +63,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe 
 #sb{flex:1;overflow-y:auto;padding:10px}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
 
-#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0c0c0a}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#ffffff}
 canvas{display:block;width:100%;height:100%}
 #vc{position:absolute;top:10px;right:10px;display:flex;gap:4px;z-index:10;flex-wrap:wrap;justify-content:flex-end;max-width:300px}
-.vb{padding:4px 10px;background:rgba(0,0,0,0.7);border:0.5px solid rgba(255,255,255,0.16);border-radius:5px;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
-.vb:hover{color:#fff;background:rgba(255,255,255,0.08)}.vb.active{background:rgba(201,169,110,0.2);border-color:var(--gold);color:var(--gold2)}
-#ib{position:absolute;bottom:10px;left:10px;font-size:10px;color:rgba(255,255,255,0.22);line-height:1.9;pointer-events:none}
-#tip{position:absolute;display:none;background:rgba(8,8,6,0.94);border:0.5px solid rgba(255,255,255,0.12);border-radius:7px;padding:8px 12px;font-size:11px;color:#fff;pointer-events:none;z-index:20;line-height:1.6;max-width:230px}
+.vb{padding:4px 10px;background:rgba(255,255,255,0.9);border:0.5px solid rgba(0,0,0,0.18);border-radius:5px;color:rgba(0,0,0,0.55);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
+.vb:hover{color:#000;background:rgba(255,255,255,1);border-color:rgba(0,0,0,0.3)}.vb.active{background:rgba(201,169,110,0.15);border-color:var(--gold);color:var(--gold2)}
+#ib{position:absolute;bottom:10px;left:10px;font-size:10px;color:rgba(0,0,0,0.35);line-height:1.9;pointer-events:none}
+#tip{position:absolute;display:none;background:rgba(255,255,255,0.97);border:0.5px solid rgba(0,0,0,0.15);box-shadow:0 4px 16px rgba(0,0,0,0.12);border-radius:7px;padding:8px 12px;font-size:11px;color:#1a1a1a;pointer-events:none;z-index:20;line-height:1.6;max-width:230px}
 #tip .tn{color:var(--gold2);font-weight:600;font-size:12px;margin-bottom:2px}
-#tip .td{color:var(--text2)}#tip .tr{color:var(--text3);font-size:10px;margin-top:1px}
+#tip .td{color:#444}#tip .tr{color:#888;font-size:10px;margin-top:1px}
 
 .sec{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600;padding:8px 0 5px;border-bottom:0.5px solid var(--border);margin-bottom:6px}
 .sec:first-child{padding-top:0}
@@ -149,6 +149,7 @@ canvas{display:block;width:100%;height:100%}
       <button class="vb" id="btn-top" onclick="setView('top')">Topo</button>
       <button class="vb" id="btn-front" onclick="setView('front')">Frente</button>
       <button class="vb" id="btn-side" onclick="setView('side')">Lateral</button>
+      <button class="vb" id="btn-proj" onclick="toggleProjection()" title="Alternar entre perspectiva e paralelo">⊞ Paralelo</button>
       <button class="vb" id="btn-explode" onclick="toggleExplode()">Explodir</button>
       <button class="vb" id="btn-show-all" onclick="showAllMeshes()" style="display:none">👁 Mostrar ocultas (<span id="hidden-count">0</span>)</button>
     </div>
@@ -489,7 +490,8 @@ function extractPecas(root, room){
 }
 
 // ── THREE.JS STATE ─────────────────────────────────────────────────────────
-let scene,camera,renderer;
+let scene,camera,orthoCamera,renderer;
+let useOrtho=false;
 let camTheta=0.6,camPhi=0.65,camDist=8;
 let camTX=0,camTY=0,camTZ=0;
 let isDrag=false,isRight=false,lastX=0,lastY=0;
@@ -500,6 +502,65 @@ let exploded=false;
 let currentData=null;
 
 const hexInt=h=>parseInt(h.replace('#',''),16);
+
+function getActiveCamera(){ return useOrtho ? orthoCamera : camera; }
+
+function updateOrthoSize(){
+  if(!orthoCamera) return;
+  const wrap=document.getElementById('canvas-wrap');
+  const W=wrap.clientWidth, H=wrap.clientHeight;
+  const aspect = W/H;
+  const halfH = camDist * 0.5;
+  const halfW = halfH * aspect;
+  orthoCamera.left   = camTX - halfW;
+  orthoCamera.right  = camTX + halfW;
+  orthoCamera.top    = camTY + halfH;
+  orthoCamera.bottom = camTY - halfH;
+  orthoCamera.updateProjectionMatrix();
+}
+
+function initThree(){
+  const wrap=document.getElementById('canvas-wrap');
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0xffffff);
+
+  // Perspectiva
+  camera=new THREE.PerspectiveCamera(40,W/H,0.001,5000);
+
+  // Ortográfica
+  orthoCamera=new THREE.OrthographicCamera(-1,1,1,-1,0.001,5000);
+
+  renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c3d'),antialias:true});
+  renderer.setSize(W,H);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  // Sem sombras
+  renderer.shadowMap.enabled=false;
+
+  // Iluminação flat uniforme — sem direção, sem sombra
+  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+
+  sceneGroup=new THREE.Group(); scene.add(sceneGroup);
+  setupEvents();
+  animate();
+  window.addEventListener('resize',()=>{
+    const W=wrap.clientWidth,H=wrap.clientHeight;
+    camera.aspect=W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+    updateOrthoSize();
+  });
+}
+
+function toggleProjection(){
+  useOrtho=!useOrtho;
+  const btn=document.getElementById('btn-proj');
+  if(btn){
+    btn.textContent = useOrtho ? '⊡ Perspectiva' : '⊞ Paralelo';
+    btn.className = 'vb' + (useOrtho ? ' active' : '');
+  }
+  if(useOrtho) updateOrthoSize();
+  updateCamera();
+}
 
 // ── MAPEAMENTO DE MATERIAIS ───────────────────────────────────────────────
 const SB_URL_CORES = 'https://bibtcgcabjngisqwywrs.supabase.co/storage/v1/object/public/cores/';
@@ -534,9 +595,9 @@ function getMaterial(modelType, hexColor) {
       textureCache[url].wrapT = THREE.RepeatWrapping;
     }
     const tex = textureCache[url];
-    return new THREE.MeshLambertMaterial({ map: tex });
+    return new THREE.MeshBasicMaterial({ map: tex });
   }
-  return new THREE.MeshLambertMaterial({ color: hexColor });
+  return new THREE.MeshBasicMaterial({ color: hexColor });
 }
 
 const pu=v=>v/1000;
@@ -549,33 +610,7 @@ function p2t(px,py,pz,room){
 }
 function d2t(w,h,d){ return {x:pu(w),y:pu(h),z:pu(d)}; }
 
-function initThree(){
-  const wrap=document.getElementById('canvas-wrap');
-  const W=wrap.clientWidth,H=wrap.clientHeight;
-  scene=new THREE.Scene(); scene.background=new THREE.Color(0x0c0c0a);
-  camera=new THREE.PerspectiveCamera(40,W/H,0.001,5000);
-  renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c3d'),antialias:true});
-  renderer.setSize(W,H); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-
-  scene.add(new THREE.AmbientLight(0xffffff,0.5));
-  const sun=new THREE.DirectionalLight(0xfff8f0,0.9);
-  sun.position.set(5,10,6); sun.castShadow=true;
-  sun.shadow.mapSize.set(2048,2048);
-  sun.shadow.camera.left=-10;sun.shadow.camera.right=10;
-  sun.shadow.camera.top=10;sun.shadow.camera.bottom=-10;sun.shadow.camera.far=80;
-  scene.add(sun);
-  const fill=new THREE.DirectionalLight(0xd0e0ff,0.3); fill.position.set(-4,3,-4); scene.add(fill);
-  scene.add(new THREE.HemisphereLight(0xfff0d0,0x1a1a10,0.25));
-
-  sceneGroup=new THREE.Group(); scene.add(sceneGroup);
-  setupEvents();
-  animate();
-  window.addEventListener('resize',()=>{
-    const W=wrap.clientWidth,H=wrap.clientHeight;
-    camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H);
-  });
-}
+// MATERIAL MAP (kept below)
 
 function buildScene(data){
   const {room,pecas} = data;
@@ -585,30 +620,27 @@ function buildScene(data){
   const rW=pu(room.yMax-room.yMin), rH=pu(room.zMax-room.zMin), rD=pu(room.xMax-room.xMin);
   const oX=pu(-room.yMin), oY=pu(-room.zMin), oZ=pu(-room.xMin);
   window._R={rW,rH,rD,oX,oY,oZ};
-  // Centro do cômodo em coords Three
   camTX=rW/2+oX; camTY=rH/2+oY; camTZ=rD/2+oZ;
-  // Distância que garante ver TODO o cômodo
   const diag=Math.sqrt(rW*rW+rH*rH+rD*rD);
   camDist=diag*1.2;
 
-  // Cômodo — chão, paredes e grade baseados nas dimensões reais
-  const fm=new THREE.MeshLambertMaterial({color:0x141412,side:THREE.DoubleSide});
-  const wm=new THREE.MeshLambertMaterial({color:0x1c1c1a,side:THREE.DoubleSide});
-  // Chão
+  // Chão e paredes — branco / cinza muito claro, sem sombra
+  const fm=new THREE.MeshBasicMaterial({color:0xf5f5f3,side:THREE.DoubleSide});
+  const wm=new THREE.MeshBasicMaterial({color:0xf0eeec,side:THREE.DoubleSide});
   const fl=new THREE.Mesh(new THREE.PlaneGeometry(rW,rD),fm);
-  fl.rotation.x=-Math.PI/2; fl.position.set(rW/2+oX,oY-0.001,rD/2+oZ); fl.receiveShadow=true; sceneGroup.add(fl);
-  // Parede fundo (Z=0, paralela ao eixo X)
+  fl.rotation.x=-Math.PI/2; fl.position.set(rW/2+oX,oY-0.001,rD/2+oZ); sceneGroup.add(fl);
   const bk=new THREE.Mesh(new THREE.PlaneGeometry(rW,rH),wm);
-  bk.position.set(rW/2+oX,rH/2+oY,oZ); bk.receiveShadow=true; sceneGroup.add(bk);
-  // Parede lateral esquerda (X=0, paralela ao eixo Z)
+  bk.position.set(rW/2+oX,rH/2+oY,oZ); sceneGroup.add(bk);
   const sw=new THREE.Mesh(new THREE.PlaneGeometry(rD,rH),wm);
-  sw.rotation.y=Math.PI/2; sw.position.set(oX,rH/2+oY,rD/2+oZ); sw.receiveShadow=true; sceneGroup.add(sw);
-  // Grade no chão
+  sw.rotation.y=Math.PI/2; sw.position.set(oX,rH/2+oY,rD/2+oZ); sceneGroup.add(sw);
+
+  // Grade discreta
   const gs=Math.max(rW,rD);
-  const gd=new THREE.GridHelper(gs*1.5,Math.round(gs*20),0x222220,0x1c1c1a);
+  const gd=new THREE.GridHelper(gs*1.5,Math.round(gs*20),0xddddda,0xe8e8e4);
   gd.position.set(rW/2+oX,oY,rD/2+oZ); sceneGroup.add(gd);
-  // Arestas do cômodo
-  const em=new THREE.LineBasicMaterial({color:0x333330,opacity:0.7,transparent:true});
+
+  // Arestas do cômodo — cinza claro
+  const em=new THREE.LineBasicMaterial({color:0xccccca,opacity:0.8,transparent:true});
   [[oX,oY,oZ,oX+rW,oY,oZ],[oX,oY,oZ,oX,oY+rH,oZ],[oX,oY,oZ,oX,oY,oZ+rD],
    [oX+rW,oY,oZ,oX+rW,oY+rH,oZ],[oX+rW,oY,oZ,oX+rW,oY,oZ+rD],
    [oX,oY,oZ+rD,oX+rW,oY,oZ+rD],[oX,oY,oZ+rD,oX,oY+rH,oZ+rD],
@@ -630,23 +662,14 @@ function buildScene(data){
     let dw, dh, dd, offX, offY, offZ;
 
     if(p.type==='panel'){
-      // Painéis diretos (sem IID): mapeamento padrão W→X, H→Y, D→Z
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
-      offX = -dw/2;
-      offY =  dh/2;
-      offZ =  dd/2;
+      offX = -dw/2; offY =  dh/2; offZ =  dd/2;
     } else {
       const nx = p.nx||0;
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
-      const dim0 = {x:dw, y:dh, z:dd};
-      // Porta INVERTED / ROT
       if(p.rot===270||p.rot===-90){
-        offX = p.inverted ? -dw/2 : dw/2;
-        offY = -dh/2;
-      } else {
-        offX = -dw/2;
-        offY = dh/2;
-      }
+        offX = p.inverted ? -dw/2 : dw/2; offY = -dh/2;
+      } else { offX = -dw/2; offY = dh/2; }
       offZ = dd/2;
     }
     const dim = {x:dw, y:dh, z:dd};
@@ -655,10 +678,11 @@ function buildScene(data){
     const mesh=new THREE.Mesh(geo,mat);
     mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
     if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
-    mesh.castShadow=true; mesh.receiveShadow=true;
+    // Sem sombras
+    mesh.castShadow=false; mesh.receiveShadow=false;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
     const eg=new THREE.EdgesGeometry(geo);
-    mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:hexInt(cor.dark),opacity:0.5,transparent:true})));
+    mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:hexInt(cor.dark),opacity:0.6,transparent:true})));
     sceneGroup.add(mesh); allMeshes.push(mesh); count++;
   });
   document.getElementById('sv-pecas').textContent=count;
@@ -701,10 +725,10 @@ function rebuildPecas(){
     const mesh=new THREE.Mesh(geo,mat);
     mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
     if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
-    mesh.castShadow=true; mesh.receiveShadow=true;
+    mesh.castShadow=false; mesh.receiveShadow=false;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
     const eg=new THREE.EdgesGeometry(geo);
-    mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:hexInt(cor.dark),opacity:0.5,transparent:true})));
+    mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:hexInt(cor.dark),opacity:0.6,transparent:true})));
     sceneGroup.add(mesh); allMeshes.push(mesh); count++;
   });
   document.getElementById('sv-pecas').textContent=count;
@@ -795,6 +819,10 @@ function updateCamera(){
   const y=camTY+camDist*Math.cos(camPhi);
   const z=camTZ+camDist*Math.sin(camPhi)*Math.cos(camTheta);
   camera.position.set(x,y,z); camera.lookAt(camTX,camTY,camTZ);
+  if(orthoCamera){
+    orthoCamera.position.set(x,y,z); orthoCamera.lookAt(camTX,camTY,camTZ);
+    updateOrthoSize();
+  }
 }
 
 function setView(v){
@@ -879,7 +907,7 @@ function setupEvents(){
   wrap.addEventListener('touchend',()=>isDrag=false,{passive:true});
 }
 
-function animate(){requestAnimationFrame(animate);if(renderer)renderer.render(scene,camera);}
+function animate(){requestAnimationFrame(animate);if(renderer)renderer.render(scene,getActiveCamera());}
 
 // ── FLUXO PRINCIPAL ────────────────────────────────────────────────────────
 function setLoading(pct, txt){
