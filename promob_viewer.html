@@ -529,12 +529,12 @@ function buildScene(data){
     let dw, dh, dd, offX, offY, offZ;
 
     if(p.type==='panel'){
-      // Painéis lg_mk_mk_pd_pa: PONTOBASE = canto (X_min, Y_max, Z_min) do painel
-      // W=espessura→X_promob→Three.Z, H=altura→Z_promob→Three.Y, D=prof→-Y_promob→Three.X
+      // Painéis: W=espessura(19mm)=Three.Z, H=altura=Three.Y, D=profundidade=Three.X
+      // PONTOBASE = (X_min, Y_max, Z_min): offX=-D/2, offY=+H/2, offZ=+D/2
       dw = pu(p.d); dh = pu(p.h); dd = pu(p.w);
-      offX = -dw/2;  // D vai em -Y_promob = +X_three, PONTOBASE é o início
-      offY =  dh/2;  // H cresce em +Z_promob = +Y_three
-      offZ =  dd/2;  // W cresce em +X_promob = +Z_three
+      offX = -dw/2;
+      offY =  dh/2;
+      offZ =  dw/2;  // posicionar no meio da profundidade (D), não W
     } else {
       const nx = p.nx||0;
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
@@ -578,9 +578,8 @@ function rebuildPecas(){
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
     let dw, dh, dd, offX, offY, offZ;
     if(p.type==='panel'){
-      // Painéis: W=espessura(+X_promob→+Z_three), H=altura(+Z_promob→+Y_three), D=prof(-Y_promob→+X_three)
       dw = pu(p.d); dh = pu(p.h); dd = pu(p.w);
-      offX = -dw/2; offY = dh/2; offZ = dd/2;
+      offX = -dw/2; offY = dh/2; offZ = dw/2;
     } else {
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
       if(p.rot===270||p.rot===-90){
