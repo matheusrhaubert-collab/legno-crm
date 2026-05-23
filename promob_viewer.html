@@ -323,11 +323,19 @@ function extractPecas(root, room){
 
     // Painéis diretos: ID da própria INFORMACOES começa com lg_mk_mk_pd_pa (sem IDENTIFICADORINFAGRITEM)
     if(infoId.startsWith('lg_mk_mk_pd_pa') && !iid){
-      const pb = info.querySelector(':scope > POSICAOINSERCAO > PONTOBASE');
+      // Buscar POSICAOINSERCAO filho direto (não dentro de JOINTDESCRIPTOR)
+      let pb = null;
+      for(const ch of info.children){
+        if(ch.tagName==='POSICAOINSERCAO'){ pb=ch.querySelector('PONTOBASE'); break; }
+      }
       const px = pb ? fv(pb.getAttribute('X')) : 0;
       const py = pb ? fv(pb.getAttribute('Y')) : 0;
       const pz = pb ? fv(pb.getAttribute('Z')) : 0;
-      const idim = info.querySelector(':scope > INSERTDIMENSION');
+      // INSERTDIMENSION filho direto
+      let idim = null;
+      for(const ch of info.children){
+        if(ch.tagName==='INSERTDIMENSION'){ idim=ch; break; }
+      }
       if(!idim) return;
       const w = fv(idim.getAttribute('WIDTH'));
       const h = fv(idim.getAttribute('HEIGHT'));
