@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Promob 3D Viewer — Studio Legno</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--bg2:#141412;--bg3:#1c1c1a;--bg4:#242422;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);--border3:rgba(255,255,255,0.22);
+  --text:#f2ede8;--text2:#8a8480;--text3:#4a4644;
+  --gold:#c9a96e;--gold2:#e8c98a;--gold-dim:rgba(201,169,110,0.12);
+  --green:#5cb882;--red:#e06060;--blue:#6090d0;
+  --radius:10px;--radius-sm:6px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden}
+
+/* ── DROP SCREEN ── */
+#drop-screen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);transition:background 0.2s;
+}
+#drop-screen.over{background:#0a1a0a}
+#drop-zone{
+  width:420px;padding:60px 40px;
+  border:1.5px dashed rgba(201,169,110,0.35);border-radius:16px;
+  text-align:center;cursor:pointer;transition:all 0.2s;
+  background:var(--bg2);
+}
+#drop-zone:hover,#drop-screen.over #drop-zone{border-color:var(--gold);background:var(--gold-dim)}
+#drop-icon{font-size:48px;margin-bottom:16px;opacity:0.7}
+#drop-title{font-size:18px;font-weight:500;color:var(--gold2);margin-bottom:8px}
+#drop-sub{font-size:13px;color:var(--text2);line-height:1.6}
+#drop-btn{
+  margin-top:20px;padding:9px 20px;background:var(--gold);border:none;
+  border-radius:var(--radius-sm);color:#0d0d0d;font-size:13px;font-weight:600;
+  font-family:inherit;cursor:pointer;transition:background 0.15s;
+}
+#drop-btn:hover{background:var(--gold2)}
+#drop-error{margin-top:14px;font-size:12px;color:var(--red);min-height:18px}
+#file-input{display:none}
+
+/* ── LOADING ── */
+#loading-screen{
+  position:fixed;inset:0;z-index:99;display:none;
+  flex-direction:column;align-items:center;justify-content:center;background:var(--bg);
+}
+#loading-bar-wrap{width:280px;height:4px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-bottom:12px}
+#loading-bar{height:100%;background:var(--gold);border-radius:99px;width:0%;transition:width 0.2s}
+#loading-text{font-size:12px;color:var(--text2)}
+
+/* ── APP ── */
+#app{height:100vh}
+#sidebar{width:270px;flex-shrink:0;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column}
+#sh{padding:12px 14px 10px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer;margin-bottom:8px;transition:color 0.15s}
+.back-btn:hover{color:var(--text2)}
+.pt{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.pn{font-size:14px;font-weight:600;color:var(--gold2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps{font-size:11px;color:var(--text3);margin-top:2px}
+#sb{flex:1;overflow-y:auto;padding:10px}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0c0c0a}
+canvas{display:block;width:100%;height:100%}
+#vc{position:absolute;top:10px;right:10px;display:flex;gap:4px;z-index:10;flex-wrap:wrap;justify-content:flex-end;max-width:300px}
+.vb{padding:4px 10px;background:rgba(0,0,0,0.7);border:0.5px solid rgba(255,255,255,0.16);border-radius:5px;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
+.vb:hover{color:#fff;background:rgba(255,255,255,0.08)}.vb.active{background:rgba(201,169,110,0.2);border-color:var(--gold);color:var(--gold2)}
+#ib{position:absolute;bottom:10px;left:10px;font-size:10px;color:rgba(255,255,255,0.22);line-height:1.9;pointer-events:none}
+#tip{position:absolute;display:none;background:rgba(8,8,6,0.94);border:0.5px solid rgba(255,255,255,0.12);border-radius:7px;padding:8px 12px;font-size:11px;color:#fff;pointer-events:none;z-index:20;line-height:1.6;max-width:230px}
+#tip .tn{color:var(--gold2);font-weight:600;font-size:12px;margin-bottom:2px}
+#tip .td{color:var(--text2)}#tip .tr{color:var(--text3);font-size:10px;margin-top:1px}
+
+.sec{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600;padding:8px 0 5px;border-bottom:0.5px solid var(--border);margin-bottom:6px}
+.sec:first-child{padding-top:0}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}
+.sv{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;text-align:center}
+.svv{font-size:12px;font-weight:600;color:var(--gold2)}.svl{font-size:9px;color:var(--text3);margin-top:1px;text-transform:uppercase}
+.lg{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.lc{display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:99px;border:0.5px solid var(--border);font-size:10px;color:var(--text2)}
+.ld{width:7px;height:7px;border-radius:1px;flex-shrink:0}
+.fi{display:flex;align-items:center;gap:6px;padding:5px 7px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-sm);margin-bottom:3px;cursor:pointer;transition:all .15s;user-select:none}
+.fi:hover{border-color:var(--border2)}.fi.on{border-color:var(--gold);background:var(--gold-dim)}
+.fd{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.fn{flex:1;min-width:0}
+.fna{font-size:10px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fdm{font-size:9px;color:var(--text3);margin-top:1px}
+.eye{font-size:11px;color:var(--text3);flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- DROP SCREEN -->
+<div id="drop-screen">
+  <div id="drop-zone">
+    <div id="drop-icon">📦</div>
+    <div id="drop-title">Abrir projeto Promob</div>
+    <div id="drop-sub">Arraste um arquivo <strong>.promob</strong> aqui<br>ou clique para selecionar</div>
+    <button id="drop-btn" onclick="document.getElementById('file-input').click()">Selecionar arquivo</button>
+    <div id="drop-error"></div>
+  </div>
+  <input type="file" id="file-input" accept=".promob">
+  <div style="margin-top:20px;font-size:11px;color:var(--text3)">Studio Legno CRM · Visualizador 3D</div>
+</div>
+
+<!-- LOADING -->
+<div id="loading-screen" style="display:none">
+  <div style="font-size:13px;color:var(--text2);margin-bottom:16px" id="loading-title">Processando projeto...</div>
+  <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+  <div id="loading-text">Lendo arquivo...</div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;flex-direction:row">
+  <div id="sidebar">
+    <div id="sh">
+      <div class="back-btn" onclick="resetToHome()">← Novo arquivo</div>
+      <div class="pt" id="info-env">Ambiente</div>
+      <div class="pn" id="info-nome">—</div>
+      <div class="ps" id="info-dim">—</div>
+    </div>
+    <div id="sb">
+      <div class="sg">
+        <div class="sv"><div class="svv" id="sv-pecas">0</div><div class="svl">Peças</div></div>
+        <div class="sv"><div class="svv" id="sv-modulos">0</div><div class="svl">Módulos</div></div>
+        <div class="sv"><div class="svv" id="sv-larg">—</div><div class="svl">Comp.(mm)</div></div>
+        <div class="sv"><div class="svv" id="sv-alt">—</div><div class="svl">Alt.(mm)</div></div>
+      </div>
+      <div class="sec">Legenda</div>
+      <div class="lg">
+        <div class="lc"><div class="ld" style="background:#c8a870"></div>Lateral/Base</div>
+        <div class="lc"><div class="ld" style="background:#b89060"></div>Fundo</div>
+        <div class="lc"><div class="ld" style="background:#d4c0a0"></div>Prateleira</div>
+        <div class="lc"><div class="ld" style="background:#e8e0d0"></div>Porta/Frente</div>
+        <div class="lc"><div class="ld" style="background:#8090a0"></div>Painel</div>
+      </div>
+      <div class="sec">Filtros por tipo</div>
+      <div id="filter-list"></div>
+    </div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="c3d"></canvas>
+    <div id="vc">
+      <button class="vb active" id="btn-persp" onclick="setView('persp')">3D</button>
+      <button class="vb" id="btn-top" onclick="setView('top')">Topo</button>
+      <button class="vb" id="btn-front" onclick="setView('front')">Frente</button>
+      <button class="vb" id="btn-side" onclick="setView('side')">Lateral</button>
+      <button class="vb" id="btn-explode" onclick="toggleExplode()">Explodir</button>
+    </div>
+    <div id="ib">Arrastar: girar · Scroll: zoom · Btn direito: pan · Hover: peça</div>
+    <div id="tip"><div class="tn" id="tt-n"></div><div class="td" id="tt-d"></div><div class="tr" id="tt-r"></div></div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('error',function(e){
+  if(e.target&&e.target.tagName==='SCRIPT'){
+    var el=document.getElementById('drop-error');
+    if(el) el.textContent='Erro ao carregar '+e.target.src.split('/').pop()+'. Verifique internet.';
+  }
+},true);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+if(typeof THREE==='undefined'||typeof JSZip==='undefined'){
+  document.addEventListener('DOMContentLoaded',function(){
+    var el=document.getElementById('drop-error');
+    if(el) el.textContent=(typeof THREE==='undefined'?'Three.js':'JSZip')+' nao carregou. Verifique sua conexao com a internet.';
+  });
+}
+</script>
+<script>
+// ── PALETA DE CORES ────────────────────────────────────────────────────────
+const CORES = {
+  cabinet:   { hex:'#c8a870', dark:'#7a6040' },
+  side:      { hex:'#c8a870', dark:'#7a6040' },
+  bottom:    { hex:'#b89060', dark:'#705030' },
+  shelf:     { hex:'#d4c0a0', dark:'#8a7850' },
+  door:      { hex:'#e8e0d0', dark:'#a09880' },
+  stretcher: { hex:'#b89060', dark:'#705030' },
+  panel:     { hex:'#8090a0', dark:'#404858' },
+  filler:    { hex:'#909898', dark:'#505858' },
+  unknown:   { hex:'#807878', dark:'#484040' },
+};
+const TYPE_LABELS = {
+  cabinet:'Laterais / Bases', bottom:'Fundos', shelf:'Prateleiras',
+  door:'Portas / Frentes', panel:'Painéis', stretcher:'Travessas',
+  filler:'Fillers', unknown:'Hardwares / Outros'
+};
+
+// ── PARSER DO .PROMOB ──────────────────────────────────────────────────────
+async function parsePromob(file) {
+  setLoading(10, 'Descomprimindo arquivo...');
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+
+  // Encontrar o arquivo ambient3d dentro do zip
+  let ambient3dContent = null;
+  for(const [name, entry] of Object.entries(zip.files)){
+    if(name.endsWith('.ambient3d') && !entry.dir){
+      setLoading(25, 'Lendo dados do ambiente...');
+      ambient3dContent = await entry.async('string');
+      break;
+    }
+  }
+  if(!ambient3dContent) throw new Error('Arquivo .ambient3d não encontrado dentro do .promob');
+
+  // Remover BOM se presente
+  if(ambient3dContent.charCodeAt(0)===0xFEFF) ambient3dContent=ambient3dContent.slice(1);
+
+  setLoading(40, 'Parseando XML...');
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(ambient3dContent, 'text/xml');
+  const parseErr = doc.querySelector('parsererror');
+  if(parseErr) throw new Error('XML inválido: '+parseErr.textContent.slice(0,100));
+
+  // Dimensões do cômodo
+  setLoading(55, 'Extraindo cômodo...');
+  const root = doc.documentElement;
+  const ambName = root.getAttribute('NAME') || file.name.replace('.promob','');
+  const lmin = root.querySelector('AMBIENTPROPERTIES > LIMITEMINIMO');
+  const lmax = root.querySelector('AMBIENTPROPERTIES > LIMITEMAXIMO');
+
+  if(!lmin||!lmax) throw new Error('Dimensões do cômodo não encontradas');
+
+  const room = {
+    name: ambName,
+    xMin:parseFloat(lmin.getAttribute('X')||0), xMax:parseFloat(lmax.getAttribute('X')||0),
+    yMin:parseFloat(lmin.getAttribute('Y')||0), yMax:parseFloat(lmax.getAttribute('Y')||0),
+    zMin:parseFloat(lmin.getAttribute('Z')||0), zMax:parseFloat(lmax.getAttribute('Z')||0),
+  };
+
+  // Extrair todas as peças
+  setLoading(70, 'Extraindo peças...');
+  const pecas = extractPecas(root, room);
+
+  setLoading(90, 'Montando visualização...');
+  return { room, pecas, fileName: file.name };
+}
+
+function fv(v){ return parseFloat(v||0)||0; }
+
+function classifyType(desc, agDesc){
+  const d = (desc+' '+agDesc).toLowerCase();
+  // Portas e frentes (raiz_COMP)
+  if(agDesc.startsWith('raiz_COMP')||d.includes('flat door')||d.includes('co_mo_fr')||d.includes('frente')) return 'door';
+  // Laterais — pa_pa_ve = chapa lateral vertical
+  if(d.includes('pa_pa_ve')||d.includes('side left')||d.includes('side right')) return 'side';
+  // Painéis — todo pa_pa que não é ve (pa_pa_ho, pa_pa_pl, etc), tamponamento, panel 19mm, toekick
+  if(d.includes('pa_pa')||d.includes('tamponamento')||d.includes('toekick')||
+     d.includes('doble panel')||d.includes('fi_fi')||
+     (d.includes('panel') && !d.includes('installation'))) return 'panel';
+  // Prateleiras horizontais
+  if(d.includes('pa_pa_ho')||d.includes('shelf')||d.includes('bo_co_pr')||d.includes('c2x')) return 'shelf';
+  // Fundos
+  if(d.includes('bo_co_fu')||d.includes('c1x')||d.includes('back 4l')||d.includes('back 2c')) return 'bottom';
+  // Bases/chapas horizontais de módulo
+  if(d.includes('c0x')||d.includes('bottom wall')) return 'cabinet';
+  // Travessas
+  if(d.includes('c3x')||d.includes('stretcher')||d.includes('stratcher')) return 'stretcher';
+  // Hardwares
+  if(d.includes('hinge')||d.includes('minifix')||d.includes('k02')||d.includes('k03')||
+     d.includes('labor')||d.includes('handle')||d.includes('vb shelf')) return 'unknown';
+  return 'unknown';
+}
+
+// Dado NORMAL (nx,ny,nz): retorna {gw,gh,gd} = dimensões no espaço Three.js
+// e {ox,oy,oz} = offset do PONTOBASE para o canto mínimo da caixa em Three.js
+// Regra: HEIGHT sempre = altura (three.Y), NORMAL aponta para dentro do cômodo
+// NORMAL (X=±1): parede lateral → W e D trocam (W→Z, D→X em Three)
+// NORMAL (Y=±1) ou (Z=±1): parede fundo/frente → W→X, D→Z em Three (padrão)
+function applyNormal(w, h, d, nx, ny, nz) {
+  const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+  if(ax > 0.5) {
+    // Parede lateral (X_promob) → W vai ao longo de Z_promob (que vira three.Z... espera)
+    // NORMAL (1,0,0) ou (-1,0,0): módulo inserido na parede lateral
+    // WIDTH ao longo de Y_promob → three.X
+    // DEPTH ao longo de X_promob → three.Z
+    // HEIGHT ao longo de Z_promob → three.Y
+    // → MESMO mapeamento! Só as dimensões numéricas estão corretas via PONTOBASE
+    return { gw: pu(w), gh: pu(h), gd: pu(d) };
+  } else if(ay > 0.5) {
+    // Parede fundo/frente (Y_promob)
+    // Idem padrão
+    return { gw: pu(w), gh: pu(h), gd: pu(d) };
+  } else {
+    // Padrão: NORMAL (0,0,1) ou (0,0,-1)
+    return { gw: pu(w), gh: pu(h), gd: pu(d) };
+  }
+}
+
+function extractPecas(root, room){
+  const seen = new Set();
+  const pecas = [];
+
+  // Passe 0: coletar quais ag têm pelo menos 1 instância com pos real (px|py|pz != 0)
+  // Isso permite descartar versões-template (pos=0) quando existir versão posicionada
+  const agComPosReal = new Set();
+  for(const info of root.querySelectorAll('INFORMACOES[TYPE="MODULO"]')){
+    const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
+    if(!iid) continue;
+    const ag = iid.getAttribute('IDAGREGADO')||'';
+    if(!ag) continue;
+    const pb = info.querySelector(':scope > POSICAOINSERCAO > PONTOBASE') ||
+               info.querySelector('POSICAOINSERCAO PONTOBASE');
+    if(!pb) continue;
+    const px=fv(pb.getAttribute('X')), py=fv(pb.getAttribute('Y')), pz=fv(pb.getAttribute('Z'));
+    if(Math.abs(px)>1 || Math.abs(py)>1 || Math.abs(pz)>1) agComPosReal.add(ag);
+  }
+
+  const infList = root.querySelectorAll('INFORMACOES[TYPE="MODULO"]');
+  infList.forEach(info => {
+    const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
+    if(!iid) return;
+
+    const ag = iid.getAttribute('ID')||'';
+    const agDesc = iid.getAttribute('IDAGREGADO')||'';
+    const rep = iid.getAttribute('NUMERODAREPETICAO')||'';
+    const agDesc0 = iid.getAttribute('IDAGREGADO')||'';
+    const _isPaPaEarly = agDesc0.startsWith('lg_mk_mk_pd_pa_pa');
+    const _isPaPanel = _isPaPaEarly; // definido cedo para uso em qualquer ponto
+    // pa_pa: aceitar todas as repetições (não filtrar por rep)
+    if(!_isPaPaEarly && rep && rep !== '1') return;
+    // INVERTED: na tag INFORMACOES (não em ATTRIBUTE)
+    const inverted = (info.getAttribute('INVERTED')||'').toLowerCase() === 'true';
+
+    // PONTOBASE — posição absoluta no espaço Promob
+    const pb = info.querySelector(':scope > POSICAOINSERCAO > PONTOBASE') ||
+               info.querySelector('POSICAOINSERCAO PONTOBASE');
+    const px = pb ? fv(pb.getAttribute('X')) : 0;
+    const py = pb ? fv(pb.getAttribute('Y')) : 0;
+    const pz = pb ? fv(pb.getAttribute('Z')) : 0;
+    // Se este ag tem versão com pos real, descartar versões com pos=0 (são templates)
+    // Exceto pa_pa: mostrar sempre independente de pos
+    if(!_isPaPanel && ag && agComPosReal.has(ag) && Math.abs(px)<1 && Math.abs(py)<1 && Math.abs(pz)<1) return;
+
+    // ROTATION em graus (texto dentro de POSICAOINSERCAO > ROTATION)
+    const rotEl = info.querySelector(':scope > POSICAOINSERCAO > ROTATION') ||
+                  info.querySelector('POSICAOINSERCAO > ROTATION');
+    const rot = (rotEl && rotEl.textContent) ? fv(rotEl.textContent.trim()) : 90;
+
+    // NORMAL do módulo: busca em POSITION > NORMAL filho direto
+    let nx=0, ny=0, nz=1;
+    for(const child of info.children) {
+      if(child.tagName === 'POSITION') {
+        const n = child.querySelector('NORMAL');
+        if(n) {
+          nx = fv(n.getAttribute('A') || n.getAttribute('X') || '0');
+          ny = fv(n.getAttribute('B') || n.getAttribute('Y') || '0');
+          nz = fv(n.getAttribute('C') || n.getAttribute('Z') || '1');
+        }
+        break;
+      }
+    }
+
+    // INSERTDIMENSION
+    const idim = info.querySelector(':scope > INSERTDIMENSION');
+    if(!idim) return;
+    const w = fv(idim.getAttribute('WIDTH'));
+    const h = fv(idim.getAttribute('HEIGHT'));
+    const d = fv(idim.getAttribute('DEPTH'));
+
+    // 1) Descartar dimensão vazia (container fantasma 1x1x1)
+    if(w<=1 && h<=1 && d<=1) return;
+    // 2) Descartar 100x100x100 (placeholders de posicionamento, o pai deles é o painel real)
+    if(w>=90&&w<=110 && h>=90&&h<=110 && d>=90&&d<=110) return;
+    // 3) Whitelist: sempre incluir estas famílias independente de qualquer filtro
+    const _isComp = agDesc.startsWith('raiz_COMP');
+
+    if(!_isComp && !_isPaPanel){
+      // 4) Descartar por IDAGREGADO:
+      // - hardwares (raiz_125, hrm_leg)
+      // - containers de instalação (bo_ki_su = installation cabinet/panel)
+      const _agL = agDesc.toLowerCase();
+      if(_agL.startsWith('raiz_125') || _agL.startsWith('raiz_125_') || _agL.startsWith('hrm_leg')) return;
+      if(_agL.startsWith('raiz_') && !_agL.startsWith('raiz_124') && !_agL.startsWith('raiz_comp')) return;
+      if(_agL.includes('_bo_ki_su_')) return; // installation cabinet container
+      if(_agL.startsWith('lg_mk_mo_se_co_')) return; // service/installation containers (I005, I007, S009)
+      // 5) Descartar se menos de 2 dimensões >= 10mm (pinos, parafusos)
+      if([w>=10,h>=10,d>=10].filter(Boolean).length < 2) return;
+    }
+
+    // Descrição
+    let desc = agDesc;
+    const attrDesc = info.querySelector('ATTRIBUTE[ID="DESCRIPTION"]');
+    if(attrDesc){
+      let v = attrDesc.getAttribute('VALUE')||'';
+      if(v) desc = v.replace(/\$W\$/g,Math.round(w)).replace(/\$H\$/g,Math.round(h)).replace(/\$D\$/g,Math.round(d));
+    }
+    desc = desc.replace(/@[^@]+@/g,'').trim();
+
+    // Descartar hardwares sem representação visual (pelo nome final)
+    // Descartar pelo nome da descrição (exceto whitelist raiz_COMP e pa_pa):
+    if(!_isComp && !_isPaPanel){
+      const _sd = (desc+' '+agDesc).toLowerCase();
+      const _descStart = desc.trim().toLowerCase();
+      if(_sd.includes('labor (')   || _sd.includes('hinge')      || _sd.includes('vb shelf') ||
+         _sd.includes('k02003')    || _sd.includes('no handle')  || _sd.includes('minifix')  ||
+         _sd.includes('k02001')    || _sd.includes('rigore handle') || _sd.includes('cavilha') ||
+         /^x\d/.test(_descStart) ||
+         /^[is]\d{3}\s*-/.test(_descStart)) return;
+    }
+
+    const type = classifyType(desc, agDesc);
+
+    // Chave única
+    // Key inclui posição+dims+ag para evitar colisão entre versão pos=0 e pos real do mesmo módulo
+    const key = `${Math.round(px)}_${Math.round(py)}_${Math.round(pz)}_${Math.round(w)}_${Math.round(h)}_${Math.round(d)}_${ag}`;
+    if(seen.has(key)) return;
+    seen.add(key);
+
+    pecas.push({ ag, desc, type,
+      px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
+      w:Math.round(w), h:Math.round(h), d:Math.round(d),
+      nx, ny, nz, rot, inverted });
+  });
+
+  return pecas;
+}
+
+// ── THREE.JS STATE ─────────────────────────────────────────────────────────
+let scene,camera,renderer;
+let camTheta=0.6,camPhi=0.65,camDist=8;
+let camTX=0,camTY=0,camTZ=0;
+let isDrag=false,isRight=false,lastX=0,lastY=0;
+let sceneGroup,allMeshes=[];
+let typeVisible={};
+let exploded=false;
+let currentData=null;
+
+const hexInt=h=>parseInt(h.replace('#',''),16);
+const pu=v=>v/1000;
+
+// Converter coords Promob → Three.js
+// Promob: X=prof, Y=comp(parede, cresce da esq pra dir no Promob), Z=altura
+// Three:  X=comp INVERTIDO (yMax-py para espelhar igual ao Promob), Y=altura, Z=prof
+function p2t(px,py,pz,room){
+  return { x:pu(room.yMax-py), y:pu(pz-room.zMin), z:pu(px-room.xMin) };
+}
+function d2t(w,h,d){ return {x:pu(w),y:pu(h),z:pu(d)}; }
+
+function initThree(){
+  const wrap=document.getElementById('canvas-wrap');
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x0c0c0a);
+  camera=new THREE.PerspectiveCamera(40,W/H,0.001,5000);
+  renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c3d'),antialias:true});
+  renderer.setSize(W,H); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+  scene.add(new THREE.AmbientLight(0xffffff,0.5));
+  const sun=new THREE.DirectionalLight(0xfff8f0,0.9);
+  sun.position.set(5,10,6); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.left=-10;sun.shadow.camera.right=10;
+  sun.shadow.camera.top=10;sun.shadow.camera.bottom=-10;sun.shadow.camera.far=80;
+  scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xd0e0ff,0.3); fill.position.set(-4,3,-4); scene.add(fill);
+  scene.add(new THREE.HemisphereLight(0xfff0d0,0x1a1a10,0.25));
+
+  sceneGroup=new THREE.Group(); scene.add(sceneGroup);
+  setupEvents();
+  animate();
+  window.addEventListener('resize',()=>{
+    const W=wrap.clientWidth,H=wrap.clientHeight;
+    camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H);
+  });
+}
+
+function buildScene(data){
+  const {room,pecas} = data;
+  allMeshes=[];
+  while(sceneGroup.children.length) sceneGroup.remove(sceneGroup.children[0]);
+
+  const rW=pu(room.yMax-room.yMin), rH=pu(room.zMax-room.zMin), rD=pu(room.xMax-room.xMin);
+  const oX=pu(-room.yMin), oY=pu(-room.zMin), oZ=pu(-room.xMin);
+  window._R={rW,rH,rD,oX,oY,oZ};
+  // Centro do cômodo em coords Three
+  camTX=rW/2+oX; camTY=rH/2+oY; camTZ=rD/2+oZ;
+  // Distância que garante ver TODO o cômodo
+  const diag=Math.sqrt(rW*rW+rH*rH+rD*rD);
+  camDist=diag*1.2;
+
+  // Cômodo — chão, paredes e grade baseados nas dimensões reais
+  const fm=new THREE.MeshLambertMaterial({color:0x141412,side:THREE.DoubleSide});
+  const wm=new THREE.MeshLambertMaterial({color:0x1c1c1a,side:THREE.DoubleSide});
+  // Chão
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(rW,rD),fm);
+  fl.rotation.x=-Math.PI/2; fl.position.set(rW/2+oX,oY-0.001,rD/2+oZ); fl.receiveShadow=true; sceneGroup.add(fl);
+  // Parede fundo (Z=0, paralela ao eixo X)
+  const bk=new THREE.Mesh(new THREE.PlaneGeometry(rW,rH),wm);
+  bk.position.set(rW/2+oX,rH/2+oY,oZ); bk.receiveShadow=true; sceneGroup.add(bk);
+  // Parede lateral esquerda (X=0, paralela ao eixo Z)
+  const sw=new THREE.Mesh(new THREE.PlaneGeometry(rD,rH),wm);
+  sw.rotation.y=Math.PI/2; sw.position.set(oX,rH/2+oY,rD/2+oZ); sw.receiveShadow=true; sceneGroup.add(sw);
+  // Grade no chão
+  const gs=Math.max(rW,rD);
+  const gd=new THREE.GridHelper(gs*1.5,Math.round(gs*20),0x222220,0x1c1c1a);
+  gd.position.set(rW/2+oX,oY,rD/2+oZ); sceneGroup.add(gd);
+  // Arestas do cômodo
+  const em=new THREE.LineBasicMaterial({color:0x333330,opacity:0.7,transparent:true});
+  [[oX,oY,oZ,oX+rW,oY,oZ],[oX,oY,oZ,oX,oY+rH,oZ],[oX,oY,oZ,oX,oY,oZ+rD],
+   [oX+rW,oY,oZ,oX+rW,oY+rH,oZ],[oX+rW,oY,oZ,oX+rW,oY,oZ+rD],
+   [oX,oY,oZ+rD,oX+rW,oY,oZ+rD],[oX,oY,oZ+rD,oX,oY+rH,oZ+rD],
+   [oX+rW,oY,oZ+rD,oX+rW,oY+rH,oZ+rD],
+   [oX,oY+rH,oZ,oX+rW,oY+rH,oZ],[oX,oY+rH,oZ,oX,oY+rH,oZ+rD],
+   [oX+rW,oY+rH,oZ,oX+rW,oY+rH,oZ+rD],[oX,oY+rH,oZ+rD,oX+rW,oY+rH,oZ+rD]
+  ].forEach(([x1,y1,z1,x2,y2,z2])=>sceneGroup.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,y1,z1),new THREE.Vector3(x2,y2,z2)]),em)));
+
+  // Peças
+  const EXPLODE_Y = {cabinet:0,bottom:-0.15,shelf:0.15,door:0.45,panel:-0.3,stretcher:-0.2,filler:0.2,unknown:0,side:0};
+  let count=0;
+  pecas.forEach(p=>{
+    if(!typeVisible[p.type]) return;
+    const cor=CORES[p.type]||CORES.unknown;
+    const pos=p2t(p.px,p.py,p.pz,room);
+    // Ajustar dimensões conforme a normal do módulo
+    // Normal ±X (parede lateral): WIDTH está ao longo de Y_promob→Three.X, DEPTH ao longo de X_promob→Three.Z
+    // Normal ±Y ou ±Z (parede fundo/frente): padrão W→X, H→Y, D→Z
+    const nx = p.nx||0, nz = p.nz||1;
+    let dw, dh, dd;
+    if(Math.abs(nx) > 0.5) {
+      // Parede lateral: W ao longo de Z_promob=three.X? Não — verificar empiricamente
+      // Na prática as coordenadas absolutas já resolvem, só precisa das dimensões certas
+      // Para NORMAL(1,0,0): módulo inserido na parede X=xMax
+      //   WIDTH → ao longo de Y_promob → Three.X ✓
+      //   DEPTH → ao longo de X_promob → Three.Z
+      //   HEIGHT → Three.Y ✓
+      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    } else {
+      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    }
+    const dim = {x:dw, y:dh, z:dd};
+    const expY=exploded?(EXPLODE_Y[p.type]||0):0;
+    const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
+    const mat=new THREE.MeshLambertMaterial({color:hexInt(cor.hex)});
+    const mesh=new THREE.Mesh(geo,mat);
+    // Porta INVERTED: PONTOBASE é o canto direito (WIDTH se expande em -X_three)
+    // Com eixo X invertido (yMax-py):
+    // ROT=90  sem INVERTED: PONTOBASE é canto esquerdo Promob = direito Three → offset -W/2
+    // ROT=270: PONTOBASE é canto superior-direito (WIDTH em -Y, HEIGHT em -Z)
+    // ROT=90 (padrão): PONTOBASE é canto inferior-esquerdo (WIDTH em +Y, HEIGHT em +Z)
+    let offX, offY;
+    if(p.rot===270||p.rot===-90){
+      offX = p.inverted ? -dim.x/2 : dim.x/2;  // X: inverted=esq→dir, normal=dir→esq
+      offY = -dim.y/2;  // Y: pz é o TOPO → center vai para baixo
+    } else {
+      offX = -dim.x/2;  // X invertido: ponto base é direita Three → vai pra esquerda
+      offY = dim.y/2;
+    }
+    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+dim.z/2);
+    mesh.castShadow=true; mesh.receiveShadow=true;
+    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
+    const eg=new THREE.EdgesGeometry(geo);
+    mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:hexInt(cor.dark),opacity:0.5,transparent:true})));
+    sceneGroup.add(mesh); allMeshes.push(mesh); count++;
+  });
+  document.getElementById('sv-pecas').textContent=count;
+  updateCamera();
+}
+
+function rebuildPecas(){
+  if(!currentData) return;
+  const toRm=[]; sceneGroup.children.forEach(c=>{if(c.userData.type)toRm.push(c);}); toRm.forEach(c=>sceneGroup.remove(c));
+  allMeshes=[];
+  const {room,pecas}=currentData;
+  const EXPLODE_Y={cabinet:0,bottom:-0.15,shelf:0.15,door:0.45,panel:-0.3,stretcher:-0.2,filler:0.2,unknown:0,side:0};
+  let count=0;
+  pecas.forEach(p=>{
+    if(!typeVisible[p.type]) return;
+    const cor=CORES[p.type]||CORES.unknown;
+    const pos=p2t(p.px,p.py,p.pz,room);
+    // Ajustar dimensões conforme a normal do módulo
+    // Normal ±X (parede lateral): WIDTH está ao longo de Y_promob→Three.X, DEPTH ao longo de X_promob→Three.Z
+    // Normal ±Y ou ±Z (parede fundo/frente): padrão W→X, H→Y, D→Z
+    const nx = p.nx||0, nz = p.nz||1;
+    let dw, dh, dd;
+    if(Math.abs(nx) > 0.5) {
+      // Parede lateral: W ao longo de Z_promob=three.X? Não — verificar empiricamente
+      // Na prática as coordenadas absolutas já resolvem, só precisa das dimensões certas
+      // Para NORMAL(1,0,0): módulo inserido na parede X=xMax
+      //   WIDTH → ao longo de Y_promob → Three.X ✓
+      //   DEPTH → ao longo de X_promob → Three.Z
+      //   HEIGHT → Three.Y ✓
+      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    } else {
+      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    }
+    const dim = {x:dw, y:dh, z:dd};
+    const expY=exploded?(EXPLODE_Y[p.type]||0):0;
+    const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
+    const mat=new THREE.MeshLambertMaterial({color:hexInt(cor.hex)});
+    const mesh=new THREE.Mesh(geo,mat);
+    // Porta INVERTED: PONTOBASE é o canto direito (WIDTH se expande em -X_three)
+    // Com eixo X invertido (yMax-py):
+    // ROT=90  sem INVERTED: PONTOBASE é canto esquerdo Promob = direito Three → offset -W/2
+    // ROT=270: PONTOBASE é canto superior-direito (WIDTH em -Y, HEIGHT em -Z)
+    // ROT=90 (padrão): PONTOBASE é canto inferior-esquerdo (WIDTH em +Y, HEIGHT em +Z)
+    let offX, offY;
+    if(p.rot===270||p.rot===-90){
+      offX = p.inverted ? -dim.x/2 : dim.x/2;  // X: inverted=esq→dir, normal=dir→esq
+      offY = -dim.y/2;  // Y: pz é o TOPO → center vai para baixo
+    } else {
+      offX = -dim.x/2;  // X invertido: ponto base é direita Three → vai pra esquerda
+      offY = dim.y/2;
+    }
+    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+dim.z/2);
+    mesh.castShadow=true; mesh.receiveShadow=true;
+    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
+    const eg=new THREE.EdgesGeometry(geo);
+    mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:hexInt(cor.dark),opacity:0.5,transparent:true})));
+    sceneGroup.add(mesh); allMeshes.push(mesh); count++;
+  });
+  document.getElementById('sv-pecas').textContent=count;
+}
+
+function buildFilters(pecas){
+  const counts={};
+  pecas.forEach(p=>counts[p.type]=(counts[p.type]||0)+1);
+  const el=document.getElementById('filter-list');
+  el.innerHTML=Object.entries(TYPE_LABELS).map(([type,label])=>{
+    const n=counts[type]||0;
+    if(!n) return '';
+    return `<div class="fi ${typeVisible[type]?'on':''}" onclick="toggleType('${type}')">
+      <div class="fd" style="background:${(CORES[type]||CORES.unknown).hex}"></div>
+      <div class="fn"><div class="fna">${label}</div><div class="fdm">${n} peças</div></div>
+      <span class="eye">${typeVisible[type]?'👁':'○'}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleType(type){
+  typeVisible[type]=!typeVisible[type];
+  buildFilters(currentData.pecas);
+  rebuildPecas();
+}
+
+function toggleExplode(){
+  exploded=!exploded;
+  document.getElementById('btn-explode').className='vb'+(exploded?' active':'');
+  rebuildPecas();
+}
+
+// ── CÂMERA ────────────────────────────────────────────────────────────────
+function updateCamera(){
+  const x=camTX+camDist*Math.sin(camPhi)*Math.sin(camTheta);
+  const y=camTY+camDist*Math.cos(camPhi);
+  const z=camTZ+camDist*Math.sin(camPhi)*Math.cos(camTheta);
+  camera.position.set(x,y,z); camera.lookAt(camTX,camTY,camTZ);
+}
+
+function setView(v){
+  const R=window._R||{rW:3,rD:3,oX:0,oY:0,oZ:0};
+  // Recalcular target e distância sempre baseado no cômodo atual
+  camTX=R.rW/2+R.oX; camTY=R.rH/2+R.oY; camTZ=R.rD/2+R.oZ;
+  camDist=Math.max(R.rW,R.rD,R.rH)*1.8;
+  if(v==='persp'){camTheta=-0.6;camPhi=0.65;}
+  else if(v==='top'){camTheta=0.001;camPhi=0.04;}
+  else if(v==='front'){camTheta=0.001;camPhi=Math.PI/2+0.01;}
+  else if(v==='side'){camTheta=Math.PI/2;camPhi=Math.PI/2+0.01;}
+  updateCamera();
+  ['persp','top','front','side'].forEach(n=>{
+    const b=document.getElementById('btn-'+n); if(b)b.className='vb'+(n===v?' active':'');
+  });
+}
+
+const ray=new THREE.Raycaster(),mv2=new THREE.Vector2();
+
+function setupEvents(){
+  const wrap=document.getElementById('canvas-wrap');
+  const tip=document.getElementById('tip');
+  wrap.addEventListener('mousedown',e=>{isDrag=true;isRight=e.button===2;lastX=e.clientX;lastY=e.clientY;});
+  wrap.addEventListener('contextmenu',e=>e.preventDefault());
+  window.addEventListener('mouseup',()=>isDrag=false);
+  window.addEventListener('mousemove',e=>{
+    if(isDrag){
+      const dx=(e.clientX-lastX)*0.005,dy=(e.clientY-lastY)*0.004;
+      if(isRight){camTX-=dx*camDist*0.35;camTZ-=dy*camDist*0.35;}
+      else{camTheta-=dx;camPhi=Math.max(0.04,Math.min(Math.PI*0.88,camPhi+dy));}
+      lastX=e.clientX;lastY=e.clientY;updateCamera();
+    }
+    const rect=wrap.getBoundingClientRect();
+    mv2.x=((e.clientX-rect.left)/rect.width)*2-1;
+    mv2.y=-((e.clientY-rect.top)/rect.height)*2+1;
+    ray.setFromCamera(mv2,camera);
+    const hits=ray.intersectObjects(allMeshes,false);
+    if(hits.length){
+      const ud=hits[0].object.userData;
+      document.getElementById('tt-n').textContent=ud.name;
+      document.getElementById('tt-d').textContent=ud.dims;
+      document.getElementById('tt-r').textContent=TYPE_LABELS[ud.type]||ud.type;
+      tip.style.display='block';
+      tip.style.left=(e.clientX-rect.left+14)+'px';
+      tip.style.top=(e.clientY-rect.top-10)+'px';
+    } else tip.style.display='none';
+  });
+  wrap.addEventListener('wheel',e=>{
+    camDist=Math.max(0.3,Math.min(50,camDist+e.deltaY*0.008));
+    updateCamera();e.preventDefault();
+  },{passive:false});
+  let t0d=0;
+  wrap.addEventListener('touchstart',e=>{
+    if(e.touches.length===1){isDrag=true;isRight=false;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
+    else if(e.touches.length===2)t0d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  },{passive:true});
+  wrap.addEventListener('touchmove',e=>{
+    if(e.touches.length===1&&isDrag){
+      const dx=(e.touches[0].clientX-lastX)*0.006,dy=(e.touches[0].clientY-lastY)*0.005;
+      camTheta-=dx;camPhi=Math.max(0.04,Math.min(Math.PI*0.88,camPhi+dy));
+      lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;updateCamera();
+    }else if(e.touches.length===2){
+      const d2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      camDist=Math.max(0.3,camDist-(d2-t0d)*0.012);t0d=d2;updateCamera();
+    }
+    e.preventDefault();
+  },{passive:false});
+  wrap.addEventListener('touchend',()=>isDrag=false,{passive:true});
+}
+
+function animate(){requestAnimationFrame(animate);if(renderer)renderer.render(scene,camera);}
+
+// ── FLUXO PRINCIPAL ────────────────────────────────────────────────────────
+function setLoading(pct, txt){
+  document.getElementById('loading-bar').style.width=pct+'%';
+  document.getElementById('loading-text').textContent=txt;
+}
+
+async function processFile(file){
+  if(!file||!file.name.endsWith('.promob')){
+    document.getElementById('drop-error').textContent='Por favor selecione um arquivo .promob válido.';
+    return;
+  }
+  document.getElementById('drop-error').textContent='';
+  document.getElementById('drop-screen').style.display='none';
+  document.getElementById('loading-screen').style.display='flex';
+
+  try {
+    const data = await parsePromob(file);
+
+    // Inicializar visibilidade — mostrar tudo exceto hardwares
+    typeVisible={};
+    const types=[...new Set(data.pecas.map(p=>p.type))];
+    types.forEach(t=>typeVisible[t]= t!=='unknown' && t!=='filler');
+
+    // Estatísticas
+    const room=data.room;
+    const rY=Math.round(room.yMax-room.yMin);
+    const rZ=Math.round(room.zMax-room.zMin);
+    document.getElementById('info-env').textContent='Ambiente';
+    document.getElementById('info-nome').textContent=room.name||data.fileName.replace('.promob','');
+    document.getElementById('info-dim').textContent=`${rY}×${rZ}mm (comp × alt)`;
+    document.getElementById('sv-modulos').textContent=[...new Set(data.pecas.map(p=>p.ag))].length;
+    document.getElementById('sv-larg').textContent=rY;
+    document.getElementById('sv-alt').textContent=rZ;
+
+    setLoading(95,'Renderizando...');
+    currentData=data;
+
+    // Init Three.js se necessário
+    if(!renderer) initThree();
+    buildScene(data);
+    buildFilters(data.pecas);
+
+    setLoading(100,'Pronto!');
+    setTimeout(()=>{
+      document.getElementById('loading-screen').style.display='none';
+      document.getElementById('app').style.cssText='display:flex;flex-direction:row;height:100vh';
+      // Forçar resize do renderer após mostrar o app (canvas pode ter sido criado com 0x0)
+      setTimeout(()=>{
+        const wrap=document.getElementById('canvas-wrap');
+        const W=wrap.clientWidth, H=wrap.clientHeight;
+        console.log('Canvas size after show:', W, H);
+        if(renderer && W>0 && H>0){
+          camera.aspect=W/H;
+          camera.updateProjectionMatrix();
+          renderer.setSize(W,H);
+        }
+        setView('persp');
+      },100);
+    },300);
+
+  } catch(err){
+    document.getElementById('loading-screen').style.display='none';
+    document.getElementById('drop-screen').style.cssText='display:flex;position:fixed;inset:0;z-index:100;flex-direction:column;align-items:center;justify-content:center';
+    document.getElementById('drop-error').textContent='Erro: '+err.message;
+    console.error(err);
+  }
+}
+
+function resetToHome(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('drop-screen').style.cssText='display:flex;position:fixed;inset:0;z-index:100;flex-direction:column;align-items:center;justify-content:center';
+  exploded=false;
+  document.getElementById('btn-explode').className='vb';
+  currentData=null;
+}
+
+// ── EVENTOS DE DROP / FILE ─────────────────────────────────────────────────
+const dropScreen=document.getElementById('drop-screen');
+const dropZone=document.getElementById('drop-zone');
+const fileInput=document.getElementById('file-input');
+
+dropZone.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',e=>{ if(e.target.files[0]) processFile(e.target.files[0]); });
+
+document.addEventListener('dragover',e=>{e.preventDefault();dropScreen.classList.add('over');});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)dropScreen.classList.remove('over');});
+document.addEventListener('drop',e=>{
+  e.preventDefault();
+  dropScreen.classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f) processFile(f);
+});
+
+// Receber .promob via postMessage do CRM
+window.addEventListener('message', async (e) => {
+  if (e.data?.type === 'load_promob_url') {
+    try {
+      const resp = await fetch(e.data.url);
+      const buf = await resp.arrayBuffer();
+      const fakeFile = new File([buf], 'projeto.promob', {type:'application/octet-stream'});
+      await parsePromob(fakeFile);
+    } catch(err) {
+      showError('Erro ao carregar projeto: ' + err.message);
+    }
+  }
+});
+if(window.opener) window.opener.postMessage('promob_viewer_ready','*');
+</script>
+</body>
+</html>
