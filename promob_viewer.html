@@ -553,7 +553,7 @@ function buildScene(data){
     const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
     const mat=new THREE.MeshLambertMaterial({color:hexInt(cor.hex)});
     const mesh=new THREE.Mesh(geo,mat);
-    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+(offZ||dd/2));
+    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
     mesh.castShadow=true; mesh.receiveShadow=true;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
     const eg=new THREE.EdgesGeometry(geo);
@@ -575,41 +575,28 @@ function rebuildPecas(){
     if(!typeVisible[p.type]) return;
     const cor=CORES[p.type]||CORES.unknown;
     const pos=p2t(p.px,p.py,p.pz,room);
-    // Ajustar dimensões conforme a normal do módulo
-    // Normal ±X (parede lateral): WIDTH está ao longo de Y_promob→Three.X, DEPTH ao longo de X_promob→Three.Z
-    // Normal ±Y ou ±Z (parede fundo/frente): padrão W→X, H→Y, D→Z
-    const nx = p.nx||0, nz = p.nz||1;
-    let dw, dh, dd;
-    if(Math.abs(nx) > 0.5) {
-      // Parede lateral: W ao longo de Z_promob=three.X? Não — verificar empiricamente
-      // Na prática as coordenadas absolutas já resolvem, só precisa das dimensões certas
-      // Para NORMAL(1,0,0): módulo inserido na parede X=xMax
-      //   WIDTH → ao longo de Y_promob → Three.X ✓
-      //   DEPTH → ao longo de X_promob → Three.Z
-      //   HEIGHT → Three.Y ✓
-      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    const expY=exploded?(EXPLODE_Y[p.type]||0):0;
+    let dw, dh, dd, offX, offY, offZ;
+    if(p.type==='panel'){
+      // Painéis: W=espessura(+X_promob→+Z_three), H=altura(+Z_promob→+Y_three), D=prof(-Y_promob→+X_three)
+      dw = pu(p.d); dh = pu(p.h); dd = pu(p.w);
+      offX = -dw/2; offY = dh/2; offZ = dd/2;
     } else {
       dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+      if(p.rot===270||p.rot===-90){
+        offX = p.inverted ? -dw/2 : dw/2;
+        offY = -dh/2;
+      } else {
+        offX = -dw/2;
+        offY = dh/2;
+      }
+      offZ = dd/2;
     }
     const dim = {x:dw, y:dh, z:dd};
-    const expY=exploded?(EXPLODE_Y[p.type]||0):0;
     const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
     const mat=new THREE.MeshLambertMaterial({color:hexInt(cor.hex)});
     const mesh=new THREE.Mesh(geo,mat);
-    // Porta INVERTED: PONTOBASE é o canto direito (WIDTH se expande em -X_three)
-    // Com eixo X invertido (yMax-py):
-    // ROT=90  sem INVERTED: PONTOBASE é canto esquerdo Promob = direito Three → offset -W/2
-    // ROT=270: PONTOBASE é canto superior-direito (WIDTH em -Y, HEIGHT em -Z)
-    // ROT=90 (padrão): PONTOBASE é canto inferior-esquerdo (WIDTH em +Y, HEIGHT em +Z)
-    let offX, offY;
-    if(p.rot===270||p.rot===-90){
-      offX = p.inverted ? -dim.x/2 : dim.x/2;  // X: inverted=esq→dir, normal=dir→esq
-      offY = -dim.y/2;  // Y: pz é o TOPO → center vai para baixo
-    } else {
-      offX = -dim.x/2;  // X invertido: ponto base é direita Three → vai pra esquerda
-      offY = dim.y/2;
-    }
-    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+dim.z/2);
+    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
     mesh.castShadow=true; mesh.receiveShadow=true;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag};
     const eg=new THREE.EdgesGeometry(geo);
