@@ -311,6 +311,17 @@ function extractPecas(root, room){
     if(Math.abs(px)>1 || Math.abs(py)>1 || Math.abs(pz)>1) agComPosReal.add(ag);
   }
 
+
+  // DEBUG: listar todos os IDAGREGADO que começam com lg_mk_mk_pd_pa
+  const _dbgPa = new Set();
+  for(const info of root.querySelectorAll('INFORMACOES[TYPE="MODULO"]')){
+    const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
+    if(!iid) continue;
+    const ag = iid.getAttribute('IDAGREGADO')||'';
+    if(ag.startsWith('lg_mk_mk_pd_pa')) _dbgPa.add(ag);
+  }
+  console.log('[VIEWER DEBUG] IDs lg_mk_mk_pd_pa encontrados:', [..._dbgPa]);
+
   const infList = root.querySelectorAll('INFORMACOES[TYPE="MODULO"]');
   infList.forEach(info => {
     const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
@@ -357,16 +368,20 @@ function extractPecas(root, room){
     }
 
     // INSERTDIMENSION
-    const idim = info.querySelector(':scope > INSERTDIMENSION');
-    if(!idim) return;
+    const idim = info.querySelector(':scope > INSERTDIMENSION') ||
+                 info.querySelector('INSERTDIMENSION');
+    if(!idim){
+      if(_isPaPanel) console.log('[PANEL DROPPED] sem INSERTDIMENSION:', agDesc);
+      return;
+    }
     const w = fv(idim.getAttribute('WIDTH'));
     const h = fv(idim.getAttribute('HEIGHT'));
     const d = fv(idim.getAttribute('DEPTH'));
 
     // 1) Descartar dimensão vazia (container fantasma 1x1x1)
-    if(w<=1 && h<=1 && d<=1) return;
+    if(w<=1 && h<=1 && d<=1){ if(_isPaPanel) console.log('[PANEL DROPPED] dims vazia:', agDesc, w,h,d); return; }
     // 2) Descartar 100x100x100 (placeholders de posicionamento, o pai deles é o painel real)
-    if(w>=90&&w<=110 && h>=90&&h<=110 && d>=90&&d<=110) return;
+    if(w>=90&&w<=110 && h>=90&&h<=110 && d>=90&&d<=110){ if(_isPaPanel) console.log('[PANEL DROPPED] placeholder 100x100x100:', agDesc); return; }
     // 3) Whitelist: sempre incluir estas famílias independente de qualquer filtro
     const _isComp = agDesc.startsWith('raiz_COMP');
 
@@ -404,6 +419,7 @@ function extractPecas(root, room){
          /^[is]\d{3}\s*-/.test(_descStart)) return;
     }
 
+    if(_isPaPanel) console.log('[PANEL KEPT]', agDesc, 'w:'+w, 'h:'+h, 'd:'+d, 'px:'+Math.round(px), 'py:'+Math.round(py), 'pz:'+Math.round(pz));
     const type = classifyType(desc, agDesc);
 
     // Chave única
