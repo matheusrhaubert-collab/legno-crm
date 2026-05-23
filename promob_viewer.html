@@ -816,27 +816,34 @@ document.addEventListener('drop',e=>{
   if(f) processFile(f);
 });
 
-// Receber .promob via postMessage do CRM
-let _promobLoaded = false;
+// Receber .promob via sessionStorage (vindo do CRM)
+const _pendingCRM = sessionStorage.getItem('promob_pending');
+if (_pendingCRM) {
+  sessionStorage.removeItem('promob_pending');
+  try {
+    const {data, nome} = JSON.parse(_pendingCRM);
+    const buf = new Uint8Array(data).buffer;
+    const fakeFile = new File([buf], (nome||'projeto')+'.promob', {type:'application/octet-stream'});
+    // Mostrar botão voltar
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '← Voltar ao CRM';
+    backBtn.style.cssText = 'position:fixed;top:12px;left:12px;z-index:9999;background:rgba(201,169,110,0.15);border:1px solid rgba(201,169,110,0.4);color:#c9a96e;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit';
+    backBtn.onclick = () => history.back();
+    document.body.appendChild(backBtn);
+    parsePromob(fakeFile);
+  } catch(e) { console.error(e); }
+}
+// Também aceitar via postMessage (fallback)
 window.addEventListener('message', async (e) => {
-  if (e.data?.type === 'load_promob_url' && !_promobLoaded) {
-    _promobLoaded = true;
+  if (e.data?.type === 'load_promob_url') {
     try {
       const resp = await fetch(e.data.url);
       const buf = await resp.arrayBuffer();
       const fakeFile = new File([buf], 'projeto.promob', {type:'application/octet-stream'});
       await parsePromob(fakeFile);
-    } catch(err) {
-      showError('Erro ao carregar projeto: ' + err.message);
-    }
+    } catch(err) { showError('Erro: ' + err.message); }
   }
 });
-// Avisar o CRM repetidamente até receber o arquivo
-if(window.opener) {
-  let _readyCount = 0;
-  const _readyInt = setInterval(() => {
-    if (_promobLoaded || _readyCount++ > 20) { clearInterval(_readyInt); return; }
-    window.opener.postMessage('promob_viewer_ready', '*');
   }, 300);
 }
 </script>
