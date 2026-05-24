@@ -1664,45 +1664,22 @@ function toggleModulo(uid) {
 
   let filhas = [];
 
-  // Método 1: childUids → achar peças em currentData.pecas → casar com meshes por posição
   if(modulo.childUids && modulo.childUids.length){
+    // Buscar direto nas meshes pelo uid
     const childSet = new Set(modulo.childUids.map(String));
-    const pecasFilhas = (currentData.pecas||[]).filter(p => childSet.has(String(p.uid)));
-    const missing = [...childSet].filter(id => !pecasFilhas.some(p => String(p.uid)===id));
-    if(missing.length) console.log('[modulo] missing UIDs (filtered by parser):', missing);
-    
-    // Tentar encontrar missing UIDs diretamente nas meshes
-    const missingSet = new Set(missing);
-    const missingMeshes = allMeshes.filter(m => missingSet.has(String(m.userData.uid)));
-    console.log('[modulo] missing found in meshes:', missingMeshes.length);
-    
-    if(pecasFilhas.length){
-      const {room} = currentData;
-      filhas = allMeshes.filter(m => {
-        // Nunca incluir painéis independentes ou peças maiores que o módulo
-        if(m.userData.type === 'panel') return false;
-        const mW = pu(modulo.w), mH = pu(modulo.h);
-        if(m.geometry?.parameters?.width  > mW * 1.1) return false;
-        if(m.geometry?.parameters?.height > mH * 1.1) return false;
-        return pecasFilhas.some(p => {
-          const pos = p2t(p.px, p.py, p.pz, room);
-          const dw = pu(p.w), dh = pu(p.h), dd = pu(p.d);
-          return Math.abs(m.position.x - (pos.x + dw/2)) < 0.025 &&
-                 Math.abs(m.position.y - (pos.y + dh/2)) < 0.025 &&
-                 Math.abs(m.position.z - (pos.z + dd/2)) < 0.025;
-        });
-      });
-    }
-    // Adicionar peças encontradas pelo missing UID diretamente
-    if(missingMeshes.length) filhas = [...filhas, ...missingMeshes.filter(m => !filhas.includes(m))];
-    
-    console.log('[modulo] childUids:', [...childSet], '→ pecasFilhas:', pecasFilhas.length, '→ meshes:', filhas.length);
+    filhas = allMeshes.filter(m => childSet.has(String(m.userData.uid)));
+    console.log('[modulo] direct uid match:', filhas.length, '| childUids:', [...childSet]);
+    console.log('[modulo] all mesh uids:', allMeshes.map(m=>String(m.userData.uid)).filter(u=>u&&u!==''));
   }
 
-  // Método 2: agPai
   if(!filhas.length){
+    // agPai: meshes cujo agPai bate com o ag do módulo
     filhas = allMeshes.filter(m => m.userData.agPai && m.userData.agPai === modulo.ag);
-    console.log('[modulo] agPai:', filhas.length);
+    console.log('[modulo] agPai match:', filhas.length, '| modulo.ag:', modulo.ag);
+    if(!filhas.length){
+      const agPaiSample = [...new Set(allMeshes.map(m=>m.userData.agPai).filter(Boolean))].slice(0,5);
+      console.log('[modulo] sample agPai in meshes:', agPaiSample);
+    }
   }
 
   if(!filhas.length){ console.log('[modulo] no match'); return; }
