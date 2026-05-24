@@ -1898,7 +1898,7 @@ window.addEventListener('message', async (e) => {
       } catch(cacheErr){ console.warn('[viewer] cache miss:', cacheErr.message); }
 
       if(!data){
-        // Cache não encontrado — parsear o arquivo
+        // Cache não encontrado — parsear o arquivo com o parser completo do viewer
         console.log('[viewer] cache miss, fetching .promob...');
         setLoading(20, 'Baixando projeto...');
         const resp = await fetch(url, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
@@ -1907,6 +1907,24 @@ window.addEventListener('message', async (e) => {
         if(!buf || buf.byteLength === 0) throw new Error('Arquivo .promob vazio');
         const fakeFile = new File([buf], (nome||'projeto')+'.promob', {type:'application/octet-stream'});
         data = await parsePromob(fakeFile);
+
+        // Salvar cache no Supabase para próxima vez (usando o parser correto do viewer)
+        if(data && token){
+          try {
+            const cachePayload = {
+              id: cacheId,
+              nome: nome || data.room?.name || '',
+              parsed_at: new Date().toISOString(),
+              cache_version: 2,
+              data: { room: data.room, pecas: data.pecas, modulos: data.modulos, allElems: data.allElems, decoracoes: data.decoracoes, fileName: data.fileName }
+            };
+            fetch(`${SB_URL}/rest/v1/viewer_cache`, {
+              method: 'POST',
+              headers: { 'apikey': token, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+              body: JSON.stringify(cachePayload)
+            }).then(()=>console.log('[viewer] cache saved!')).catch(e=>console.warn('[viewer] cache save failed:', e.message));
+          } catch(e){ console.warn('[viewer] cache save error:', e.message); }
+        }
       }
 
       if(data) await renderData(data);
