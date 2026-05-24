@@ -1666,17 +1666,15 @@ function toggleModulo(uid) {
   // Método 1: childUids → achar peças em currentData.pecas → casar com meshes por posição
   if(modulo.childUids && modulo.childUids.length){
     const childSet = new Set(modulo.childUids.map(String));
-    // Achar as peças filhas nos dados
     const pecasFilhas = (currentData.pecas||[]).filter(p => childSet.has(String(p.uid)));
     if(pecasFilhas.length){
-      // Casar com meshes pela dimensão e posição aproximada
       const {room} = currentData;
       filhas = allMeshes.filter(m => {
         return pecasFilhas.some(p => {
           const pos = p2t(p.px, p.py, p.pz, room);
           const dw = pu(p.w), dh = pu(p.h);
-          return Math.abs(m.position.x - (pos.x + dw/2)) < 0.005 &&
-                 Math.abs(m.position.y - (pos.y + dh/2)) < 0.005;
+          return Math.abs(m.position.x - (pos.x + dw/2)) < 0.025 &&
+                 Math.abs(m.position.y - (pos.y + dh/2)) < 0.025;
         });
       });
     }
@@ -1687,24 +1685,6 @@ function toggleModulo(uid) {
   if(!filhas.length){
     filhas = allMeshes.filter(m => m.userData.agPai && m.userData.agPai === modulo.ag);
     console.log('[modulo] agPai:', filhas.length);
-  }
-
-  // Método 3: bbox
-  if(!filhas.length && currentData.room){
-    const {room} = currentData;
-    const pos = p2t(modulo.px, modulo.py, modulo.pz, room);
-    const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
-    const cx = pos.x + mW/2, cy = pos.y + mH/2, cz = pos.z + mD/2;
-    filhas = allMeshes.filter(m => {
-      const p = m.position;
-      if(Math.abs(p.x - cx) > mW/2 + 0.001) return false;
-      if(Math.abs(p.y - cy) > mH/2 + 0.001) return false;
-      if(Math.abs(p.z - cz) > mD/2 + 0.001) return false;
-      // Peça não pode ser MAIOR que o módulo (evita pegar painéis que atravessam tudo)
-      if(m.geometry?.parameters?.width  > mW * 1.1 && m.geometry?.parameters?.height > mH * 1.1) return false;
-      return true;
-    });
-    console.log('[modulo] bbox:', filhas.length);
   }
 
   if(!filhas.length){ console.log('[modulo] no match'); return; }
