@@ -1105,9 +1105,20 @@ async function processFile(file){
   document.getElementById('drop-error').textContent='';
   document.getElementById('drop-screen').style.display='none';
   document.getElementById('loading-screen').style.display='flex';
-
   try {
     const data = await parsePromob(file);
+    if(data) await renderData(data);
+  } catch(err){
+    console.error('[viewer] parsePromob ERROR:', err.message, err.stack);
+    document.getElementById('loading-screen').style.display='none';
+    document.getElementById('drop-screen').style.cssText='display:flex;position:fixed;inset:0;z-index:100;flex-direction:column;align-items:center;justify-content:center';
+    document.getElementById('drop-error').textContent='Erro: '+err.message;
+    console.error(err);
+  }
+}
+
+async function renderData(data){
+  try {
 
     // Inicializar visibilidade — mostrar tudo exceto hardwares
     typeVisible={};
@@ -1163,13 +1174,12 @@ async function processFile(file){
     },100);
 
   } catch(err){
-    console.error('[viewer] parsePromob ERROR:', err.message, err.stack);
+    console.error('[viewer] renderData ERROR:', err.message, err.stack);
     document.getElementById('loading-screen').style.display='none';
     document.getElementById('drop-screen').style.cssText='display:flex;position:fixed;inset:0;z-index:100;flex-direction:column;align-items:center;justify-content:center';
     document.getElementById('drop-error').textContent='Erro: '+err.message;
-    console.error(err);
   }
-}
+} // end renderData
 
 let decoMeshes = [];
 let decoVisible = false;
@@ -1863,13 +1873,44 @@ window.addEventListener('message', async (e) => {
       document.getElementById('drop-screen').style.display='none';
       const loadingScreen = document.getElementById('loading-screen');
       if(loadingScreen) loadingScreen.style.display='flex';
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const resp = await fetch(url, { headers });
-      if(!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar .promob`);
-      const buf = await resp.arrayBuffer();
-      if(!buf || buf.byteLength === 0) throw new Error('Arquivo .promob vazio');
-      const fakeFile = new File([buf], (nome||'projeto')+'.promob', {type:'application/octet-stream'});
-      await parsePromob(fakeFile);
+
+      const SB_URL = 'https://bibtcgcabjngisqwywrs.supabase.co';
+      const headers = token ? { 'Authorization': `Bearer ${token}`, 'apikey': token } : {};
+
+      // Tentar buscar cache pré-processado primeiro
+      setLoading(10, 'Buscando cache...');
+      // O id do cache é o path do storage (parte após /object/promob/)
+      const cacheId = url.replace(/.*\/object\/promob\//, '');
+      let data = null;
+      try {
+        const cacheResp = await fetch(`${SB_URL}/rest/v1/viewer_cache?id=eq.${encodeURIComponent(cacheId)}&select=data,nome`, {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+        if(cacheResp.ok){
+          const rows = await cacheResp.json();
+          if(rows && rows.length > 0 && rows[0].data){
+            console.log('[viewer] cache hit!');
+            data = rows[0].data;
+            data.fileName = (rows[0].nome || nome) + '.promob';
+            setLoading(90, 'Cache carregado!');
+          }
+        }
+      } catch(cacheErr){ console.warn('[viewer] cache miss:', cacheErr.message); }
+
+      if(!data){
+        // Cache não encontrado — parsear o arquivo
+        console.log('[viewer] cache miss, fetching .promob...');
+        setLoading(20, 'Baixando projeto...');
+        const resp = await fetch(url, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+        if(!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar .promob`);
+        const buf = await resp.arrayBuffer();
+        if(!buf || buf.byteLength === 0) throw new Error('Arquivo .promob vazio');
+        const fakeFile = new File([buf], (nome||'projeto')+'.promob', {type:'application/octet-stream'});
+        data = await parsePromob(fakeFile);
+      }
+
+      if(data) await renderData(data);
+
     } catch(err) {
       console.error('[viewer] postMessage error:', err);
       const loadingScreen = document.getElementById('loading-screen');
