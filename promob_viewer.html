@@ -1648,26 +1648,41 @@ function toggleModulo(uid) {
 
   let filhas = [];
 
+  // Tentar childUids primeiro
   if(modulo.childUids && modulo.childUids.length){
-    const childSet = new Set(modulo.childUids);
-    filhas = allMeshes.filter(m => childSet.has(m.userData.uid));
-    console.log('[modulo] childUids match:', filhas.length, '| childUids:', [...childSet], '| sample mesh uids:', allMeshes.slice(0,8).map(m=>m.userData.uid));
+    const childSet = new Set(modulo.childUids.map(String));
+    filhas = allMeshes.filter(m => childSet.has(String(m.userData.uid)));
+    console.log('[modulo] childUids:', [...childSet], 'mesh uids sample:', allMeshes.slice(0,5).map(m=>String(m.userData.uid)));
   }
 
+  // Tentar agPai
   if(!filhas.length){
-    filhas = allMeshes.filter(m => m.userData.agPai === modulo.ag);
-    console.log('[modulo] agPai match:', filhas.length, '| modulo.ag=', modulo.ag);
-    // Show what agPai values exist in meshes
-    const agPaiCounts = {};
-    allMeshes.forEach(m => { const a=m.userData.agPai||''; agPaiCounts[a]=(agPaiCounts[a]||0)+1; });
-    console.log('[modulo] agPai in meshes:', Object.entries(agPaiCounts).slice(0,10));
+    filhas = allMeshes.filter(m => m.userData.agPai && m.userData.agPai === modulo.ag);
+    console.log('[modulo] agPai match:', filhas.length, 'modulo.ag:', modulo.ag);
   }
 
-  // Remove bbox fallback - too imprecise
-  if(!filhas.length){
-    console.log('[modulo] NO MATCH for uid:', uid, 'ag:', modulo.ag);
-    return;
+  // Bbox preciso — só peças que são filhas estruturais (não painéis independentes)
+  if(!filhas.length && currentData.room){
+    const {room} = currentData;
+    const mPos = p2t(modulo.px, modulo.py, modulo.pz, room);
+    const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
+    const PAD = 0.002; // 2mm de margem
+    filhas = allMeshes.filter(m => {
+      // Excluir painéis e peças muito grandes (que atravessam vários módulos)
+      if(m.userData.type === 'panel') return false;
+      const bbox = new THREE.Box3().setFromObject(m);
+      const size = new THREE.Vector3(); bbox.getSize(size);
+      // Peça não pode ser maior que o módulo em nenhuma dimensão
+      if(size.x > mW * 1.1 || size.z > mD * 1.1) return false;
+      const center = new THREE.Vector3(); bbox.getCenter(center);
+      return center.x >= mPos.x - PAD && center.x <= mPos.x + mW + PAD &&
+             center.y >= mPos.y - PAD && center.y <= mPos.y + mH + PAD &&
+             center.z >= mPos.z - PAD && center.z <= mPos.z + mD + PAD;
+    });
+    console.log('[modulo] bbox match:', filhas.length);
   }
+
+  if(!filhas.length){ console.log('[modulo] no match'); return; }
 
   // Dimmer tudo, destacar filhas com pulso azul
   allMeshes.forEach(m => {
