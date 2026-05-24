@@ -1637,9 +1637,34 @@ function toggleModulo(uid) {
 
   // Encontrar peças filhas pelo childUids do módulo
   const modulo = (currentData.modulos||[]).find(m => m.uid === uid);
-  if(!modulo || !modulo.childUids || !modulo.childUids.length) return;
-  const childSet = new Set(modulo.childUids);
-  const filhas = allMeshes.filter(m => childSet.has(m.userData.uid));
+  if(!modulo) return;
+
+  let filhas = [];
+
+  if(modulo.childUids && modulo.childUids.length){
+    // Match por UID das peças filhas
+    const childSet = new Set(modulo.childUids);
+    filhas = allMeshes.filter(m => childSet.has(m.userData.uid));
+  }
+
+  if(!filhas.length){
+    // Fallback: match por agPai (IDAGREGADO das peças aponta para o tipo do módulo pai)
+    filhas = allMeshes.filter(m => m.userData.agPai === modulo.ag);
+  }
+
+  if(!filhas.length){
+    // Fallback final: match por posição — peças dentro do bounding box do módulo
+    const {room} = currentData;
+    const mPos = p2t(modulo.px, modulo.py, modulo.pz, room);
+    const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
+    filhas = allMeshes.filter(m => {
+      const p = m.position;
+      return p.x >= mPos.x - 0.05 && p.x <= mPos.x + mW + 0.05 &&
+             p.y >= mPos.y - 0.05 && p.y <= mPos.y + mH + 0.05 &&
+             p.z >= mPos.z - 0.05 && p.z <= mPos.z + mD + 0.05;
+    });
+  }
+
   if(!filhas.length) return;
 
   // Dimmer tudo, destacar filhas com pulso azul
@@ -1709,13 +1734,11 @@ function buscarPeca(val) {
 
   if (!q) { result.textContent = ''; return; }
 
-  // Busca por uid (UNIQUEID — número da etiqueta), ag (ID interno) ou desc
-  const ql = q.toLowerCase();
+  // Busca APENAS por uid (UNIQUEID da etiqueta) — match exato ou parcial
+  const ql = q.toLowerCase().trim();
   const found = allMeshes.filter(m => {
-    const uid  = (m.userData.uid  || '').toLowerCase();
-    const ref  = (m.userData.ref  || '').toLowerCase();
-    const name = (m.userData.name || '').toLowerCase();
-    return uid === ql || uid.includes(ql) || ref.includes(ql) || name.includes(ql);
+    const uid = (m.userData.uid || '').toLowerCase();
+    return uid === ql || uid.startsWith(ql);
   });
 
   if (!found.length) {
