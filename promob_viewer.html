@@ -244,8 +244,10 @@ async function parsePromob(file) {
   let ambient3dContent = null;
   for(const [name, entry] of Object.entries(zip.files)){
     if(name.endsWith('.ambient3d') && !entry.dir){
+      console.log('[viewer] found ambient3d:', name);
       setLoading(25, 'Lendo dados do ambiente...');
       ambient3dContent = await entry.async('string');
+      console.log('[viewer] ambient3d loaded, length:', ambient3dContent?.length);
       break;
     }
   }
@@ -254,11 +256,13 @@ async function parsePromob(file) {
   // Remover BOM se presente
   if(ambient3dContent.charCodeAt(0)===0xFEFF) ambient3dContent=ambient3dContent.slice(1);
 
+  console.log('[viewer] parsing XML...');
   setLoading(40, 'Parseando XML...');
   const parser = new DOMParser();
   const doc = parser.parseFromString(ambient3dContent, 'text/xml');
   const parseErr = doc.querySelector('parsererror');
   if(parseErr) throw new Error('XML inválido: '+parseErr.textContent.slice(0,100));
+  console.log('[viewer] XML parsed ok');
 
   // Dimensões do cômodo
   setLoading(55, 'Extraindo cômodo...');
@@ -1162,6 +1166,7 @@ async function processFile(file){
     },100);
 
   } catch(err){
+    console.error('[viewer] parsePromob ERROR:', err.message, err.stack);
     document.getElementById('loading-screen').style.display='none';
     document.getElementById('drop-screen').style.cssText='display:flex;position:fixed;inset:0;z-index:100;flex-direction:column;align-items:center;justify-content:center';
     document.getElementById('drop-error').textContent='Erro: '+err.message;
