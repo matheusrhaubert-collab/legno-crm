@@ -753,7 +753,10 @@ function buildScene(data){
   // Paredes e chão ficam em oX=0, oY=0, oZ=0
   const oX=0, oY=0, oZ=0;
   window._R={rW,rH,rD,oX,oY,oZ};
-  camTX=rW/2+oX; camTY=rH/2+oY; camTZ=rD/2+oZ;
+  camTX=rW/2+oX; camTY=rH/2+oY;
+  // Centralizar Z na profundidade dos móveis (geralmente no primeiro quarto do cômodo)
+  // Em vez de rD/2, usar rD*0.25 para ficar mais próximo dos móveis na parede
+  camTZ=rD*0.25+oZ;
   const diag=Math.sqrt(rW*rW+rH*rH+rD*rD);
   camDist=diag*1.2;
 
@@ -1642,18 +1645,17 @@ function toggleModulo(uid) {
   let filhas = [];
 
   if(modulo.childUids && modulo.childUids.length){
-    // Match por UID das peças filhas
     const childSet = new Set(modulo.childUids);
     filhas = allMeshes.filter(m => childSet.has(m.userData.uid));
+    console.log('[modulo] childUids match:', filhas.length, 'childUids:', modulo.childUids.slice(0,5));
   }
 
   if(!filhas.length){
-    // Fallback: match por agPai (IDAGREGADO das peças aponta para o tipo do módulo pai)
     filhas = allMeshes.filter(m => m.userData.agPai === modulo.ag);
+    console.log('[modulo] agPai match:', filhas.length, 'ag:', modulo.ag);
   }
 
   if(!filhas.length){
-    // Fallback final: match por posição — peças dentro do bounding box do módulo
     const {room} = currentData;
     const mPos = p2t(modulo.px, modulo.py, modulo.pz, room);
     const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
@@ -1663,9 +1665,14 @@ function toggleModulo(uid) {
              p.y >= mPos.y - 0.05 && p.y <= mPos.y + mH + 0.05 &&
              p.z >= mPos.z - 0.05 && p.z <= mPos.z + mD + 0.05;
     });
+    console.log('[modulo] bbox match:', filhas.length);
   }
 
-  if(!filhas.length) return;
+  // Sample mesh uids and agPai for debugging
+  if(!filhas.length){
+    console.log('[modulo] NO MATCH. Sample mesh uids:', allMeshes.slice(0,5).map(m=>m.userData.uid));
+    console.log('[modulo] Sample mesh agPai:', allMeshes.slice(0,5).map(m=>m.userData.agPai));
+  }
 
   // Dimmer tudo, destacar filhas com pulso azul
   allMeshes.forEach(m => {
