@@ -1883,7 +1883,7 @@ window.addEventListener('message', async (e) => {
       const cacheId = url.replace(/.*\/object\/promob\//, '');
       let data = null;
       try {
-        const cacheResp = await fetch(`${SB_URL}/rest/v1/viewer_cache?id=eq.${encodeURIComponent(cacheId)}&select=data,nome`, {
+        const cacheResp = await fetch(`${SB_URL}/rest/v1/viewer_cache?id=eq.${encodeURIComponent(cacheId)}&cache_version=eq.2&select=data,nome`, {
           headers: { ...headers, 'Content-Type': 'application/json' }
         });
         if(cacheResp.ok){
