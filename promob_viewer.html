@@ -435,43 +435,46 @@ function extractPecas(root, room){
   const seen = new Set();
   const pecas = [];
 
-  // Passe 0: coletar quais ag têm pelo menos 1 instância com pos real (px|py|pz != 0)
-  // Isso permite descartar versões-template (pos=0) quando existir versão posicionada
+  // Usar Array de todos os INFORMACOES[TYPE=MODULO] — mais rápido que querySelectorAll repetido
+  const allInfo = Array.from(root.getElementsByTagName('INFORMACOES')).filter(el => el.getAttribute('TYPE')==='MODULO');
+
+  // Passe 0: coletar quais ag têm pelo menos 1 instância com pos real
   const agComPosReal = new Set();
-  for(const info of root.querySelectorAll('INFORMACOES[TYPE="MODULO"]')){
-    const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
+  for(const info of allInfo){
+    // Filho direto IDENTIFICADORINFAGRITEM: verificar pelo parentNode
+    const iid = info.firstElementChild?.tagName === 'IDENTIFICADORINFAGRITEM' ? info.firstElementChild
+      : Array.from(info.children).find(c => c.tagName === 'IDENTIFICADORINFAGRITEM');
     if(!iid) continue;
     const ag = iid.getAttribute('IDAGREGADO')||'';
     if(!ag) continue;
-    const pb = info.querySelector(':scope > POSICAOINSERCAO > PONTOBASE') ||
-               info.querySelector('POSICAOINSERCAO PONTOBASE');
+    const pb = Array.from(info.children).find(c=>c.tagName==='POSICAOINSERCAO')?.querySelector('PONTOBASE');
     if(!pb) continue;
     const px=fv(pb.getAttribute('X')), py=fv(pb.getAttribute('Y')), pz=fv(pb.getAttribute('Z'));
     if(Math.abs(px)>1 || Math.abs(py)>1 || Math.abs(pz)>1) agComPosReal.add(ag);
   }
 
-
-
-  const infList = root.querySelectorAll('INFORMACOES[TYPE="MODULO"]');
+  const infList = allInfo;
   infList.forEach(info => {
     const infoId = info.getAttribute('ID')||'';
-    const iid = info.querySelector(':scope > IDENTIFICADORINFAGRITEM');
+    // Usar children diretos em vez de :scope > (muito mais rápido)
+    const ch = info.children;
+    let iid=null, pb_=null, idim_=null, assoc_=null, posEl=null;
+    for(let i=0;i<ch.length;i++){
+      const t=ch[i].tagName;
+      if(t==='IDENTIFICADORINFAGRITEM') iid=ch[i];
+      else if(t==='POSICAOINSERCAO') posEl=ch[i];
+      else if(t==='INSERTDIMENSION') idim_=ch[i];
+      else if(t==='ASSOCIATIONREGISTRY') assoc_=ch[i];
+    }
+    if(posEl) pb_ = posEl.querySelector('PONTOBASE');
 
     // Painéis diretos: ID da própria INFORMACOES começa com lg_mk_mk_pd_pa (sem IDENTIFICADORINFAGRITEM)
     if(infoId.startsWith('lg_mk_mk_pd_pa') && !iid){
-      // Buscar POSICAOINSERCAO filho direto (não dentro de JOINTDESCRIPTOR)
-      let pb = null;
-      for(const ch of info.children){
-        if(ch.tagName==='POSICAOINSERCAO'){ pb=ch.querySelector('PONTOBASE'); break; }
-      }
+      const pb = pb_;
       const px = pb ? fv(pb.getAttribute('X')) : 0;
       const py = pb ? fv(pb.getAttribute('Y')) : 0;
       const pz = pb ? fv(pb.getAttribute('Z')) : 0;
-      // INSERTDIMENSION filho direto
-      let idim = null;
-      for(const ch of info.children){
-        if(ch.tagName==='INSERTDIMENSION'){ idim=ch; break; }
-      }
+      const idim = idim_;
       if(!idim) return;
       const w = fv(idim.getAttribute('WIDTH'));
       const h = fv(idim.getAttribute('HEIGHT'));
@@ -481,26 +484,23 @@ function extractPecas(root, room){
       if(seen.has(key)) return;
       seen.add(key);
       let panelModelType = '';
-      // Pegar primeiro MODEL com IDMODELTYPE não-vazio (direto ou em sub-módulos)
       for(const m of info.querySelectorAll('MODEL')){
         const mt = m.getAttribute('IDMODELTYPE')||'';
         if(mt){ panelModelType=mt; break; }
       }
-      // Descrição legível para painéis diretos
       let panelDesc = infoId;
       const panelDescAttr = info.querySelector('ATTRIBUTE[ID="DESCRIPTION"]');
       if(panelDescAttr){
         let pv = panelDescAttr.getAttribute('VALUE')||'';
         if(pv){
           panelDesc = pv
-            .replace(/\$W\$/g, Math.round(fv(info.querySelector(':scope > INSERTDIMENSION')?.getAttribute('WIDTH')||0)))
-            .replace(/\$H\$/g, Math.round(fv(info.querySelector(':scope > INSERTDIMENSION')?.getAttribute('HEIGHT')||0)))
-            .replace(/\$D\$/g, Math.round(fv(info.querySelector(':scope > INSERTDIMENSION')?.getAttribute('DEPTH')||0)))
+            .replace(/\$W\$/g, Math.round(w))
+            .replace(/\$H\$/g, Math.round(h))
+            .replace(/\$D\$/g, Math.round(d))
             .replace(/@[^@]+@/g,'').trim();
         }
       }
-      const panelAssoc = info.querySelector(':scope > ASSOCIATIONREGISTRY');
-      const panelUid = panelAssoc ? (panelAssoc.getAttribute('UNIQUEID')||'') : '';
+      const panelUid = assoc_ ? (assoc_.getAttribute('UNIQUEID')||'') : '';
       pecas.push({ ag:infoId, uid:panelUid, desc:panelDesc, type:'panel', modelType:panelModelType,
         px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
         w:Math.round(w), h:Math.round(h), d:Math.round(d),
@@ -514,15 +514,12 @@ function extractPecas(root, room){
     const rep = iid.getAttribute('NUMERODAREPETICAO')||'';
     const agDesc0 = iid.getAttribute('IDAGREGADO')||'';
     const _isPaPaEarly = agDesc0.startsWith('lg_mk_mk_pd_pa');
-    const _isPaPanel = _isPaPaEarly; // definido cedo para uso em qualquer ponto
-    // pa_pa e variantes: aceitar todas as repetições (não filtrar por rep)
+    const _isPaPanel = _isPaPaEarly;
     if(!_isPaPaEarly && rep && rep !== '1') return;
-    // INVERTED: na tag INFORMACOES (não em ATTRIBUTE)
     const inverted = (info.getAttribute('INVERTED')||'').toLowerCase() === 'true';
 
-    // PONTOBASE — posição absoluta no espaço Promob
-    const pb = info.querySelector(':scope > POSICAOINSERCAO > PONTOBASE') ||
-               info.querySelector('POSICAOINSERCAO PONTOBASE');
+    // PONTOBASE
+    const pb = pb_;
     const px = pb ? fv(pb.getAttribute('X')) : 0;
     const py = pb ? fv(pb.getAttribute('Y')) : 0;
     const pz = pb ? fv(pb.getAttribute('Z')) : 0;
@@ -530,12 +527,11 @@ function extractPecas(root, room){
     // Exceto pa_pa: mostrar sempre independente de pos
     if(!_isPaPanel && ag && agComPosReal.has(ag) && Math.abs(px)<1 && Math.abs(py)<1 && Math.abs(pz)<1) return;
 
-    // ROTATION em graus (texto dentro de POSICAOINSERCAO > ROTATION)
-    const rotEl = info.querySelector(':scope > POSICAOINSERCAO > ROTATION') ||
-                  info.querySelector('POSICAOINSERCAO > ROTATION');
+    // ROTATION — usar posEl já capturado
+    const rotEl = posEl ? posEl.querySelector('ROTATION') : null;
     const rot = (rotEl && rotEl.textContent) ? fv(rotEl.textContent.trim()) : 90;
 
-    // NORMAL do módulo: busca em POSITION > NORMAL filho direto
+    // NORMAL do módulo
     let nx=0, ny=0, nz=1;
     for(const child of info.children) {
       if(child.tagName === 'POSITION') {
@@ -549,13 +545,9 @@ function extractPecas(root, room){
       }
     }
 
-    // INSERTDIMENSION
-    const idim = info.querySelector(':scope > INSERTDIMENSION') ||
-                 info.querySelector('INSERTDIMENSION');
-    if(!idim){
-      
-      return;
-    }
+    // INSERTDIMENSION — usar idim_ já capturado
+    const idim = idim_;
+    if(!idim) return;
     const w = fv(idim.getAttribute('WIDTH'));
     const h = fv(idim.getAttribute('HEIGHT'));
     const d = fv(idim.getAttribute('DEPTH'));
@@ -616,9 +608,8 @@ function extractPecas(root, room){
       if(mt){ modelType=mt; break; }
     }
 
-    // UNIQUEID — número da etiqueta de produção
-    const assocReg = info.querySelector(':scope > ASSOCIATIONREGISTRY');
-    const uid = assocReg ? (assocReg.getAttribute('UNIQUEID')||'') : '';
+    // UNIQUEID — número da etiqueta de produção — usar assoc_ já capturado
+    const uid = assoc_ ? (assoc_.getAttribute('UNIQUEID')||'') : '';
 
     pecas.push({ ag, uid, agPai:agDesc, desc, type, modelType,
       px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
