@@ -1670,9 +1670,20 @@ function toggleModulo(uid) {
     const pecasFilhas = (currentData.pecas||[]).filter(p => childSet.has(String(p.uid)));
     const missing = [...childSet].filter(id => !pecasFilhas.some(p => String(p.uid)===id));
     if(missing.length) console.log('[modulo] missing UIDs (filtered by parser):', missing);
+    
+    // Tentar encontrar missing UIDs diretamente nas meshes
+    const missingSet = new Set(missing);
+    const missingMeshes = allMeshes.filter(m => missingSet.has(String(m.userData.uid)));
+    console.log('[modulo] missing found in meshes:', missingMeshes.length);
+    
     if(pecasFilhas.length){
       const {room} = currentData;
       filhas = allMeshes.filter(m => {
+        // Nunca incluir painéis independentes ou peças maiores que o módulo
+        if(m.userData.type === 'panel') return false;
+        const mW = pu(modulo.w), mH = pu(modulo.h);
+        if(m.geometry?.parameters?.width  > mW * 1.1) return false;
+        if(m.geometry?.parameters?.height > mH * 1.1) return false;
         return pecasFilhas.some(p => {
           const pos = p2t(p.px, p.py, p.pz, room);
           const dw = pu(p.w), dh = pu(p.h), dd = pu(p.d);
@@ -1682,6 +1693,9 @@ function toggleModulo(uid) {
         });
       });
     }
+    // Adicionar peças encontradas pelo missing UID diretamente
+    if(missingMeshes.length) filhas = [...filhas, ...missingMeshes.filter(m => !filhas.includes(m))];
+    
     console.log('[modulo] childUids:', [...childSet], '→ pecasFilhas:', pecasFilhas.length, '→ meshes:', filhas.length);
   }
 
