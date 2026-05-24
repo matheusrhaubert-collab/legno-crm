@@ -1303,6 +1303,7 @@ function buildElevationSVG(elems, useInches){
   push(`<line x1="${PL-12}" y1="${gy}" x2="${PL+(yMax-yMin)*SCALE+12}" y2="${gy}" stroke="#888" stroke-width="2"/>`);
 
   // === ELEMENTOS ===
+  console.log('[elev] elems:', elems.length, 'first elem childPieces:', elems[0]?.childPieces?.length, 'isPanel:', elems[0]?.isPanel);
   elems.forEach(m => {
     const isHPanel = m.isPanel && m.w > m.h * 3 && m.h < 50;
     const isVPanel = m.isPanel && m.h > m.w * 3 && m.w < 50;
