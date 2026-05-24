@@ -1281,6 +1281,7 @@ async function carregarPromob(event) {
               id: promobPath,
               nome: _ambNome || file.name,
               parsed_at: new Date().toISOString(),
+              cache_version: 2,
               data: data
             })
           });
@@ -1397,15 +1398,16 @@ async function _parsePromobParaCache(file){
     const skipAg=['lg_mk_mk_pd_pa_','lg_mk_mk_pd_fi_','lg_mk_mo_se_tampon','lg_mk_mo_se_caixa'];
     const skipDesc=['k02001','k02003','labor','hinge','minifix','vb shelf','hrm_leg'];
     allInfo.forEach(info => {
-      if(info.querySelector(':scope > IDENTIFICADORINFAGRITEM')) return;
       const ch=info.children;
-      let posEl=null,idim=null,assoc=null;
+      let iidCheck=null,posEl=null,idim=null,assoc=null;
       for(let i=0;i<ch.length;i++){
         const t=ch[i].tagName;
-        if(t==='POSICAOINSERCAO') posEl=ch[i];
+        if(t==='IDENTIFICADORINFAGRITEM') iidCheck=ch[i];
+        else if(t==='POSICAOINSERCAO') posEl=ch[i];
         else if(t==='INSERTDIMENSION') idim=ch[i];
         else if(t==='ASSOCIATIONREGISTRY') assoc=ch[i];
       }
+      if(iidCheck) return; // é peça filha, não módulo pai
       const uid=assoc?.getAttribute('UNIQUEID')||''; if(!uid) return;
       const ag=info.getAttribute('ID')||'';
       const pb=posEl?.querySelector('PONTOBASE');
@@ -1418,8 +1420,11 @@ async function _parsePromobParaCache(file){
       if(skipDesc.some(s=>desc.toLowerCase().includes(s))) return;
       const childUids=[];
       const childPieces=[];
-      info.querySelectorAll(':scope > INFORMACOESCOLECAO > INFORMACOES').forEach(child=>{
-        const ca=child.querySelector(':scope > ASSOCIATIONREGISTRY');
+      // Buscar INFORMACOESCOLECAO filho direto
+      let colEl=null;
+      for(let i=0;i<ch.length;i++){ if(ch[i].tagName==='INFORMACOESCOLECAO'){colEl=ch[i];break;} }
+      Array.from(colEl?.children||[]).forEach(child=>{
+        let ca=null; for(let i=0;i<child.children.length;i++){if(child.children[i].tagName==='ASSOCIATIONREGISTRY'){ca=child.children[i];break;}}
         const cu=ca?.getAttribute('UNIQUEID')||''; if(cu) childUids.push(cu);
         const cpb=child.querySelector('POSICAOINSERCAO PONTOBASE'); if(!cpb) return;
         const cpy=fv(cpb.getAttribute('Y')),cpz=fv(cpb.getAttribute('Z'));
