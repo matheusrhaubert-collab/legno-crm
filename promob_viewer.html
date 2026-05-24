@@ -232,6 +232,7 @@ const TYPE_LABELS = {
 
 // ── PARSER DO .PROMOB ──────────────────────────────────────────────────────
 async function parsePromob(file) {
+  console.log('[viewer] parsePromob start, file size:', file.size);
   setLoading(10, 'Descomprimindo arquivo...');
   const buf = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(buf);
@@ -1121,6 +1122,7 @@ async function processFile(file){
     document.getElementById('sv-alt').textContent=rZ;
 
     setLoading(95,'Renderizando...');
+    console.log('[viewer] data parsed, pecas:', data.pecas?.length, 'modulos:', data.modulos?.length);
     currentData=data;
 
     // Mostrar app ANTES de initThree para que o canvas tenha dimensões reais
@@ -1130,12 +1132,18 @@ async function processFile(file){
     // Aguardar um frame para o browser calcular o layout
     await new Promise(r => setTimeout(r, 50));
 
+    console.log('[viewer] initThree...');
     // Init Three.js se necessário
     if(!renderer) initThree();
+    console.log('[viewer] buildScene...');
     buildScene(data);
+    console.log('[viewer] buildFilters...');
     buildFilters(data.pecas);
+    console.log('[viewer] buildModulosPanel...');
     buildModulosPanel(data.modulos||[]);
+    console.log('[viewer] buildDecoracoes...');
     buildDecoracoes(data.decoracoes||[]);
+    console.log('[viewer] done!');
 
     // Forçar resize do renderer
     setTimeout(()=>{
