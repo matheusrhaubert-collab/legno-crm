@@ -1281,16 +1281,9 @@ function buildElevationSVG(elems, useInches){
   elems = elems.filter(m => {
     if(!m.w || !m.h) return false;
     if(m.w<=1 && m.h<=1) return false;
-    // Remover caixas 100x100x100 (placeholders)
     if(m.w>=90&&m.w<=110 && m.h>=90&&m.h<=110 && m.d>=90&&m.d<=110) return false;
     return true;
   });
-
-  const SCALE  = 0.20;
-  const PL = 90;   // pad left  (cotas verticais)
-  const PR = 30;   // pad right
-  const PT = 30;   // pad top
-  const PB = 90;   // pad bottom (cotas horizontais)
 
   // Bounds
   const yMin = Math.min(...elems.map(m => m.py));
