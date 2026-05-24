@@ -1301,27 +1301,50 @@ async function verPromob3D(projetoId, nomeAmb) {
   _prepararAmbContext(projetoId, nomeAmb);
   const path = _ambObj?.promobStoragePath;
   if (!path) { toast('Nenhum .promob carregado para este ambiente'); return; }
-  toast('Baixando projeto 3D...');
+
+  const url = `${SB_URL}/storage/v1/object/promob/${path}`;
+  const token = SB_KEY_SERVICE;
+  const nome = nomeAmb || 'projeto';
+
+  // Abrir modal inline
+  const modal = document.getElementById('modal-3d');
+  const titulo = document.getElementById('modal-3d-titulo');
+  const iframe = document.getElementById('iframe-3d');
+  if(titulo) titulo.textContent = `🧊 ${nome}`;
+  modal.style.display = 'flex';
+
+  // Enviar dados ao viewer via postMessage quando carregar
+  const onLoad = () => {
+    iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
+    iframe.removeEventListener('load', onLoad);
+  };
+  // Se já carregou, enviar direto; senão aguardar
   try {
-    const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${path}`, {
-      headers: { 'Authorization': `Bearer ${SB_KEY_SERVICE}` }
-    });
-    if (!resp.ok) { toast('Erro ao carregar .promob'); return; }
-    const buf = await resp.arrayBuffer();
-    // Salvar no sessionStorage para o viewer pegar
-    const arr = Array.from(new Uint8Array(buf));
-    sessionStorage.setItem('promob_pending', JSON.stringify({
-      data: arr,
-      nome: nomeAmb || 'projeto'
-    }));
-    // Navegar para o viewer na mesma aba — sem popup
-    window.location.href = 'promob_viewer.html?from_crm=1';
+    if(iframe.contentDocument?.readyState === 'complete' && iframe.contentWindow?.allMeshes !== undefined){
+      iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
+    } else {
+      iframe.addEventListener('load', onLoad);
+      // Recarregar o iframe para garantir estado limpo
+      iframe.src = 'promob_viewer.html';
+    }
   } catch(e) {
-    toast('Erro: ' + e.message);
+    iframe.addEventListener('load', onLoad);
+    iframe.src = 'promob_viewer.html';
   }
 }
 
-function fechar3D() {}
+// Receber mensagem do viewer para fechar modal
+window.addEventListener('message', (e) => {
+  if(e.data?.type === 'close_viewer') fechar3D();
+});
+
+function fechar3D() {
+  const modal = document.getElementById('modal-3d');
+  if(modal) modal.style.display = 'none';
+  // Parar o iframe para liberar WebGL
+  const iframe = document.getElementById('iframe-3d');
+  if(iframe) iframe.src = 'promob_viewer.html';
+}
 
 function abrirFotosDireto(projetoId, nomeAmb) {
   event.stopPropagation();
@@ -9225,6 +9248,15 @@ function _renderQuadrosInstalacao(inst) {
     const corProg = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--gold)';
     const ambConcluido = pct === 100;
 
+    // Verificar se tem .promob salvo para este ambiente
+    const proj = DB.projetos.find(x=>x.id===inst.projetoId);
+    const ambProjeto = proj?.ambientes?.find(a=>(a.nome||a.tipo||a)===nomeAmb || (typeof a==='string'&&a===nomeAmb));
+    const promobPath = ambProjeto?.promobStoragePath || null;
+    const btn3D = promobPath
+      ? `<button onclick="event.stopPropagation();verPromob3DInstalacao('${promobPath.replace(/'/g,"\\'")}','${nomeAmb.replace(/'/g,"\\'")}')"
+           style="margin-left:auto;flex-shrink:0;padding:2px 8px;background:rgba(96,144,208,0.12);border:0.5px solid rgba(96,144,208,0.35);border-radius:6px;color:var(--blue);font-size:10px;cursor:pointer;font-family:inherit">🧊 Ver 3D</button>`
+      : '';
+
     const quadros = etapas.map((item, idx) => {
       const done = item.concluido;
       const titulo = item.titulo || `Etapa ${idx+1}`;
@@ -9250,8 +9282,11 @@ function _renderQuadrosInstalacao(inst) {
 
     return `<div style="margin-bottom:10px;background:var(--bg3);border:0.5px solid ${ambConcluido?'var(--green)':'var(--border)'};border-radius:10px;padding:10px 10px 8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-        <span style="font-size:11px;font-weight:600;color:${ambConcluido?'var(--green)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">🏠 ${nomeAmb}</span>
-        <span style="font-size:11px;font-weight:600;color:${corProg};flex-shrink:0">${feitos}/${total} · ${pct}%</span>
+        <span style="font-size:11px;font-weight:600;color:${ambConcluido?'var(--green)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">🏠 ${nomeAmb}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${btn3D}
+          <span style="font-size:11px;font-weight:600;color:${corProg}">${feitos}/${total} · ${pct}%</span>
+        </div>
       </div>
       <div style="display:flex;gap:5px">${quadros}</div>
       <div style="height:3px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:7px">
@@ -9267,6 +9302,34 @@ function _renderQuadrosInstalacao(inst) {
     </div>
     ${blocos}
   </div>`;
+}
+
+function verPromob3DInstalacao(promobPath, nomeAmb) {
+  const url = `${SB_URL}/storage/v1/object/promob/${promobPath}`;
+  const token = SB_KEY_SERVICE;
+  const nome = nomeAmb || 'ambiente';
+
+  const modal = document.getElementById('modal-3d');
+  const titulo = document.getElementById('modal-3d-titulo');
+  const iframe = document.getElementById('iframe-3d');
+  if(titulo) titulo.textContent = `🧊 ${nome}`;
+  modal.style.display = 'flex';
+
+  const onLoad = () => {
+    iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
+    iframe.removeEventListener('load', onLoad);
+  };
+  try {
+    if(iframe.contentDocument?.readyState === 'complete' && iframe.contentWindow?.allMeshes !== undefined){
+      iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
+    } else {
+      iframe.addEventListener('load', onLoad);
+      iframe.src = 'promob_viewer.html';
+    }
+  } catch(e) {
+    iframe.addEventListener('load', onLoad);
+    iframe.src = 'promob_viewer.html';
+  }
 }
 
 // ── Abrir etapa de um ambiente específico ──────────────────────────────────
