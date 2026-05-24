@@ -621,7 +621,7 @@ function extractPecas(root, room){
 }
 
 // ── CACHE VERSION — incrementar quando o parser mudar ──────────────────────
-const CACHE_VERSION = 3; // v3: childPieces, filtros corretos, sem 100x100
+const CACHE_VERSION = 4; // v4: childPieces obrigatório na elevação
 let scene,camera,orthoCamera,renderer;
 let useOrtho=false;
 let camTheta=0.6,camPhi=0.65,camDist=8;
@@ -1935,6 +1935,14 @@ window.addEventListener('message', async (e) => {
   if (e.data?.type === 'load_promob_url') {
     try {
       const {url, token, nome} = e.data;
+
+      // Limpar estado anterior imediatamente
+      currentData = null;
+      allMeshes = [];
+      decoMeshes.forEach(m => sceneGroup?.remove(m));
+      decoMeshes = [];
+      if(sceneGroup) while(sceneGroup.children.length) sceneGroup.remove(sceneGroup.children[0]);
+
       document.getElementById('drop-screen').style.display='none';
       const loadingScreen = document.getElementById('loading-screen');
       if(loadingScreen) loadingScreen.style.display='flex';
