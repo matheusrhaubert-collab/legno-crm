@@ -1351,32 +1351,36 @@ function buildElevationSVG(elems, useInches){
   });
 
   // === COTAS HORIZONTAIS — label centralizado dentro de cada módulo ===
-  const sorted = [...elems].filter(m => !(m.h > m.w*3 && m.w<50)).sort((a,b)=>a.py-b.py);
+  // Só gabinetes (não painéis), sem duplicar larguras idênticas na mesma posição Y
+  const sorted = [...elems]
+    .filter(m => !m.isPanel && !(m.h > m.w*3 && m.w<50))
+    .sort((a,b)=>a.py-b.py);
 
-  sorted.forEach(m => {
+  // Deduplicar: se dois módulos têm exatamente a mesma posição Y e largura, mostrar só um
+  const sortedDedup = sorted.filter((m, i) =>
+    !sorted.slice(0,i).some(prev => prev.py === m.py && prev.w === m.w)
+  );
+
+  sortedDedup.forEach(m => {
     const x1 = tx(m.py), x2 = tx(m.py + m.w);
     const mx = (x1+x2)/2;
-    // Posicionar no terço inferior do módulo
-    const modTop = tz(m.pz + m.h), modBot = tz(m.pz);
-    const labelY = modBot - 10; // logo abaixo da base do módulo
+    const modBot = tz(m.pz);
     const label = `${toUnit(m.w)}${u}`;
     const barY  = modBot - 4;
 
-    // Linha de cota curta com setas
     push(`<line x1="${x1}" y1="${barY}" x2="${x2}" y2="${barY}" stroke="#333" stroke-width="0.8"/>`);
     push(`<polygon points="${x1},${barY} ${x1+4},${barY-2.5} ${x1+4},${barY+2.5}" fill="#333"/>`);
     push(`<polygon points="${x2},${barY} ${x2-4},${barY-2.5} ${x2-4},${barY+2.5}" fill="#333"/>`);
-    // Texto centralizado
-    push(`<text x="${mx}" y="${labelY}" text-anchor="middle" font-size="9" fill="#222" font-weight="bold"
+    push(`<text x="${mx}" y="${modBot - 10}" text-anchor="middle" font-size="9" fill="#222" font-weight="bold"
       style="paint-order:stroke;stroke:#fff;stroke-width:2.5;stroke-linejoin:round">${label}</text>`);
   });
 
   // Cota total geral em dourado abaixo de tudo
-  if(sorted.length > 1){
-    const ty1 = tx(Math.min(...sorted.map(m=>m.py)));
-    const ty2 = tx(Math.max(...sorted.map(m=>m.py+m.w)));
+  if(sortedDedup.length > 1){
+    const ty1 = tx(Math.min(...sortedDedup.map(m=>m.py)));
+    const ty2 = tx(Math.max(...sortedDedup.map(m=>m.py+m.w)));
     const totY = gy + 24;
-    const totVal = toUnit(Math.max(...sorted.map(m=>m.py+m.w)) - Math.min(...sorted.map(m=>m.py)));
+    const totVal = toUnit(Math.max(...sortedDedup.map(m=>m.py+m.w)) - Math.min(...sortedDedup.map(m=>m.py)));
     push(`<line x1="${ty1}" y1="${gy+2}" x2="${ty1}" y2="${totY}" stroke="#c9a96e" stroke-width="0.6" stroke-dasharray="3,3"/>`);
     push(`<line x1="${ty2}" y1="${gy+2}" x2="${ty2}" y2="${totY}" stroke="#c9a96e" stroke-width="0.6" stroke-dasharray="3,3"/>`);
     push(`<line x1="${ty1}" y1="${totY}" x2="${ty2}" y2="${totY}" stroke="#c9a96e" stroke-width="1.2"/>`);
