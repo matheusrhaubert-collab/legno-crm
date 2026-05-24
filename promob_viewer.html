@@ -1123,6 +1123,13 @@ async function processFile(file){
     setLoading(95,'Renderizando...');
     currentData=data;
 
+    // Mostrar app ANTES de initThree para que o canvas tenha dimensões reais
+    document.getElementById('loading-screen').style.display='none';
+    document.getElementById('app').style.cssText='display:flex;flex-direction:row;height:100vh';
+
+    // Aguardar um frame para o browser calcular o layout
+    await new Promise(r => setTimeout(r, 50));
+
     // Init Three.js se necessário
     if(!renderer) initThree();
     buildScene(data);
@@ -1130,23 +1137,18 @@ async function processFile(file){
     buildModulosPanel(data.modulos||[]);
     buildDecoracoes(data.decoracoes||[]);
 
-    setLoading(100,'Pronto!');
+    // Forçar resize do renderer
     setTimeout(()=>{
-      document.getElementById('loading-screen').style.display='none';
-      document.getElementById('app').style.cssText='display:flex;flex-direction:row;height:100vh';
-      // Forçar resize do renderer após mostrar o app (canvas pode ter sido criado com 0x0)
-      setTimeout(()=>{
-        const wrap=document.getElementById('canvas-wrap');
-        const W=wrap.clientWidth, H=wrap.clientHeight;
-        console.log('Canvas size after show:', W, H);
-        if(renderer && W>0 && H>0){
-          camera.aspect=W/H;
-          camera.updateProjectionMatrix();
-          renderer.setSize(W,H);
-        }
-        setView('persp');
-      },100);
-    },300);
+      const wrap=document.getElementById('canvas-wrap');
+      const W=wrap.clientWidth, H=wrap.clientHeight;
+      if(renderer && W>0 && H>0){
+        camera.aspect=W/H;
+        camera.updateProjectionMatrix();
+        renderer.setSize(W,H);
+        updateOrthoSize();
+      }
+      setView('persp');
+    },100);
 
   } catch(err){
     document.getElementById('loading-screen').style.display='none';
@@ -1845,20 +1847,24 @@ window.addEventListener('message', async (e) => {
   if (e.data?.type === 'load_promob_url') {
     try {
       const {url, token, nome} = e.data;
-      // Esconder drop screen e mostrar loading
       document.getElementById('drop-screen').style.display='none';
       const loadingScreen = document.getElementById('loading-screen');
       if(loadingScreen) loadingScreen.style.display='flex';
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
       const resp = await fetch(url, { headers });
-      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if(!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar .promob`);
       const buf = await resp.arrayBuffer();
+      if(!buf || buf.byteLength === 0) throw new Error('Arquivo .promob vazio');
       const fakeFile = new File([buf], (nome||'projeto')+'.promob', {type:'application/octet-stream'});
       await parsePromob(fakeFile);
     } catch(err) {
-      document.getElementById('drop-screen').style.display='flex';
-      document.getElementById('loading-screen').style.display='none';
-      document.getElementById('drop-error').textContent='Erro ao carregar: ' + err.message;
+      console.error('[viewer] postMessage error:', err);
+      const loadingScreen = document.getElementById('loading-screen');
+      if(loadingScreen) loadingScreen.style.display='none';
+      const ds = document.getElementById('drop-screen');
+      if(ds) ds.style.display='flex';
+      const de = document.getElementById('drop-error');
+      if(de) de.textContent = 'Erro: ' + err.message;
     }
   }
 });
