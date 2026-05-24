@@ -1662,25 +1662,24 @@ function toggleModulo(uid) {
     console.log('[modulo] agPai match:', filhas.length, 'modulo.ag:', modulo.ag);
   }
 
-  // Bbox preciso — só peças que são filhas estruturais (não painéis independentes)
+  // Bbox usando a mesma lógica de posicionamento do buildScene
   if(!filhas.length && currentData.room){
     const {room} = currentData;
-    const mPos = p2t(modulo.px, modulo.py, modulo.pz, room);
+    const pos = p2t(modulo.px, modulo.py, modulo.pz, room);
     const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
-    const PAD = 0.002; // 2mm de margem
+    // buildScene coloca mesh.position = pos + offset (dw/2, dh/2, dd/2)
+    // então o centro da mesh está em pos + (w/2, h/2, d/2)
+    const cx = pos.x + mW/2, cy = pos.y + mH/2, cz = pos.z + mD/2;
+    const PAD = 0.01;
     filhas = allMeshes.filter(m => {
-      // Excluir painéis e peças muito grandes (que atravessam vários módulos)
       if(m.userData.type === 'panel') return false;
-      const bbox = new THREE.Box3().setFromObject(m);
-      const size = new THREE.Vector3(); bbox.getSize(size);
-      // Peça não pode ser maior que o módulo em nenhuma dimensão
-      if(size.x > mW * 1.1 || size.z > mD * 1.1) return false;
-      const center = new THREE.Vector3(); bbox.getCenter(center);
-      return center.x >= mPos.x - PAD && center.x <= mPos.x + mW + PAD &&
-             center.y >= mPos.y - PAD && center.y <= mPos.y + mH + PAD &&
-             center.z >= mPos.z - PAD && center.z <= mPos.z + mD + PAD;
+      const p = m.position;
+      return Math.abs(p.x - cx) <= mW/2 + PAD &&
+             Math.abs(p.y - cy) <= mH/2 + PAD &&
+             Math.abs(p.z - cz) <= mD/2 + PAD;
     });
-    console.log('[modulo] bbox match:', filhas.length);
+    console.log('[modulo] bbox cx/cy/cz:', cx.toFixed(3), cy.toFixed(3), cz.toFixed(3), 'mW/H/D:', mW.toFixed(3), mH.toFixed(3), mD.toFixed(3));
+    console.log('[modulo] bbox filhas:', filhas.length, '| sample positions:', allMeshes.slice(0,3).map(m=>`(${m.position.x.toFixed(2)},${m.position.y.toFixed(2)},${m.position.z.toFixed(2)})`));
   }
 
   if(!filhas.length){ console.log('[modulo] no match'); return; }
