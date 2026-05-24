@@ -1313,14 +1313,31 @@ async function verPromob3D(projetoId, nomeAmb) {
   if(titulo) titulo.textContent = `🧊 ${nome}`;
   modal.style.display = 'flex';
 
-  // Recarregar sempre para estado limpo
-  iframe.src = 'promob_viewer.html';
-  iframe.onload = () => {
+  _abrirViewerNoIframe(iframe, url, token, nome);
+}
+
+function _abrirViewerNoIframe(iframe, url, token, nome) {
+  // Remover listener anterior se houver
+  if(iframe._viewerLoadHandler) {
+    iframe.removeEventListener('load', iframe._viewerLoadHandler);
+  }
+
+  iframe._viewerLoadHandler = function() {
+    // Só enviar se carregou o viewer de verdade (não about:blank)
+    try {
+      const src = iframe.contentWindow?.location?.href || '';
+      if(src.includes('about:blank') || src === '') return;
+    } catch(e) {}
+
     setTimeout(() => {
-      iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
-    }, 300);
-    iframe.onload = null;
+      try {
+        iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
+      } catch(e) { console.error('postMessage failed:', e); }
+    }, 400);
   };
+
+  iframe.addEventListener('load', iframe._viewerLoadHandler);
+  iframe.src = 'promob_viewer.html?' + Date.now(); // cache bust
 }
 
 // Receber mensagem do viewer para fechar modal
@@ -9304,13 +9321,7 @@ function verPromob3DInstalacao(promobPath, nomeAmb) {
   if(titulo) titulo.textContent = `🧊 ${nome}`;
   modal.style.display = 'flex';
 
-  iframe.src = 'promob_viewer.html';
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
-    }, 300);
-    iframe.onload = null;
-  };
+  _abrirViewerNoIframe(iframe, url, token, nome);
 }
 
 // ── Abrir etapa de um ambiente específico ──────────────────────────────────
