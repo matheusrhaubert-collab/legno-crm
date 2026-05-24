@@ -1667,19 +1667,25 @@ function toggleModulo(uid) {
     const {room} = currentData;
     const pos = p2t(modulo.px, modulo.py, modulo.pz, room);
     const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
-    // buildScene coloca mesh.position = pos + offset (dw/2, dh/2, dd/2)
-    // então o centro da mesh está em pos + (w/2, h/2, d/2)
     const cx = pos.x + mW/2, cy = pos.y + mH/2, cz = pos.z + mD/2;
-    const PAD = 0.01;
+    const PAD = 0.001; // 1mm — muito preciso
+
     filhas = allMeshes.filter(m => {
       if(m.userData.type === 'panel') return false;
       const p = m.position;
-      return Math.abs(p.x - cx) <= mW/2 + PAD &&
-             Math.abs(p.y - cy) <= mH/2 + PAD &&
-             Math.abs(p.z - cz) <= mD/2 + PAD;
+      // Centro da peça deve estar dentro do volume do módulo
+      if(Math.abs(p.x - cx) > mW/2 + PAD) return false;
+      if(Math.abs(p.y - cy) > mH/2 + PAD) return false;
+      if(Math.abs(p.z - cz) > mD/2 + PAD) return false;
+      // Peça não pode ser maior que o módulo + 10% em X ou Y
+      const geo = m.geometry;
+      if(geo && geo.parameters){
+        if(geo.parameters.width  > mW * 1.05) return false;
+        if(geo.parameters.height > mH * 1.05) return false;
+      }
+      return true;
     });
-    console.log('[modulo] bbox cx/cy/cz:', cx.toFixed(3), cy.toFixed(3), cz.toFixed(3), 'mW/H/D:', mW.toFixed(3), mH.toFixed(3), mD.toFixed(3));
-    console.log('[modulo] bbox filhas:', filhas.length, '| sample positions:', allMeshes.slice(0,3).map(m=>`(${m.position.x.toFixed(2)},${m.position.y.toFixed(2)},${m.position.z.toFixed(2)})`));
+    console.log('[modulo] bbox filhas:', filhas.length);
   }
 
   if(!filhas.length){ console.log('[modulo] no match'); return; }
