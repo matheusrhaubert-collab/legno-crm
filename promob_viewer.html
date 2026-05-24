@@ -1646,12 +1646,12 @@ function toggleModulo(uid) {
 
   if(modulo.childUids && modulo.childUids.length){
     const childSet = new Set(modulo.childUids);
-    filhas = allMeshes.filter(m => childSet.has(m.userData.uid));
+    filhas = allMeshes.filter(m => childSet.has(m.userData.uid) && m.userData.type !== 'panel');
     console.log('[modulo] childUids match:', filhas.length, 'childUids:', modulo.childUids.slice(0,5));
   }
 
   if(!filhas.length){
-    filhas = allMeshes.filter(m => m.userData.agPai === modulo.ag);
+    filhas = allMeshes.filter(m => m.userData.agPai === modulo.ag && m.userData.type !== 'panel');
     console.log('[modulo] agPai match:', filhas.length, 'ag:', modulo.ag);
   }
 
@@ -1660,6 +1660,7 @@ function toggleModulo(uid) {
     const mPos = p2t(modulo.px, modulo.py, modulo.pz, room);
     const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
     filhas = allMeshes.filter(m => {
+      if(m.userData.type === 'panel') return false; // nunca incluir painéis
       const p = m.position;
       return p.x >= mPos.x - 0.05 && p.x <= mPos.x + mW + 0.05 &&
              p.y >= mPos.y - 0.05 && p.y <= mPos.y + mH + 0.05 &&
