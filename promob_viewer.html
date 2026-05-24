@@ -1647,7 +1647,7 @@ function toggleModulo(uid) {
   if(modulo.childUids && modulo.childUids.length){
     const childSet = new Set(modulo.childUids);
     filhas = allMeshes.filter(m => childSet.has(m.userData.uid));
-    console.log('[modulo] childUids match:', filhas.length);
+    console.log('[modulo] childUids match:', filhas.length, '| childUids:', [...childSet], '| sample mesh uids:', allMeshes.slice(0,8).map(m=>m.userData.uid));
   }
 
   if(!filhas.length){
