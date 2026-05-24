@@ -279,12 +279,15 @@ async function parsePromob(file) {
     yMin:parseFloat(lmin.getAttribute('Y')||0), yMax:parseFloat(lmax.getAttribute('Y')||0),
     zMin:parseFloat(lmin.getAttribute('Z')||0), zMax:parseFloat(lmax.getAttribute('Z')||0),
   };
+  console.log('[viewer] room ok:', room);
 
   // Extrair todas as peças
   setLoading(70, 'Extraindo peças...');
   const pecas = extractPecas(root, room);
+  console.log('[viewer] pecas:', pecas.length);
 
   // Extrair todos os elementos pai (gabinetes + painéis) para elevação
+  console.log('[viewer] extracting modulos...');
   const modulos = [];    // só gabinetes (para o filtro de módulos)
   const allElems = [];   // tudo (para a vista de elevação)
   const skipModDesc = ['k02001','k02003','labor','hinge','minifix','vb shelf','hrm_leg'];
@@ -350,6 +353,8 @@ async function parsePromob(file) {
   });
 
   // Extrair decorações: onlinemodule (aberturas, eletros) + portas de móvel
+  console.log('[viewer] modulos:', modulos.length, 'allElems:', allElems.length);
+  console.log('[viewer] extracting decoracoes...');
   const decoracoes = [];
   root.querySelectorAll('INFORMACOES[TYPE="onlinemodule"]').forEach(info => {
     const assoc = info.querySelector('ASSOCIATIONREGISTRY');
@@ -370,6 +375,7 @@ async function parsePromob(file) {
                : 'eletro';
     decoracoes.push({ uid, desc, tipo, px:Math.round(px), py:Math.round(py), pz:Math.round(pz), w:Math.round(w), h:Math.round(h), d:Math.round(d) });
   });
+  console.log('[viewer] decoracoes:', decoracoes.length);
   setLoading(90, 'Montando visualização...');
   return { room, pecas, modulos, allElems, decoracoes, fileName: file.name };
 }
