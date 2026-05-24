@@ -1044,8 +1044,9 @@ function setupEvents(){
     const rect=wrap.getBoundingClientRect();
     mv2.x=((e.clientX-rect.left)/rect.width)*2-1;
     mv2.y=-((e.clientY-rect.top)/rect.height)*2+1;
-    ray.setFromCamera(mv2,camera);
-    const hits=ray.intersectObjects(allMeshes,false);
+    ray.setFromCamera(mv2,getActiveCamera());
+    const visibleForHover=allMeshes.filter(m=>m.visible && m.material.opacity>0.05);
+    const hits=ray.intersectObjects(visibleForHover,false);
     if(hits.length){
       const ud=hits[0].object.userData;
       document.getElementById('tt-n').textContent=ud.name;
@@ -1667,14 +1668,17 @@ function toggleModulo(uid) {
   if(modulo.childUids && modulo.childUids.length){
     const childSet = new Set(modulo.childUids.map(String));
     const pecasFilhas = (currentData.pecas||[]).filter(p => childSet.has(String(p.uid)));
+    const missing = [...childSet].filter(id => !pecasFilhas.some(p => String(p.uid)===id));
+    if(missing.length) console.log('[modulo] missing UIDs (filtered by parser):', missing);
     if(pecasFilhas.length){
       const {room} = currentData;
       filhas = allMeshes.filter(m => {
         return pecasFilhas.some(p => {
           const pos = p2t(p.px, p.py, p.pz, room);
-          const dw = pu(p.w), dh = pu(p.h);
+          const dw = pu(p.w), dh = pu(p.h), dd = pu(p.d);
           return Math.abs(m.position.x - (pos.x + dw/2)) < 0.025 &&
-                 Math.abs(m.position.y - (pos.y + dh/2)) < 0.025;
+                 Math.abs(m.position.y - (pos.y + dh/2)) < 0.025 &&
+                 Math.abs(m.position.z - (pos.z + dd/2)) < 0.025;
         });
       });
     }
