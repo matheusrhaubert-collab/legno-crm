@@ -1272,6 +1272,21 @@ function buildElevationSVG(elems, useInches){
   const u = useInches ? '"' : 'mm';
 
   const SCALE  = 0.20;
+  const PL = 90;
+  const PR = 30;
+  const PT = 30;
+  const PB = 90;
+
+  // Filtrar elementos inválidos: 100x100x100, dimensão zero, muito pequenos
+  elems = elems.filter(m => {
+    if(!m.w || !m.h) return false;
+    if(m.w<=1 && m.h<=1) return false;
+    // Remover caixas 100x100x100 (placeholders)
+    if(m.w>=90&&m.w<=110 && m.h>=90&&m.h<=110 && m.d>=90&&m.d<=110) return false;
+    return true;
+  });
+
+  const SCALE  = 0.20;
   const PL = 90;   // pad left  (cotas verticais)
   const PR = 30;   // pad right
   const PT = 30;   // pad top
@@ -1303,34 +1318,36 @@ function buildElevationSVG(elems, useInches){
   push(`<line x1="${PL-12}" y1="${gy}" x2="${PL+(yMax-yMin)*SCALE+12}" y2="${gy}" stroke="#888" stroke-width="2"/>`);
 
   // === ELEMENTOS ===
-  console.log('[elev] elems:', elems.length, 'first elem childPieces:', elems[0]?.childPieces?.length, 'isPanel:', elems[0]?.isPanel);
   elems.forEach(m => {
-    const isHPanel = m.isPanel && m.w > m.h * 3 && m.h < 50;
-    const isVPanel = m.isPanel && m.h > m.w * 3 && m.w < 50;
+    const mx = tx(m.py), my = tz(m.pz+m.h), mrw = m.w*SCALE, mrh = m.h*SCALE;
 
-    if(isHPanel || isVPanel){
-      push(`<rect x="${tx(m.py)}" y="${tz(m.pz+m.h)}" width="${Math.max(m.w*SCALE,1.5)}" height="${Math.max(m.h*SCALE,1.5)}" fill="#c8c4bc" stroke="#888" stroke-width="0.8"/>`);
+    if(m.isPanel){
+      // Painéis — desenhar como barra sólida com espessura visível
+      const isVert = m.h > m.w * 2;
+      const isHorz = m.w > m.h * 2;
+      push(`<rect x="${mx}" y="${my}" width="${Math.max(mrw,1.5)}" height="${Math.max(mrh,1.5)}" fill="#c8c4bc" stroke="#777" stroke-width="0.8"/>`);
+      // Hachura para distinguir painéis
+      if(mrw > 8 && mrh > 8){
+        const step = 6;
+        push(`<clipPath id="cp-${m.uid}"><rect x="${mx}" y="${my}" width="${mrw}" height="${mrh}"/></clipPath>`);
+        let hatch = `<g clip-path="url(#cp-${m.uid})" stroke="#aaa" stroke-width="0.4" opacity="0.5">`;
+        for(let i=-mrh; i<mrw+mrh; i+=step) hatch += `<line x1="${mx+i}" y1="${my}" x2="${mx+i+mrh}" y2="${my+mrh}"/>`;
+        hatch += `</g>`;
+        push(hatch);
+      }
       return;
     }
 
-    const hasChildren = m.childPieces && m.childPieces.length > 0;
-    const mx = tx(m.py), my = tz(m.pz+m.h), mrw = m.w*SCALE, mrh = m.h*SCALE;
-
-    // Fundo leve do módulo
+    // Gabinete — fundo leve
     push(`<rect x="${mx}" y="${my}" width="${mrw}" height="${mrh}" fill="#f5f3ef" stroke="#bbb" stroke-width="0.5" rx="1"/>`);
 
+    const hasChildren = m.childPieces && m.childPieces.length > 0;
     if(hasChildren){
       m.childPieces.forEach(p => {
-        if(p.isDoor) return; // portas não aparecem na elevação técnica
+        if(p.isDoor) return;
         const px2 = tx(p.py), py2 = tz(p.pz+p.h);
         const pw = Math.max(p.w*SCALE, 1), ph = Math.max(p.h*SCALE, 1);
-        if(p.isDoor){
-          push(`<rect x="${px2}" y="${py2}" width="${pw}" height="${ph}" fill="#e0dbd2" stroke="#555" stroke-width="1.1" rx="1"/>`);
-          push(`<line x1="${px2+2}" y1="${py2+2}" x2="${px2+pw-2}" y2="${py2+ph-2}" stroke="#ccc" stroke-width="0.4"/>`);
-          push(`<line x1="${px2+pw-2}" y1="${py2+2}" x2="${px2+2}" y2="${py2+ph-2}" stroke="#ccc" stroke-width="0.4"/>`);
-          const puxX = px2+pw*0.08, puxY = py2+ph*0.46;
-          push(`<rect x="${puxX}" y="${puxY}" width="${Math.max(pw*0.04,2)}" height="${Math.max(ph*0.09,4)}" fill="#888" rx="1"/>`);
-        } else if(p.isSide){
+        if(p.isSide){
           push(`<rect x="${px2}" y="${py2}" width="${Math.max(pw,1.5)}" height="${ph}" fill="#d4d0c8" stroke="#777" stroke-width="0.7"/>`);
         } else if(p.isShelf){
           push(`<rect x="${px2}" y="${py2}" width="${pw}" height="${Math.max(ph,1.5)}" fill="#cdc9c0" stroke="#777" stroke-width="0.6"/>`);
@@ -1339,27 +1356,21 @@ function buildElevationSVG(elems, useInches){
         }
       });
     } else {
-      // Fallback sem filhas
+      // Sem childPieces (cache antigo) — X interno
       push(`<line x1="${mx}" y1="${my}" x2="${mx+mrw}" y2="${my+mrh}" stroke="#ddd" stroke-width="0.4"/>`);
       push(`<line x1="${mx+mrw}" y1="${my}" x2="${mx}" y2="${my+mrh}" stroke="#ddd" stroke-width="0.4"/>`);
-      if(mrw>30 && mrh>16){
-        const label = m.desc.replace(/\$[WHD]\$/g,'').replace(/@[^@]+@/g,'').trim().split(/\s+/).slice(0,3).join(' ');
-        push(`<text x="${mx+mrw/2}" y="${my+mrh/2+3}" text-anchor="middle" font-size="7" fill="#666">${label}</text>`);
-      }
     }
-    // UID no canto
     push(`<text x="${mx+3}" y="${my+9}" font-size="6" fill="#aaa">${m.uid}</text>`);
   });
 
-  // === COTAS HORIZONTAIS — label centralizado dentro de cada módulo ===
-  // Só gabinetes (não painéis), sem duplicar larguras idênticas na mesma posição Y
-  const sorted = [...elems]
-    .filter(m => !m.isPanel && !(m.h > m.w*3 && m.w<50))
+  // === COTAS HORIZONTAIS — todos os elementos (gabinetes + painéis) ===
+  const sortedAll = [...elems]
+    .filter(m => !(m.h > m.w*3 && m.w<50)) // excluir só painéis verticais finos
     .sort((a,b)=>a.py-b.py);
 
-  // Deduplicar: se dois módulos têm exatamente a mesma posição Y e largura, mostrar só um
-  const sortedDedup = sorted.filter((m, i) =>
-    !sorted.slice(0,i).some(prev => prev.py === m.py && prev.w === m.w)
+  // Deduplicar mesma posição+largura
+  const sortedDedup = sortedAll.filter((m,i) =>
+    !sortedAll.slice(0,i).some(prev => prev.py===m.py && prev.w===m.w)
   );
 
   sortedDedup.forEach(m => {
@@ -1653,7 +1664,7 @@ function toggleModulo(uid) {
   if(modulo.childUids && modulo.childUids.length){
     const childSet = new Set(modulo.childUids.map(String));
     filhas = allMeshes.filter(m => childSet.has(String(m.userData.uid)));
-    console.log('[modulo] childUids:', [...childSet], 'mesh uids sample:', allMeshes.slice(0,5).map(m=>String(m.userData.uid)));
+    console.log('[modulo] childUids values:', [...childSet], '| mesh uids:', allMeshes.map(m=>String(m.userData.uid)).filter(u=>u));
   }
 
   // Tentar agPai
