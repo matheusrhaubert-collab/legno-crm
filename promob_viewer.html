@@ -1689,20 +1689,19 @@ function toggleModulo(uid) {
     console.log('[modulo] agPai:', filhas.length);
   }
 
-  // Método 3: bbox pelo centro do módulo
+  // Método 3: bbox
   if(!filhas.length && currentData.room){
     const {room} = currentData;
     const pos = p2t(modulo.px, modulo.py, modulo.pz, room);
     const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
     const cx = pos.x + mW/2, cy = pos.y + mH/2, cz = pos.z + mD/2;
     filhas = allMeshes.filter(m => {
-      if(m.userData.type === 'panel') return false;
       const p = m.position;
       if(Math.abs(p.x - cx) > mW/2 + 0.001) return false;
       if(Math.abs(p.y - cy) > mH/2 + 0.001) return false;
       if(Math.abs(p.z - cz) > mD/2 + 0.001) return false;
-      if(m.geometry?.parameters?.width  > mW * 1.05) return false;
-      if(m.geometry?.parameters?.height > mH * 1.05) return false;
+      // Peça não pode ser MAIOR que o módulo (evita pegar painéis que atravessam tudo)
+      if(m.geometry?.parameters?.width  > mW * 1.1 && m.geometry?.parameters?.height > mH * 1.1) return false;
       return true;
     });
     console.log('[modulo] bbox:', filhas.length);
@@ -1955,11 +1954,18 @@ window.addEventListener('message', async (e) => {
         if(cacheResp.ok){
           const rows = await cacheResp.json();
           if(rows && rows.length > 0 && rows[0].data){
+          const cached = rows[0].data;
+          // Verificar se cache tem childPieces — se não, forçar re-parse
+          const hasChildPieces = (cached.allElems||[]).some(e => e.childPieces && e.childPieces.length > 0);
+          if(hasChildPieces){
             console.log('[viewer] cache hit!');
-            data = rows[0].data;
+            data = cached;
             data.fileName = (rows[0].nome || nome) + '.promob';
             setLoading(90, 'Cache carregado!');
+          } else {
+            console.log('[viewer] cache hit but no childPieces, re-parsing...');
           }
+        }
         }
       } catch(cacheErr){ console.warn('[viewer] cache miss:', cacheErr.message); }
 
