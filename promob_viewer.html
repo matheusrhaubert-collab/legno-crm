@@ -620,7 +620,8 @@ function extractPecas(root, room){
   return pecas;
 }
 
-// ── THREE.JS STATE ─────────────────────────────────────────────────────────
+// ── CACHE VERSION — incrementar quando o parser mudar ──────────────────────
+const CACHE_VERSION = 3; // v3: childPieces, filtros corretos, sem 100x100
 let scene,camera,orthoCamera,renderer;
 let useOrtho=false;
 let camTheta=0.6,camPhi=0.65,camDist=8;
@@ -1311,49 +1312,57 @@ function buildElevationSVG(elems, useInches){
   push(`<line x1="${PL-12}" y1="${gy}" x2="${PL+(yMax-yMin)*SCALE+12}" y2="${gy}" stroke="#888" stroke-width="2"/>`);
 
   // === ELEMENTOS ===
+  let _lblCount = 0;
+  const _svgMid = PL + (yMax-yMin)*SCALE/2;
+
+  function _drawPieceLabel(cx, cy, pw, ph, text, color){
+    const lblW = text.length * 5.2 + 4;
+    if(pw >= lblW + 2 && ph >= 10){
+      push(`<text x="${cx}" y="${cy+3}" text-anchor="middle" font-size="7" fill="${color}" style="paint-order:stroke;stroke:#fff;stroke-width:2;stroke-linejoin:round">${text}</text>`);
+    } else {
+      _lblCount++;
+      const side = cx > _svgMid ? 1 : -1;
+      const ox = side > 0 ? cx + pw/2 + 6 + (_lblCount%4)*36 : cx - pw/2 - 6 - (_lblCount%4)*36;
+      push(`<line x1="${cx}" y1="${cy}" x2="${ox-(side*4)}" y2="${cy}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2"/>`);
+      push(`<text x="${ox}" y="${cy+3}" text-anchor="${side>0?'start':'end'}" font-size="7" fill="${color}" style="paint-order:stroke;stroke:#fff;stroke-width:1.5">${text}</text>`);
+    }
+  }
+
   elems.forEach(m => {
     const mx = tx(m.py), my = tz(m.pz+m.h), mrw = m.w*SCALE, mrh = m.h*SCALE;
 
     if(m.isPanel){
-      // Painéis — desenhar como barra sólida com espessura visível
-      const isVert = m.h > m.w * 2;
-      const isHorz = m.w > m.h * 2;
       push(`<rect x="${mx}" y="${my}" width="${Math.max(mrw,1.5)}" height="${Math.max(mrh,1.5)}" fill="#c8c4bc" stroke="#777" stroke-width="0.8"/>`);
-      // Hachura para distinguir painéis
-      if(mrw > 8 && mrh > 8){
-        const step = 6;
-        push(`<clipPath id="cp-${m.uid}"><rect x="${mx}" y="${my}" width="${mrw}" height="${mrh}"/></clipPath>`);
-        let hatch = `<g clip-path="url(#cp-${m.uid})" stroke="#aaa" stroke-width="0.4" opacity="0.5">`;
-        for(let i=-mrh; i<mrw+mrh; i+=step) hatch += `<line x1="${mx+i}" y1="${my}" x2="${mx+i+mrh}" y2="${my+mrh}"/>`;
-        hatch += `</g>`;
-        push(hatch);
+      if(mrw > 6 && mrh > 6){
+        const step = 5;
+        push(`<clipPath id="cpx${m.uid}"><rect x="${mx}" y="${my}" width="${mrw}" height="${mrh}"/></clipPath>`);
+        let h=`<g clip-path="url(#cpx${m.uid})" stroke="#999" stroke-width="0.4" opacity="0.5">`;
+        for(let i=-mrh;i<mrw+mrh;i+=step) h+=`<line x1="${mx+i}" y1="${my}" x2="${mx+i+mrh}" y2="${my+mrh}"/>`;
+        push(h+`</g>`);
       }
+      _drawPieceLabel(mx+mrw/2, my+mrh/2, mrw, mrh, `${toUnit(m.w)}×${toUnit(m.h)}`, '#444');
       return;
     }
 
-    // Gabinete — fundo leve
-    push(`<rect x="${mx}" y="${my}" width="${mrw}" height="${mrh}" fill="#f5f3ef" stroke="#bbb" stroke-width="0.5" rx="1"/>`);
+    // Gabinete
+    push(`<rect x="${mx}" y="${my}" width="${mrw}" height="${mrh}" fill="#f2efea" stroke="#999" stroke-width="1" rx="1"/>`);
 
-    const hasChildren = m.childPieces && m.childPieces.length > 0;
-    if(hasChildren){
+    if(m.childPieces && m.childPieces.length){
       m.childPieces.forEach(p => {
         if(p.isDoor) return;
-        const px2 = tx(p.py), py2 = tz(p.pz+p.h);
-        const pw = Math.max(p.w*SCALE, 1), ph = Math.max(p.h*SCALE, 1);
-        if(p.isSide){
-          push(`<rect x="${px2}" y="${py2}" width="${Math.max(pw,1.5)}" height="${ph}" fill="#d4d0c8" stroke="#777" stroke-width="0.7"/>`);
-        } else if(p.isShelf){
-          push(`<rect x="${px2}" y="${py2}" width="${pw}" height="${Math.max(ph,1.5)}" fill="#cdc9c0" stroke="#777" stroke-width="0.6"/>`);
-        } else {
-          push(`<rect x="${px2}" y="${py2}" width="${pw}" height="${Math.max(ph,1.5)}" fill="#d0ccc4" stroke="#888" stroke-width="0.5"/>`);
-        }
+        const px2=tx(p.py), py2=tz(p.pz+p.h);
+        const pw=Math.max(p.w*SCALE,1.5), ph=Math.max(p.h*SCALE,1.5);
+        const fill = p.isSide ? '#d4d0c8' : p.isShelf ? '#c8c4ba' : '#d0ccc4';
+        const stk  = p.isSide ? '#777'    : p.isShelf ? '#888'    : '#888';
+        push(`<rect x="${px2}" y="${py2}" width="${pw}" height="${ph}" fill="${fill}" stroke="${stk}" stroke-width="0.7"/>`);
+        _drawPieceLabel(px2+pw/2, py2+ph/2, pw, ph, `${toUnit(p.w)}×${toUnit(p.h)}`, '#333');
       });
     } else {
-      // Sem childPieces (cache antigo) — X interno
-      push(`<line x1="${mx}" y1="${my}" x2="${mx+mrw}" y2="${my+mrh}" stroke="#ddd" stroke-width="0.4"/>`);
-      push(`<line x1="${mx+mrw}" y1="${my}" x2="${mx}" y2="${my+mrh}" stroke="#ddd" stroke-width="0.4"/>`);
+      push(`<line x1="${mx+2}" y1="${my+2}" x2="${mx+mrw-2}" y2="${my+mrh-2}" stroke="#ddd" stroke-width="0.5"/>`);
+      push(`<line x1="${mx+mrw-2}" y1="${my+2}" x2="${mx+2}" y2="${my+mrh-2}" stroke="#ddd" stroke-width="0.5"/>`);
+      _drawPieceLabel(mx+mrw/2, my+mrh/2, mrw, mrh, `${toUnit(m.w)}×${toUnit(m.h)}`, '#777');
     }
-    push(`<text x="${mx+3}" y="${my+9}" font-size="6" fill="#aaa">${m.uid}</text>`);
+    if(mrw>18) push(`<text x="${mx+3}" y="${my+8}" font-size="5" fill="#bbb">${m.uid}</text>`);
   });
 
   // === COTAS HORIZONTAIS — todos os elementos (gabinetes + painéis) ===
@@ -1939,7 +1948,7 @@ window.addEventListener('message', async (e) => {
       const cacheId = url.replace(/.*\/object\/promob\//, '');
       let data = null;
       try {
-        const cacheResp = await fetch(`${SB_URL}/rest/v1/viewer_cache?id=eq.${encodeURIComponent(cacheId)}&cache_version=eq.2&select=data,nome`, {
+        const cacheResp = await fetch(`${SB_URL}/rest/v1/viewer_cache?id=eq.${encodeURIComponent(cacheId)}&cache_version=eq.${CACHE_VERSION}&select=data,nome`, {
           headers: { ...headers, 'Content-Type': 'application/json' }
         });
         if(cacheResp.ok){
@@ -1971,7 +1980,7 @@ window.addEventListener('message', async (e) => {
               id: cacheId,
               nome: nome || data.room?.name || '',
               parsed_at: new Date().toISOString(),
-              cache_version: 2,
+              cache_version: CACHE_VERSION,
               data: { room: data.room, pecas: data.pecas, modulos: data.modulos, allElems: data.allElems, decoracoes: data.decoracoes, fileName: data.fileName }
             };
             fetch(`${SB_URL}/rest/v1/viewer_cache`, {
