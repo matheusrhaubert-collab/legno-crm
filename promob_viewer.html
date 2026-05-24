@@ -742,7 +742,7 @@ function d2t(w,h,d){ return {x:pu(w),y:pu(h),z:pu(d)}; }
 // MATERIAL MAP (kept below)
 
 function buildScene(data){
-  const {room,pecas} = data;
+  const {room, pecas, uidToParent={}} = data;
   allMeshes=[];
   while(sceneGroup.children.length) sceneGroup.remove(sceneGroup.children[0]);
 
@@ -815,7 +815,7 @@ function buildScene(data){
     if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
     // Sem sombras
     mesh.castShadow=false; mesh.receiveShadow=false;
-    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:(currentData?.uidToParent||{})[p.uid]||""};
+    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:uidToParent[p.uid]||""};
     if(mesh.material.color) mesh.userData._origColor = mesh.material.color.getHex();
     const eg=new THREE.EdgesGeometry(geo);
     mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x000000,opacity:0.85,transparent:true})));
@@ -831,7 +831,7 @@ function rebuildPecas(){
   allMeshes=[];
   hiddenMeshes.clear();
   updateHiddenBadge();
-  const {room,pecas}=currentData;
+  const {room,pecas,uidToParent={}}=currentData;
   const EXPLODE_Y={cabinet:0,bottom:-0.15,shelf:0.15,door:0.45,panel:-0.3,stretcher:-0.2,filler:0.2,unknown:0,side:0};
   let count=0;
   pecas.forEach(p=>{
@@ -862,7 +862,7 @@ function rebuildPecas(){
     mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
     if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
     mesh.castShadow=false; mesh.receiveShadow=false;
-    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:(currentData?.uidToParent||{})[p.uid]||""};
+    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:uidToParent[p.uid]||""};
     if(mesh.material.color) mesh.userData._origColor = mesh.material.color.getHex();
     const eg=new THREE.EdgesGeometry(geo);
     mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x000000,opacity:0.85,transparent:true})));
