@@ -233,9 +233,12 @@ const TYPE_LABELS = {
 // ── PARSER DO .PROMOB ──────────────────────────────────────────────────────
 async function parsePromob(file) {
   console.log('[viewer] parsePromob start, file size:', file.size);
+  console.log('[viewer] JSZip:', typeof JSZip, 'THREE:', typeof THREE);
   setLoading(10, 'Descomprimindo arquivo...');
   const buf = await file.arrayBuffer();
+  console.log('[viewer] buf size:', buf.byteLength);
   const zip = await JSZip.loadAsync(buf);
+  console.log('[viewer] zip loaded, files:', Object.keys(zip.files));
 
   // Encontrar o arquivo ambient3d dentro do zip
   let ambient3dContent = null;
