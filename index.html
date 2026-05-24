@@ -1306,31 +1306,20 @@ async function verPromob3D(projetoId, nomeAmb) {
   const token = SB_KEY_SERVICE;
   const nome = nomeAmb || 'projeto';
 
-  // Abrir modal inline
   const modal = document.getElementById('modal-3d');
   const titulo = document.getElementById('modal-3d-titulo');
   const iframe = document.getElementById('iframe-3d');
   if(titulo) titulo.textContent = `🧊 ${nome}`;
   modal.style.display = 'flex';
 
-  // Enviar dados ao viewer via postMessage quando carregar
-  const onLoad = () => {
-    iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
-    iframe.removeEventListener('load', onLoad);
-  };
-  // Se já carregou, enviar direto; senão aguardar
-  try {
-    if(iframe.contentDocument?.readyState === 'complete' && iframe.contentWindow?.allMeshes !== undefined){
+  // Recarregar sempre para estado limpo
+  iframe.src = 'promob_viewer.html';
+  iframe.onload = () => {
+    setTimeout(() => {
       iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
-    } else {
-      iframe.addEventListener('load', onLoad);
-      // Recarregar o iframe para garantir estado limpo
-      iframe.src = 'promob_viewer.html';
-    }
-  } catch(e) {
-    iframe.addEventListener('load', onLoad);
-    iframe.src = 'promob_viewer.html';
-  }
+    }, 300);
+    iframe.onload = null;
+  };
 }
 
 // Receber mensagem do viewer para fechar modal
@@ -1341,9 +1330,8 @@ window.addEventListener('message', (e) => {
 function fechar3D() {
   const modal = document.getElementById('modal-3d');
   if(modal) modal.style.display = 'none';
-  // Parar o iframe para liberar WebGL
   const iframe = document.getElementById('iframe-3d');
-  if(iframe) iframe.src = 'promob_viewer.html';
+  if(iframe) iframe.src = 'about:blank';
 }
 
 function abrirFotosDireto(projetoId, nomeAmb) {
@@ -4478,7 +4466,7 @@ ${'</scr'+'ipt>'}
     </div>
     <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
   </div>
-  <iframe id="iframe-3d" src="promob_viewer.html" allow="webgl; webgl2" style="flex:1;border:none;width:100%;height:100%"></iframe>
+  <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
 </body>
@@ -6593,7 +6581,7 @@ ${(()=>{
     </div>
     <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
   </div>
-  <iframe id="iframe-3d" src="promob_viewer.html" allow="webgl; webgl2" style="flex:1;border:none;width:100%;height:100%"></iframe>
+  <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
 </body>
@@ -9315,21 +9303,13 @@ function verPromob3DInstalacao(promobPath, nomeAmb) {
   if(titulo) titulo.textContent = `🧊 ${nome}`;
   modal.style.display = 'flex';
 
-  const onLoad = () => {
-    iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
-    iframe.removeEventListener('load', onLoad);
-  };
-  try {
-    if(iframe.contentDocument?.readyState === 'complete' && iframe.contentWindow?.allMeshes !== undefined){
+  iframe.src = 'promob_viewer.html';
+  iframe.onload = () => {
+    setTimeout(() => {
       iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
-    } else {
-      iframe.addEventListener('load', onLoad);
-      iframe.src = 'promob_viewer.html';
-    }
-  } catch(e) {
-    iframe.addEventListener('load', onLoad);
-    iframe.src = 'promob_viewer.html';
-  }
+    }, 300);
+    iframe.onload = null;
+  };
 }
 
 // ── Abrir etapa de um ambiente específico ──────────────────────────────────
@@ -13468,7 +13448,7 @@ function _lbKey(e){if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNa
     </div>
     <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
   </div>
-  <iframe id="iframe-3d" src="promob_viewer.html" allow="webgl; webgl2" style="flex:1;border:none;width:100%;height:100%"></iframe>
+  <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
 </body>
