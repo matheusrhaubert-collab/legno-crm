@@ -1312,6 +1312,7 @@ function buildElevationSVG(elems, useInches){
   push(`<line x1="${PL-12}" y1="${gy}" x2="${PL+(yMax-yMin)*SCALE+12}" y2="${gy}" stroke="#888" stroke-width="2"/>`);
 
   // === ELEMENTOS ===
+  console.log('[elev] total:', elems.length, '| panels:', elems.filter(m=>m.isPanel).length, '| with childPieces:', elems.filter(m=>m.childPieces?.length>0).length);
   let _lblCount = 0;
   const _svgMid = PL + (yMax-yMin)*SCALE/2;
 
