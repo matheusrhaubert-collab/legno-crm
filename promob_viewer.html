@@ -1660,43 +1660,49 @@ function toggleModulo(uid) {
 
   let filhas = [];
 
-  // Tentar childUids primeiro
+  // Método 1: childUids → achar peças em currentData.pecas → casar com meshes por posição
   if(modulo.childUids && modulo.childUids.length){
     const childSet = new Set(modulo.childUids.map(String));
-    filhas = allMeshes.filter(m => childSet.has(String(m.userData.uid)));
-    console.log('[modulo] childUids values:', [...childSet], '| mesh uids:', allMeshes.map(m=>String(m.userData.uid)).filter(u=>u));
+    // Achar as peças filhas nos dados
+    const pecasFilhas = (currentData.pecas||[]).filter(p => childSet.has(String(p.uid)));
+    if(pecasFilhas.length){
+      // Casar com meshes pela dimensão e posição aproximada
+      const {room} = currentData;
+      filhas = allMeshes.filter(m => {
+        return pecasFilhas.some(p => {
+          const pos = p2t(p.px, p.py, p.pz, room);
+          const dw = pu(p.w), dh = pu(p.h);
+          return Math.abs(m.position.x - (pos.x + dw/2)) < 0.005 &&
+                 Math.abs(m.position.y - (pos.y + dh/2)) < 0.005;
+        });
+      });
+    }
+    console.log('[modulo] childUids:', [...childSet], '→ pecasFilhas:', pecasFilhas.length, '→ meshes:', filhas.length);
   }
 
-  // Tentar agPai
+  // Método 2: agPai
   if(!filhas.length){
     filhas = allMeshes.filter(m => m.userData.agPai && m.userData.agPai === modulo.ag);
-    console.log('[modulo] agPai match:', filhas.length, 'modulo.ag:', modulo.ag);
+    console.log('[modulo] agPai:', filhas.length);
   }
 
-  // Bbox usando a mesma lógica de posicionamento do buildScene
+  // Método 3: bbox pelo centro do módulo
   if(!filhas.length && currentData.room){
     const {room} = currentData;
     const pos = p2t(modulo.px, modulo.py, modulo.pz, room);
     const mW = pu(modulo.w), mH = pu(modulo.h), mD = pu(modulo.d);
     const cx = pos.x + mW/2, cy = pos.y + mH/2, cz = pos.z + mD/2;
-    const PAD = 0.001; // 1mm — muito preciso
-
     filhas = allMeshes.filter(m => {
       if(m.userData.type === 'panel') return false;
       const p = m.position;
-      // Centro da peça deve estar dentro do volume do módulo
-      if(Math.abs(p.x - cx) > mW/2 + PAD) return false;
-      if(Math.abs(p.y - cy) > mH/2 + PAD) return false;
-      if(Math.abs(p.z - cz) > mD/2 + PAD) return false;
-      // Peça não pode ser maior que o módulo + 10% em X ou Y
-      const geo = m.geometry;
-      if(geo && geo.parameters){
-        if(geo.parameters.width  > mW * 1.05) return false;
-        if(geo.parameters.height > mH * 1.05) return false;
-      }
+      if(Math.abs(p.x - cx) > mW/2 + 0.001) return false;
+      if(Math.abs(p.y - cy) > mH/2 + 0.001) return false;
+      if(Math.abs(p.z - cz) > mD/2 + 0.001) return false;
+      if(m.geometry?.parameters?.width  > mW * 1.05) return false;
+      if(m.geometry?.parameters?.height > mH * 1.05) return false;
       return true;
     });
-    console.log('[modulo] bbox filhas:', filhas.length);
+    console.log('[modulo] bbox:', filhas.length);
   }
 
   if(!filhas.length){ console.log('[modulo] no match'); return; }
