@@ -219,6 +219,7 @@ const CORES = {
   bottom:    { hex:'#b89060', dark:'#705030' },
   shelf:     { hex:'#d4c0a0', dark:'#8a7850' },
   door:      { hex:'#e8e0d0', dark:'#a09880' },
+  drawer:    { hex:'#e8e0d0', dark:'#a09880' },
   stretcher: { hex:'#b89060', dark:'#705030' },
   panel:     { hex:'#8090a0', dark:'#404858' },
   filler:    { hex:'#909898', dark:'#505858' },
@@ -226,7 +227,7 @@ const CORES = {
 };
 const TYPE_LABELS = {
   cabinet:'Laterais / Bases', bottom:'Fundos', shelf:'Prateleiras',
-  door:'Portas / Frentes', panel:'Painéis', stretcher:'Travessas',
+  door:'Portas / Frentes', drawer:'Frentes de gaveta', panel:'Painéis', stretcher:'Travessas',
   filler:'Fillers', unknown:'Hardwares / Outros'
 };
 
@@ -355,14 +356,15 @@ async function parsePromob(file) {
       const cw = fv(cidim.getAttribute('WIDTH')), ch = fv(cidim.getAttribute('HEIGHT')), cd = fv(cidim.getAttribute('DEPTH'));
       if(cw<=1 && ch<=1) return;
       const rotEl = child.querySelector('POSICAOINSERCAO ROTATION');
-      const rot = rotEl ? fv(rotEl.textContent.trim()) : 90;
+      const rot = (rotEl && rotEl.textContent && rotEl.textContent.trim()) ? fv(rotEl.textContent.trim()) : 0;
       let cdesc = '';
       const cdAttr = child.querySelector('ATTRIBUTE[ID="DESCRIPTION"]');
       if(cdAttr){ cdesc = cdAttr.getAttribute('VALUE')||''; }
       const cdescL = cdesc.toLowerCase();
       if(cdescL.includes('back') || cdescL.includes('c1x00')) return;
-      const projW = (rot===270||rot===-90) ? ch : cw;
-      const projH = (rot===270||rot===-90) ? cw : ch;
+      // Use dims directly from XML — no rotation-based swap
+      const projW = cw;
+      const projH = ch;
       const isDoor = cdescL.includes('door') || cdescL.includes('front') || cdescL.includes('frente');
       const isShelf = cdescL.includes('shelf') || cdescL.includes('prateleira') || cdescL.includes('bottom wall') || cdescL.includes('stretcher');
       const isSide = cdescL.includes('side') || cdescL.includes('lateral');
@@ -398,14 +400,117 @@ async function parsePromob(file) {
     decoracoes.push({ uid, desc, tipo, px:Math.round(px), py:Math.round(py), pz:Math.round(pz), w:Math.round(w), h:Math.round(h), d:Math.round(d) });
   });
   console.log('[viewer] decoracoes:', decoracoes.length);
+  // Extrair paredes do XML (SHAPE com POINT2DGP define os segmentos)
+  setLoading(88, 'Extraindo paredes...');
+  const walls = extractWalls(root);
+  console.log('[viewer] walls:', walls.length, 'segments');
+
+  // Extrair mapa de NORMAL por face (IDPLANOMOVIMENTACAO → {na, nb})
+  // Usado para posicionar peças corretamente em cada face de parede
+  const faceNormals = extractFaceNormals(root);
+  console.log('[viewer] faceNormals:', Object.keys(faceNormals).length);
+
   setLoading(90, 'Montando visualização...');
-  return { room, pecas, modulos, allElems, decoracoes, uidToParent, fileName: file.name };
+  return { room, pecas, modulos, allElems, decoracoes, uidToParent, walls, faceNormals, fileName: file.name };
 }
 
 function fv(v){ return parseFloat(v||0)||0; }
 
+// ── EXTRAÇÃO DE PAREDES DO XML ─────────────────────────────────────────────
+// Lê os SHAPE com POINT2DGP (polígono de caminho da parede) e a altura das paredes
+// Retorna array de segmentos: { x1,y1,x2,y2, thickness, height, dir }
+// Coordenadas em mm no espaço Promob (X=profundidade, Y=largura, Z=altura)
+function extractWalls(root) {
+  const segs = [];
+
+  // Percorre cada WALL individualmente para capturar sua altura própria
+  // e os SHAPEs que estão dentro do seu escopo na hierarquia XML
+  root.querySelectorAll('INFORMACOES[TYPE="WALL"]').forEach(wallEl => {
+    const ins = wallEl.querySelector('INSERTDIMENSION');
+    const wallH = ins ? (fv(ins.getAttribute('HEIGHT')) || 2600) : 2600;
+
+    // Os SHAPEs com POINT2DGP que pertencem a esta parede estão dentro do seu nó
+    wallEl.querySelectorAll('SHAPE').forEach(s => {
+      const pts = Array.from(s.querySelectorAll('POINT2DGP'));
+      if (!pts.length) return;
+      const path = pts.map(p => ({
+        x: fv(p.getAttribute('X')),
+        y: fv(p.getAttribute('Y')),
+        e: fv(p.getAttribute('E')) || 150
+      }));
+      for (let i = 0; i < path.length - 1; i++) {
+        const p1 = path[i], p2 = path[i+1];
+        const thickness = p1.e || p2.e || 150;
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const length = Math.sqrt(dx*dx + dy*dy);
+        if (length < 1) continue;
+        const dir = Math.abs(dx) > Math.abs(dy) ? 'X' : 'Y';
+        segs.push({ x1:p1.x, y1:p1.y, x2:p2.x, y2:p2.y, thickness, height:wallH, length, dir });
+      }
+    });
+  });
+
+  // Fallback: se nenhum segmento encontrado via WALL hierarchy, busca globalmente
+  if (!segs.length) {
+    let wallH = 2600;
+    const firstWall = root.querySelector('INFORMACOES[TYPE="WALL"]');
+    if (firstWall) {
+      const ins = firstWall.querySelector('INSERTDIMENSION');
+      if (ins) wallH = fv(ins.getAttribute('HEIGHT')) || 2600;
+    }
+    root.querySelectorAll('SHAPE').forEach(s => {
+      const pts = Array.from(s.querySelectorAll('POINT2DGP'));
+      if (!pts.length) return;
+      const path = pts.map(p => ({
+        x: fv(p.getAttribute('X')),
+        y: fv(p.getAttribute('Y')),
+        e: fv(p.getAttribute('E')) || 150
+      }));
+      for (let i = 0; i < path.length - 1; i++) {
+        const p1 = path[i], p2 = path[i+1];
+        const thickness = p1.e || p2.e || 150;
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const length = Math.sqrt(dx*dx + dy*dy);
+        if (length < 1) continue;
+        const dir = Math.abs(dx) > Math.abs(dy) ? 'X' : 'Y';
+        segs.push({ x1:p1.x, y1:p1.y, x2:p2.x, y2:p2.y, thickness, height:wallH, length, dir });
+      }
+    });
+  }
+
+  return segs;
+}
+// ── EXTRAÇÃO DE NORMAIS DAS FACES DE PAREDE ──────────────────────────────
+// Retorna mapa: IDPLANOMOVIMENTACAO → array de { na, nb, pbx, pby }
+// na = coef do eixo A (Promob-X → Three.Z), nb = coef do eixo B (Promob-Y → Three.X)
+// pbx/pby = PONTOBASE global da face (para disambiguar quando múltiplas paredes
+//           compartilham o mesmo IDPLANOMOVIMENTACAO)
+function extractFaceNormals(root) {
+  const map = {};
+  root.querySelectorAll('REGION').forEach(r => {
+    const rid = r.getAttribute('ID') || '';
+    if (!rid.includes('PAREDE_FACE_PERFIL')) return;
+    if (rid.includes('FACE_INFERIOR') || rid.includes('FACE_SUPERIOR')) return;
+    const normalEl = r.querySelector('NORMAL');
+    if (!normalEl) return;
+    const na = fv(normalEl.getAttribute('A'));
+    const nb = fv(normalEl.getAttribute('B'));
+    const pbEl = r.querySelector('PONTOBASE');
+    const pbx = pbEl ? fv(pbEl.getAttribute('X')) : 0;
+    const pby = pbEl ? fv(pbEl.getAttribute('Y')) : 0;
+    if (!map[rid]) map[rid] = [];
+    map[rid].push({ na, nb, pbx, pby });
+  });
+  return map;
+}
+
 function classifyType(desc, agDesc){
   const d = (desc+' '+agDesc).toLowerCase();
+  // Frentes de gaveta — ANTES da regra de porta
+  if(d.includes('front drawer')||d.includes('front_drawer')||d.includes('frente_gav')||
+     d.includes('frente gav')||d.includes('drawer front')) return 'drawer';
+  // Lift doors — ponto base traseiro-esquerdo-inferior (igual peça normal)
+  if(d.includes('lift door')||d.includes('lift_door')||d.includes('flat lift')) return 'liftdoor';
   // Portas e frentes (raiz_COMP)
   if(agDesc.startsWith('raiz_COMP')||d.includes('flat door')||d.includes('co_mo_fr')||d.includes('frente')) return 'door';
   // Laterais — pa_pa_ve = chapa lateral vertical
@@ -433,25 +538,7 @@ function classifyType(desc, agDesc){
 // Regra: HEIGHT sempre = altura (three.Y), NORMAL aponta para dentro do cômodo
 // NORMAL (X=±1): parede lateral → W e D trocam (W→Z, D→X em Three)
 // NORMAL (Y=±1) ou (Z=±1): parede fundo/frente → W→X, D→Z em Three (padrão)
-function applyNormal(w, h, d, nx, ny, nz) {
-  const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
-  if(ax > 0.5) {
-    // Parede lateral (X_promob) → W vai ao longo de Z_promob (que vira three.Z... espera)
-    // NORMAL (1,0,0) ou (-1,0,0): módulo inserido na parede lateral
-    // WIDTH ao longo de Y_promob → three.X
-    // DEPTH ao longo de X_promob → three.Z
-    // HEIGHT ao longo de Z_promob → three.Y
-    // → MESMO mapeamento! Só as dimensões numéricas estão corretas via PONTOBASE
-    return { gw: pu(w), gh: pu(h), gd: pu(d) };
-  } else if(ay > 0.5) {
-    // Parede fundo/frente (Y_promob)
-    // Idem padrão
-    return { gw: pu(w), gh: pu(h), gd: pu(d) };
-  } else {
-    // Padrão: NORMAL (0,0,1) ou (0,0,-1)
-    return { gw: pu(w), gh: pu(h), gd: pu(d) };
-  }
-}
+// applyNormal removed — dead code, dimensions come from INSERTDIMENSION directly
 
 function extractPecas(root, room){
   const seen = new Set();
@@ -523,10 +610,14 @@ function extractPecas(root, room){
         }
       }
       const panelUid = assoc_ ? (assoc_.getAttribute('UNIQUEID')||'') : '';
+      const panelRotEl = info.querySelector('POSICAOINSERCAO ROTATION');
+      const panelRot = (panelRotEl && panelRotEl.textContent && panelRotEl.textContent.trim()) ? fv(panelRotEl.textContent.trim()) : 0;
       pecas.push({ ag:infoId, uid:panelUid, desc:panelDesc, type:'panel', modelType:panelModelType,
         px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
         w:Math.round(w), h:Math.round(h), d:Math.round(d),
-        nx:0, ny:0, nz:1, rot:90, inverted:false });
+        nx:0, ny:0, nz:1, rot:panelRot, inverted:false,
+        wallPlane:info.getAttribute('IDPLANOMOVIMENTACAO')||'',
+        onWallFace:(info.getAttribute('IDPLANOMOVIMENTACAO')||'').includes('PAREDE_FACE_PERFIL') });
       return;
     }
 
@@ -539,6 +630,27 @@ function extractPecas(root, room){
     const _isPaPanel = _isPaPaEarly;
     if(!_isPaPaEarly && rep && rep !== '1') return;
     const inverted = (info.getAttribute('INVERTED')||'').toLowerCase() === 'true';
+    // OPENSERVICE.INVERT: "@($INVERTED$?A:B)" → A if inverted else B
+    // Determines which direction W goes for doors (overrides simple inverted flag)
+    const osEl = info.querySelector('OPENSERVICE');
+    // doorWs: determines W direction for doors.
+    // Formula type 1 "@($I$?-$w$+...:$w$-...)" → W term present → ws = dI?-1:+1
+    // Formula type 2 "@($I$?-($D$/2):$D$/2)" → no W term → ws = +1 always (W from PB)
+    // No OPENSERVICE → ws = +1 (standard)
+    let doorWs = 1;
+    let doorCentered = false;
+    if(osEl){
+      const osXFormula = osEl.getAttribute('X')||'';
+      const osInvertFormula = osEl.getAttribute('INVERT')||'';
+      const osInvertMatch = osInvertFormula.match(/\(\$INVERTED\$\?(\d+):(\d+)\)/);
+      const dI = osInvertMatch
+        ? (inverted ? parseInt(osInvertMatch[1]) : parseInt(osInvertMatch[2]))
+        : 0;
+      const hasW = osXFormula.includes('$w$');  // type 1: W in formula
+      doorCentered = !hasW;                   // type 2: door is centered on PB along W
+      doorWs = hasW ? (dI ? -1 : 1) : 1;
+    }
+    const doorInvert = doorWs < 0 ? 1 : 0;  // legacy compat
 
     // PONTOBASE
     const pb = pb_;
@@ -551,21 +663,14 @@ function extractPecas(root, room){
 
     // ROTATION — usar posEl já capturado
     const rotEl = posEl ? posEl.querySelector('ROTATION') : null;
-    const rot = (rotEl && rotEl.textContent) ? fv(rotEl.textContent.trim()) : 90;
+    const rot = (rotEl && rotEl.textContent && rotEl.textContent.trim()) ? fv(rotEl.textContent.trim()) : 0;
 
-    // NORMAL do módulo
-    let nx=0, ny=0, nz=1;
-    for(const child of info.children) {
-      if(child.tagName === 'POSITION') {
-        const n = child.querySelector('NORMAL');
-        if(n) {
-          nx = fv(n.getAttribute('A') || n.getAttribute('X') || '0');
-          ny = fv(n.getAttribute('B') || n.getAttribute('Y') || '0');
-          nz = fv(n.getAttribute('C') || n.getAttribute('Z') || '1');
-        }
-        break;
-      }
-    }
+    // NORMAL real da peça no POSICAOINSERCAO.
+    // Algumas peças C3X/STRETCHER não vêm como 0,0,1; se ignorar isso, 76 e 19 ficam invertidos.
+    const normEl = posEl ? posEl.querySelector(':scope > NORMAL') : null;
+    const nx = normEl ? fv(normEl.getAttribute('A')) : 0;
+    const ny = normEl ? fv(normEl.getAttribute('B')) : 0;
+    const nz = normEl ? fv(normEl.getAttribute('C')) : 1;
 
     // INSERTDIMENSION — usar idim_ já capturado
     const idim = idim_;
@@ -633,17 +738,21 @@ function extractPecas(root, room){
     // UNIQUEID — número da etiqueta de produção — usar assoc_ já capturado
     const uid = assoc_ ? (assoc_.getAttribute('UNIQUEID')||'') : '';
 
+    // IDPLANOMOVIMENTACAO — face de parede onde a peça está ancorada (null = BASE/chão)
+    const wallPlane = info.getAttribute('IDPLANOMOVIMENTACAO') || '';
+    const onWallFace = wallPlane.includes('PAREDE_FACE_PERFIL');
+
     pecas.push({ ag, uid, agPai:agDesc, desc, type, modelType,
       px:Math.round(px), py:Math.round(py), pz:Math.round(pz),
       w:Math.round(w), h:Math.round(h), d:Math.round(d),
-      nx, ny, nz, rot, inverted });
+      nx, ny, nz, rot, inverted, doorInvert: doorWs<0?1:0, doorCentered, wallPlane, onWallFace });
   });
 
   return pecas;
 }
 
 // ── CACHE VERSION — incrementar quando o parser mudar ──────────────────────
-const CACHE_VERSION = 7; // v7: só filhos oficiais (ID==IDAGREGADO)
+const CACHE_VERSION = 13; // v13: portas rotacionadas entram para dentro; liftdoor PB embaixo-esquerdo-traseiro
 let scene,camera,orthoCamera,renderer;
 let useOrtho=false;
 let camTheta=0.6,camPhi=0.65,camDist=8;
@@ -764,10 +873,56 @@ function p2t(px,py,pz,room){
 }
 function d2t(w,h,d){ return {x:pu(w),y:pu(h),z:pu(d)}; }
 
+
+// Diagnóstico seguro de portas: NÃO altera geometria.
+// Serve para enxergar se uma frente pertence a módulo com 1 ou 2 portas.
+function isFrontPiece(p){ return p && (p.type === 'door' || p.type === 'liftdoor' || p.type === 'drawer'); }
+function doorKey(p, uidToParent){
+  const parent = (p && p.uid) ? (uidToParent[p.uid] || '') : '';
+  if(parent) return 'P:' + parent;
+  return 'O:' + [p.ag||'', p.uid||'', p.px, p.py, p.pz, p.w, p.h, p.d].join('_');
+}
+function makeDoorStats(pecas, uidToParent){
+  const stats = {};
+  (pecas||[]).forEach(p => {
+    if(!isFrontPiece(p)) return;
+    const k = doorKey(p, uidToParent||{});
+    if(!stats[k]) stats[k] = [];
+    stats[k].push(p);
+  });
+  Object.values(stats).forEach(arr => arr.sort((a,b)=>
+    (a.py-b.py) || (a.px-b.px) || (a.pz-b.pz) || String(a.uid||'').localeCompare(String(b.uid||''))
+  ));
+  return stats;
+}
+function getDoorDiag(p, uidToParent, doorStats){
+  if(!isFrontPiece(p)) return {doorCount:'', doorIndex:'', doorKey:''};
+  const k = doorKey(p, uidToParent||{});
+  const arr = (doorStats && doorStats[k]) ? doorStats[k] : [];
+  return {doorCount: arr.length, doorIndex: arr.indexOf(p)+1, doorKey: k};
+}
+
+
+function getDoorDSign(p){
+  // Portas normais rotacionadas (90/270) estavam com a espessura saindo para fora do módulo.
+  // Para essas, invertemos somente o eixo D (profundidade), sem mexer na largura/OPENSERVICE.
+  const r = ((Math.round(p.rot || 0) % 360) + 360) % 360;
+  return (p.type === 'door' && (r === 90 || r === 270)) ? -1 : 1;
+}
+
+function getDoorWOff(p, dw, diag){
+  const ws = (p.doorInvert) ? -1 : 1;
+  // Portas sozinhas que vêm com OPENSERVICE centralizado estavam caindo no meio da lateral.
+  // Só nelas aplicamos W/2. Portas duplas continuam sem essa força.
+  const singleCenteredDoor = (p.type === 'door' && p.doorCentered && Number(diag.doorCount) === 1);
+  return (p.doorCentered && !singleCenteredDoor) ? 0 : ws * dw/2;
+}
+
 // MATERIAL MAP (kept below)
 
 function buildScene(data){
   const {room, pecas, uidToParent={}} = data;
+  const doorStats = makeDoorStats(pecas, uidToParent);
   allMeshes=[];
   while(sceneGroup.children.length) sceneGroup.remove(sceneGroup.children[0]);
 
@@ -783,15 +938,80 @@ function buildScene(data){
   const diag=Math.sqrt(rW*rW+rH*rH+rD*rD);
   camDist=diag*1.2;
 
-  // Chão e paredes — branco / cinza muito claro, sem sombra
+  // ── CHÃO ──────────────────────────────────────────────────────────────────
   const fm=new THREE.MeshBasicMaterial({color:0xf5f5f3,side:THREE.DoubleSide});
-  const wm=new THREE.MeshBasicMaterial({color:0xf0eeec,side:THREE.DoubleSide});
   const fl=new THREE.Mesh(new THREE.PlaneGeometry(rW,rD),fm);
   fl.rotation.x=-Math.PI/2; fl.position.set(rW/2+oX,oY-0.001,rD/2+oZ); fl.userData.isRoom=true; sceneGroup.add(fl);
-  const bk=new THREE.Mesh(new THREE.PlaneGeometry(rW,rH),wm);
-  bk.position.set(rW/2+oX,rH/2+oY,oZ); bk.userData.isRoom=true; sceneGroup.add(bk);
-  const sw=new THREE.Mesh(new THREE.PlaneGeometry(rD,rH),wm);
-  sw.rotation.y=Math.PI/2; sw.position.set(oX,rH/2+oY,rD/2+oZ); sw.userData.isRoom=true; sceneGroup.add(sw);
+
+  // ── PAREDES REAIS DO XML (SHAPE > POINT2DGP) ───────────────────────────
+  // Mapeamento Promob → Three.js (igual a p2t):
+  //   Three.X = pu(py - room.yMin)   (Promob-Y → Three-X)
+  //   Three.Y = pu(pz - room.zMin)   (Promob-Z → Three-Y = altura)
+  //   Three.Z = pu(px - room.xMin)   (Promob-X → Three-Z = profundidade)
+  const wallMat = new THREE.MeshBasicMaterial({color:0xece8e2, side:THREE.DoubleSide});
+  const wallEdgeMat = new THREE.LineBasicMaterial({color:0xa8a49e, opacity:0.55, transparent:true});
+
+  // addWallSeg: cria parede genérica a partir de segmento com ângulo qualquer
+  // p1/p2 em coords Promob (X=profundidade, Y=largura), thickness e height em mm
+  // ALIGNMENT=Direita: espessura vai para a direita do vetor de caminhada p1→p2
+  function addWallSeg(x1, y1, x2, y2, thickness, height) {
+    const t   = pu(thickness);
+    const h   = pu(height);
+    const len = pu(Math.sqrt((x2-x1)**2 + (y2-y1)**2));
+    if (len < 0.001) return;
+
+    // Centro do segmento em Promob → Three.js
+    const mcx = pu((y1 + y2) / 2 - room.yMin) + oX;  // Three.X
+    const mcy = h / 2;                                  // Three.Y (chão em 0)
+    const mcz = pu((x1 + x2) / 2 - room.xMin) + oZ;  // Three.Z
+
+    // Ângulo do segmento no plano XY Promob
+    // Promob-Y → Three.X,  Promob-X → Three.Z
+    // No Three.js o vetor do segmento é (dThreeX, 0, dThreeZ)
+    // = (pu(dy), 0, pu(dx))  onde dx=x2-x1, dy=y2-y1
+    const dThreeX = pu(y2 - y1);
+    const dThreeZ = pu(x2 - x1);
+    // Ângulo de rotação em Y no Three.js (rotação em torno de Y para apontar o comprimento)
+    // BoxGeometry padrão: comprimento em X. Rotamos para alinhar com o segmento.
+    const angle = Math.atan2(-dThreeZ, dThreeX);  // rotação Y para alinhar eixo X com segmento
+
+    // Deslocamento da espessura: ALIGNMENT=Direita → t/2 perpendicular à direita do segmento
+    // Perpendicular à direita de (dX,dZ) = (dZ, -dX) normalizado
+    const mag = Math.sqrt(dThreeX**2 + dThreeZ**2);
+    const perpX =  dThreeZ / mag;  // perpendicular direita em Three.X
+    const perpZ = -dThreeX / mag;  // perpendicular direita em Three.Z
+
+    const cx = mcx + perpX * t / 2;
+    const cz = mcz + perpZ * t / 2;
+
+    const geo = new THREE.BoxGeometry(len, h, t);
+    const mesh = new THREE.Mesh(geo, wallMat.clone());
+    mesh.position.set(cx, mcy, cz);
+    mesh.rotation.y = angle;
+    mesh.userData.isRoom = true;
+    mesh.castShadow = false; mesh.receiveShadow = false;
+    sceneGroup.add(mesh);
+    const eg = new THREE.EdgesGeometry(geo);
+    const el = new THREE.LineSegments(eg, wallEdgeMat.clone());
+    el.position.set(cx, mcy, cz);
+    el.rotation.y = angle;
+    el.userData.isRoom = true;
+    sceneGroup.add(el);
+  }
+
+  const wallSegs = data.walls || [];
+  wallSegs.forEach(seg => {
+    addWallSeg(seg.x1, seg.y1, seg.x2, seg.y2, seg.thickness, seg.height);
+  });
+
+  // Fallback: se não há segmentos do XML, renderiza 2 planos simples
+  if (!wallSegs.length) {
+    const wm=new THREE.MeshBasicMaterial({color:0xf0eeec,side:THREE.DoubleSide});
+    const bk=new THREE.Mesh(new THREE.PlaneGeometry(rW,rH),wm);
+    bk.position.set(rW/2+oX,rH/2+oY,oZ); bk.userData.isRoom=true; sceneGroup.add(bk);
+    const sw=new THREE.Mesh(new THREE.PlaneGeometry(rD,rH),wm);
+    sw.rotation.y=Math.PI/2; sw.position.set(oX,rH/2+oY,rD/2+oZ); sw.userData.isRoom=true; sceneGroup.add(sw);
+  }
 
   // Grade discreta
   const gs=Math.max(rW,rD);
@@ -821,26 +1041,77 @@ function buildScene(data){
     const pos=p2t(p.px,p.py,p.pz,room);
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
     let dw, dh, dd, offX, offY, offZ;
+    dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    const diag = getDoorDiag(p, uidToParent, doorStats);
 
-    if(p.type==='panel'){
-      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
-      offX = dw/2; offY = dh/2; offZ = dd/2;
-    } else {
-      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
-      if(p.rot===270||p.rot===-90){
-        offX = p.inverted ? dw/2 : -dw/2; offY = -dh/2;
-      } else { offX = dw/2; offY = dh/2; }
-      offZ = dd/2;
+    // Correção por NORMAL real para travessas C3X/STRETCHER.
+    // Quando NORMAL vem em A/B, a peça não está no plano padrão C=1;
+    // nesses casos a medida visual correta é W × D × H, ou seja, troca H ↔ D.
+    if(p.type === 'stretcher' && (Math.abs(p.nx||0) > 0.5 || Math.abs(p.ny||0) > 0.5)){
+      const tmp = dh; dh = dd; dd = tmp;
+    }
+
+    offY = dh / 2;
+
+    // REGRA CONFIRMADA (normal sempre 0,0,1 no Promob):
+    // PONTOBASE = canto da peça encostado na parede (face traseira + lado esquerdo + base)
+    // Profundidade (D) vai sempre PARA DENTRO do cômodo (direção do normal da parede)
+    // Largura (W) vai sempre ao longo da parede a partir do PONTOBASE
+    //
+    // PONTOBASE varia conforme o tipo:
+    // Peças normais:  canto traseiro-esquerdo-inferior  → offset +R·(W/2, H/2, D/2)
+    // Portas: canto frontal-direito-superior → offset −Y; frentes de gaveta: canto inferior → offset +Y
+    //   INVERTED inverte o eixo X (espelha esquerda/direita)
+    // θ = (rot - 90) × PI/180
+    {
+      const theta = (p.rot - 90) * Math.PI / 180;
+      const cosT = Math.cos(theta), sinT = Math.sin(theta);
+      if(p.type === 'liftdoor'){
+        // Basculante/lift door: ponto-base embaixo-esquerdo-traseiro, igual peça normal.
+        // Não usa ponto-base superior/frontal de porta comum.
+        const ws = p.inverted ? -1 : 1;
+        offX = ws * cosT * dw/2 + sinT * dd/2;
+        offY = dh / 2;
+        offZ = -ws * sinT * dw/2 + cosT * dd/2;
+      } else if(p.type === 'door' || p.type === 'drawer'){
+        // Regra única para portas/frentes:
+        // - se OPENSERVICE.X tem $w$, PB está na lateral da porta → desloca ±W/2
+        // - se OPENSERVICE.X não tem $w$, PB já está no centro no eixo W → não desloca W/2
+        // - portas rotacionadas 90/270: inverte somente a profundidade para entrar no módulo
+        const wOff = getDoorWOff(p, dw, diag);
+        const dSign = getDoorDSign(p);
+        offX = wOff * cosT + sinT * dd/2 * dSign;
+        offY = (p.type === 'drawer') ? dh / 2 : -dh / 2;
+        offZ = -wOff * sinT + cosT * dd/2 * dSign;
+      } else if(p.type === 'stretcher' && (Math.abs(p.nx||0) > 0.5 || Math.abs(p.ny||0) > 0.5)) {
+        // Travessa C3X/STRETCHER com NORMAL diferente de 0,0,1:
+        // só estas usam ponto-base na FRENTE da peça.
+        // Travessas normais 0,0,1 continuam na regra padrão abaixo.
+        const ws = p.inverted ? -1 : 1;
+        offX = ws * cosT * dw/2 - sinT * dd/2;
+        offY = dh / 2;
+        offZ = -ws * sinT * dw/2 - cosT * dd/2;
+      } else {
+        // Padrão: PONTOBASE = canto traseiro-esquerdo-inferior
+        const ws = p.inverted ? -1 : 1;
+        offX = ws * cosT * dw/2 + sinT * dd/2;
+        offY = dh / 2;
+        offZ = -ws * sinT * dw/2 + cosT * dd/2;
+      }
     }
     const dim = {x:dw, y:dh, z:dd};
     const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
     const mat=getMaterial(p.modelType||'', hexInt(cor.hex));
     const mesh=new THREE.Mesh(geo,mat);
     mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
+    // Rotação do mesh: rot Promob (CW) mapeado diretamente para Three.js Y
+    mesh.rotation.y = (p.rot - 90) * Math.PI / 180;
     if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
     // Sem sombras
     mesh.castShadow=false; mesh.receiveShadow=false;
-    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:uidToParent[p.uid]||""};
+    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:uidToParent[p.uid]||"",rot:p.rot,
+      inverted:!!p.inverted, doorInvert:p.doorInvert?1:0, doorCentered:!!p.doorCentered,
+      normal:`${p.nx||0},${p.ny||0},${p.nz||0}`, doorCount:diag.doorCount, doorIndex:diag.doorIndex, doorKey:diag.doorKey};
     if(mesh.material.color) mesh.userData._origColor = mesh.material.color.getHex();
     const eg=new THREE.EdgesGeometry(geo);
     mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x000000,opacity:0.85,transparent:true})));
@@ -857,6 +1128,7 @@ function rebuildPecas(){
   hiddenMeshes.clear();
   updateHiddenBadge();
   const {room,pecas,uidToParent={}}=currentData;
+  const doorStats = makeDoorStats(pecas, uidToParent);
   const EXPLODE_Y={cabinet:0,bottom:-0.15,shelf:0.15,door:0.45,panel:-0.3,stretcher:-0.2,filler:0.2,unknown:0,side:0};
   let count=0;
   pecas.forEach(p=>{
@@ -866,28 +1138,76 @@ function rebuildPecas(){
     const pos=p2t(p.px,p.py,p.pz,room);
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
     let dw, dh, dd, offX, offY, offZ;
-    if(p.type==='panel'){
-      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
-      offX = dw/2; offY = dh/2; offZ = dd/2;
-    } else {
-      dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
-      if(p.rot===270||p.rot===-90){
-        offX = p.inverted ? dw/2 : -dw/2;
-        offY = -dh/2;
+    dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    const diag = getDoorDiag(p, uidToParent, doorStats);
+
+    // Correção por NORMAL real para travessas C3X/STRETCHER.
+    // Quando NORMAL vem em A/B, a peça não está no plano padrão C=1;
+    // nesses casos a medida visual correta é W × D × H, ou seja, troca H ↔ D.
+    if(p.type === 'stretcher' && (Math.abs(p.nx||0) > 0.5 || Math.abs(p.ny||0) > 0.5)){
+      const tmp = dh; dh = dd; dd = tmp;
+    }
+
+    offY = dh / 2;
+
+    // REGRA CONFIRMADA (normal sempre 0,0,1 no Promob):
+    // PONTOBASE = canto da peça encostado na parede (face traseira + lado esquerdo + base)
+    // Profundidade (D) vai sempre PARA DENTRO do cômodo (direção do normal da parede)
+    // Largura (W) vai sempre ao longo da parede a partir do PONTOBASE
+    //
+    // PONTOBASE varia conforme o tipo:
+    // Peças normais:  canto traseiro-esquerdo-inferior  → offset +R·(W/2, H/2, D/2)
+    // Portas: canto frontal-direito-superior → offset −Y; frentes de gaveta: canto inferior → offset +Y
+    //   INVERTED inverte o eixo X (espelha esquerda/direita)
+    // θ = (rot - 90) × PI/180
+    {
+      const theta = (p.rot - 90) * Math.PI / 180;
+      const cosT = Math.cos(theta), sinT = Math.sin(theta);
+      if(p.type === 'liftdoor'){
+        // Basculante/lift door: ponto-base embaixo-esquerdo-traseiro, igual peça normal.
+        // Não usa ponto-base superior/frontal de porta comum.
+        const ws = p.inverted ? -1 : 1;
+        offX = ws * cosT * dw/2 + sinT * dd/2;
+        offY = dh / 2;
+        offZ = -ws * sinT * dw/2 + cosT * dd/2;
+      } else if(p.type === 'door' || p.type === 'drawer'){
+        // Regra única para portas/frentes:
+        // - se OPENSERVICE.X tem $w$, PB está na lateral da porta → desloca ±W/2
+        // - se OPENSERVICE.X não tem $w$, PB já está no centro no eixo W → não desloca W/2
+        // - portas rotacionadas 90/270: inverte somente a profundidade para entrar no módulo
+        const wOff = getDoorWOff(p, dw, diag);
+        const dSign = getDoorDSign(p);
+        offX = wOff * cosT + sinT * dd/2 * dSign;
+        offY = (p.type === 'drawer') ? dh / 2 : -dh / 2;
+        offZ = -wOff * sinT + cosT * dd/2 * dSign;
+      } else if(p.type === 'stretcher' && (Math.abs(p.nx||0) > 0.5 || Math.abs(p.ny||0) > 0.5)) {
+        // Travessa C3X/STRETCHER com NORMAL diferente de 0,0,1:
+        // só estas usam ponto-base na FRENTE da peça.
+        // Travessas normais 0,0,1 continuam na regra padrão abaixo.
+        const ws = p.inverted ? -1 : 1;
+        offX = ws * cosT * dw/2 - sinT * dd/2;
+        offY = dh / 2;
+        offZ = -ws * sinT * dw/2 - cosT * dd/2;
       } else {
-        offX = dw/2;
-        offY = dh/2;
+        // Padrão: PONTOBASE = canto traseiro-esquerdo-inferior
+        const ws = p.inverted ? -1 : 1;
+        offX = ws * cosT * dw/2 + sinT * dd/2;
+        offY = dh / 2;
+        offZ = -ws * sinT * dw/2 + cosT * dd/2;
       }
-      offZ = dd/2;
     }
     const dim = {x:dw, y:dh, z:dd};
     const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
     const mat=getMaterial(p.modelType||'', hexInt(cor.hex));
     const mesh=new THREE.Mesh(geo,mat);
     mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
+    // Rotação do mesh: rot Promob (CW) mapeado diretamente para Three.js Y
+    mesh.rotation.y = (p.rot - 90) * Math.PI / 180;
     if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
     mesh.castShadow=false; mesh.receiveShadow=false;
-    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:uidToParent[p.uid]||""};
+    mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:uidToParent[p.uid]||"",rot:p.rot,
+      inverted:!!p.inverted, doorInvert:p.doorInvert?1:0, doorCentered:!!p.doorCentered,
+      normal:`${p.nx||0},${p.ny||0},${p.nz||0}`, doorCount:diag.doorCount, doorIndex:diag.doorIndex, doorKey:diag.doorKey};
     if(mesh.material.color) mesh.userData._origColor = mesh.material.color.getHex();
     const eg=new THREE.EdgesGeometry(geo);
     mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x000000,opacity:0.85,transparent:true})));
@@ -1073,7 +1393,13 @@ function setupEvents(){
       const ud=hits[0].object.userData;
       document.getElementById('tt-n').textContent=ud.name;
       document.getElementById('tt-d').textContent=ud.dims;
-      document.getElementById('tt-r').textContent=(ud.uid?`ID: ${ud.uid}  · `:'')+( TYPE_LABELS[ud.type]||ud.type);
+      let line=(ud.uid?`ID: ${ud.uid}  · `:'')+( TYPE_LABELS[ud.type]||ud.type)+(ud.rot!==undefined?`  · Rot: ${ud.rot}°`:'' );
+      if(ud.type==='door'||ud.type==='liftdoor'||ud.type==='drawer'){
+        line += `<br>parent: ${ud.parentUid||'órfã'} · portas: ${ud.doorCount||'?'}${ud.doorIndex?` · idx: ${ud.doorIndex}`:''}`;
+        line += `<br>inv: ${ud.inverted?1:0} · doorInv: ${ud.doorInvert?1:0} · centered: ${ud.doorCentered?1:0}`;
+      }
+      if(ud.type==='stretcher') line += `<br>normal: ${ud.normal||''} · inverted: ${ud.inverted?1:0}`;
+      document.getElementById('tt-r').innerHTML=line;
       tip.style.display='block';
       tip.style.left=(e.clientX-rect.left+14)+'px';
       tip.style.top=(e.clientY-rect.top-10)+'px';
@@ -1212,12 +1538,14 @@ let decoMeshes = [];
 let decoVisible = false;
 
 function voltarOuFechar(){
-  // Se está dentro de um iframe (CRM), fechar o modal no pai
-  if(window.parent && window.parent !== window){
-    window.parent.postMessage({ type: 'close_viewer' }, '*');
-  } else {
-    resetToHome();
-  }
+  // Sempre volta para a tela de upload.
+  // Se estiver dentro de iframe/CRM, também avisa o pai, mas não deixa de resetar localmente.
+  try{
+    if(window.parent && window.parent !== window){
+      window.parent.postMessage({ type: 'close_viewer' }, '*');
+    }
+  }catch(e){}
+  resetToHome();
 }
 
 function resetToHome(){
@@ -1232,7 +1560,7 @@ function resetToHome(){
   const hbtn=document.getElementById('btn-hidden'); if(hbtn) hbtn.className='vb';
   limparBuscaPeca();
   exploded=false;
-  document.getElementById('btn-explode').className='vb';
+  { const exbtn=document.getElementById('btn-explode'); if(exbtn) exbtn.className='vb'; }
   currentData=null;
 }
 
@@ -1596,7 +1924,7 @@ function buildDecoracoes(decoracoes){
       const pos = p2t(d.px, d.py, d.pz, room);
       px3 = pos.x; py3 = pos.y; pz3 = pos.z;
       dw = pu(d.w); dh = pu(d.h); dd = Math.max(pu(d.d), 0.05);
-      if(d.tipo==='porta_movel' && (d.rot===270||d.rot===-90)){ const tmp=dw; dw=dh; dh=tmp; }
+      // porta_movel dimensions come from XML — no rotation-based swap
     }
 
     const geo = new THREE.BoxGeometry(dw, dh, dd);
