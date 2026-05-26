@@ -2271,18 +2271,54 @@ function _carregarDoPending(raw) {
   } catch(e) { console.error('_carregarDoPending:', e); return false; }
 }
 
-// Tenta carregar assim que o DOM está pronto — e retry após 300ms caso o
-// Android ainda não tivesse gravado o localStorage quando a página iniciou
 document.addEventListener('DOMContentLoaded', function() {
+  const params = new URLSearchParams(window.location.search);
+  const dropScreen = document.getElementById('drop-screen');
+  const loadingScreen = document.getElementById('loading-screen');
+
+  // PRIORIDADE 1: dados direto na URL (Android — método mais confiável)
+  const srcUrl = params.get('src');
+  const srcToken = params.get('token');
+  const srcNome = params.get('nome') || 'projeto';
+
+  if (srcUrl) {
+    if (dropScreen) dropScreen.style.display = 'none';
+    if (loadingScreen) loadingScreen.style.display = 'flex';
+
+    // Botão voltar
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '← Voltar';
+    backBtn.style.cssText = 'position:fixed;top:12px;left:12px;z-index:9999;background:rgba(201,169,110,0.15);border:1px solid rgba(201,169,110,0.4);color:#c9a96e;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;touch-action:manipulation';
+    backBtn.onclick = () => { history.length > 1 ? history.back() : (window.location.href = 'index.html'); };
+    document.body.appendChild(backBtn);
+
+    fetch(srcUrl, { headers: { 'Authorization': 'Bearer ' + srcToken } })
+      .then(function(r) {
+        if (!r.ok) throw new Error('Erro ' + r.status + ' ao baixar projeto');
+        return r.arrayBuffer();
+      })
+      .then(function(buf) {
+        const fakeFile = new File([buf], srcNome + '.promob', { type: 'application/octet-stream' });
+        parsePromob(fakeFile);
+      })
+      .catch(function(e) {
+        if (loadingScreen) loadingScreen.style.display = 'none';
+        if (dropScreen) dropScreen.style.display = 'flex';
+        const err = document.getElementById('drop-error');
+        if (err) err.textContent = 'Erro ao carregar: ' + e.message;
+      });
+    return; // não tentar localStorage
+  }
+
+  // PRIORIDADE 2: localStorage/sessionStorage (fallback desktop/iframe)
   const raw = _lerPendingCRM();
   if (raw) {
     _carregarDoPending(raw);
-  } else {
-    // Retry: Android às vezes demora a disponibilizar o localStorage
+  } else if (params.get('t')) {
     setTimeout(function() {
       const raw2 = _lerPendingCRM();
       if (raw2) _carregarDoPending(raw2);
-    }, 350);
+    }, 400);
   }
 });
 // Aceitar via postMessage (vindo do CRM via iframe)
