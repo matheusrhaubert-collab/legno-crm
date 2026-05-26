@@ -1491,8 +1491,8 @@ function setupEvents(){
         // Move o alvo no plano horizontal (chão) — X e Z, sem mudar altura Y
         // dx: dedo para direita → mundo vai para esquerda (câmera orbia para direita)
         // dy: dedo para cima/baixo → move profundidade no plano
-        camTX -= (dx * cosT + dy * sinT) * scale;
-        camTZ -= (dx * sinT - dy * cosT) * scale;
+        camTX += (dx * cosT + dy * sinT) * scale;
+        camTZ += (dx * sinT - dy * cosT) * scale;
         updateCamera();
       } else {
         camTheta+=dx*0.006; camPhi=Math.max(0.04,Math.min(Math.PI*0.88,camPhi+dy*0.005));
