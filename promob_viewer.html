@@ -77,13 +77,18 @@ canvas{display:block;width:100%;height:100%}
   #mob-filter-panel{display:flex!important}
 }
 #mob-filter-panel{
-  display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:250;
-  background:rgba(0,0,0,0.45);flex-direction:column;justify-content:flex-end;
+  pointer-events:none;opacity:0;
+  position:fixed;top:0;left:0;right:0;bottom:0;z-index:250;
+  background:rgba(0,0,0,0.45);display:flex;flex-direction:column;justify-content:flex-end;
+  transition:opacity 0.2s;
 }
+#mob-filter-panel.open{pointer-events:auto;opacity:1}
 #mob-filter-inner{
   background:#1c1c1e;border-radius:16px 16px 0 0;padding:14px 16px 28px;
   max-height:50vh;overflow-y:auto;
+  transform:translateY(100%);transition:transform 0.25s ease;
 }
+#mob-filter-panel.open #mob-filter-inner{transform:translateY(0)}
 @media(max-width:768px){#mob-fab{display:flex!important}}
 #mob-filter-inner .sec{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px}
 #mob-filter-inner .lg{display:flex;flex-direction:column;gap:6px}
@@ -155,7 +160,7 @@ canvas{display:block;width:100%;height:100%}
   <!-- FAB filtros (bolinha fixa no canto) -->
   <div id="mob-fab" onclick="mobToggleFilter()" style="display:none;position:fixed;bottom:20px;right:16px;z-index:300;width:44px;height:44px;border-radius:22px;background:rgba(201,169,110,0.9);border:none;cursor:pointer;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 12px rgba(0,0,0,0.4);touch-action:manipulation">⚙</div>
   <!-- Drawer de filtros -->
-  <div id="mob-filter-panel" style="display:none" onclick="if(event.target===this)mobToggleFilter()">
+  <div id="mob-filter-panel" onclick="if(event.target===this)mobToggleFilter()">
     <div id="mob-filter-inner">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <span style="font-size:15px;font-weight:600;color:#e8c98a">Filtros</span>
@@ -2463,9 +2468,14 @@ window.addEventListener('message', async (e) => {
 function mobToggleFilter(){
   const panel = document.getElementById('mob-filter-panel');
   const fab = document.getElementById('mob-fab');
-  const open = panel.style.display === 'flex';
-  panel.style.display = open ? 'none' : 'flex';
-  if(fab) fab.style.opacity = open ? '1' : '0.4';
+  const open = panel.classList.contains('open');
+  if(open){
+    panel.classList.remove('open');
+    if(fab) fab.style.opacity = '1';
+  } else {
+    panel.classList.add('open');
+    if(fab) fab.style.opacity = '0.5';
+  }
 }
 </script>
 </body>
