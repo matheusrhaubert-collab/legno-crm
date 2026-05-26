@@ -13486,3 +13486,67 @@ function _lbKey(e){if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNa
 
 </body>
 </html>
+
+
+<script>
+// ===== FIX 3D MOBILE v3 =====
+(function(){
+  function ensure3DModal(){
+    let modal=document.getElementById('modal-3d-fixed');
+    if(modal) return modal;
+    modal=document.createElement('div');
+    modal.id='modal-3d-fixed';
+    modal.style.cssText='display:none;position:fixed;inset:0;z-index:2147483000;background:#0c0c0a;flex-direction:column;width:100vw;height:100dvh;';
+    modal.innerHTML=`
+      <div style="height:48px;display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,0.1);background:#111108;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <span style="font-size:17px">📦</span>
+          <span id="modal-3d-fixed-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2,#e8c98a);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72vw">Visualizador 3D</span>
+        </div>
+        <button type="button" onclick="fechar3D()" style="background:none;border:none;color:#f2ede8;font-size:24px;cursor:pointer;padding:4px 10px">×</button>
+      </div>
+      <iframe id="iframe-3d-fixed" src="about:blank" style="flex:1;border:none;width:100%;height:calc(100dvh - 48px);background:#fff"></iframe>`;
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  window.verPromob3D = async function(projetoId, nomeAmb) {
+    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
+    if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
+    const amb = window._ambObj || {};
+    const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
+    if(!path){
+      const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
+      if(typeof toast==='function') toast(msg); else alert(msg);
+      return;
+    }
+    const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
+    const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
+    const url = `${base}/storage/v1/object/promob/${path}`;
+    const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
+
+    const modal = ensure3DModal();
+    const titulo = document.getElementById('modal-3d-fixed-titulo');
+    const iframe = document.getElementById('iframe-3d-fixed');
+    if(titulo) titulo.textContent = '📦 ' + nome;
+    modal.style.display='flex';
+
+    if(iframe._viewerLoadHandler) iframe.removeEventListener('load', iframe._viewerLoadHandler);
+    iframe._viewerLoadHandler = function(){
+      setTimeout(()=>{
+        try{ iframe.contentWindow.postMessage({type:'load_promob_url', url:url, token:key, nome:nome}, '*'); }
+        catch(err){ console.error(err); if(typeof toast==='function') toast('Erro abrindo 3D'); }
+      }, 700);
+    };
+    iframe.addEventListener('load', iframe._viewerLoadHandler);
+    iframe.src='promob_viewer.html?v=' + Date.now();
+  };
+
+  window.fechar3D = function(){
+    const modal=document.getElementById('modal-3d-fixed') || document.getElementById('modal-3d');
+    if(modal) modal.style.display='none';
+    const iframe=document.getElementById('iframe-3d-fixed') || document.getElementById('iframe-3d');
+    if(iframe) iframe.src='about:blank';
+  };
+})();
+</script>
