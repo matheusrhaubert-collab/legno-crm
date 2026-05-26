@@ -427,6 +427,7 @@ async function parsePromob(file) {
   console.log('[viewer] faceNormals:', Object.keys(faceNormals).length);
 
   setLoading(90, 'Montando visualização...');
+  dbg('parsePromob done, calling renderData');
   return { room, pecas, modulos, allElems, decoracoes, uidToParent, walls, faceNormals, fileName: file.name };
 }
 
@@ -796,6 +797,20 @@ function updateOrthoSize(){
   orthoCamera.top    = camTY + halfH;
   orthoCamera.bottom = camTY - halfH;
   orthoCamera.updateProjectionMatrix();
+}
+
+// ── DEBUG OVERLAY (remover depois) ──
+function dbg(msg) {
+  let el = document.getElementById('_dbg');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '_dbg';
+    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#0f0;font-size:11px;font-family:monospace;padding:8px;z-index:99999;max-height:40vh;overflow-y:auto;white-space:pre-wrap';
+    document.body.appendChild(el);
+  }
+  el.textContent += '\n' + new Date().toISOString().slice(11,19) + ' ' + msg;
+  el.scrollTop = el.scrollHeight;
+  console.log('[DBG]', msg);
 }
 
 function initThree(){
@@ -1495,7 +1510,9 @@ async function renderData(data){
     }
 
     // Init Three.js
+    dbg('initThree start, canvas-wrap: ' + (document.getElementById('canvas-wrap')?.clientWidth||0) + 'x' + (document.getElementById('canvas-wrap')?.clientHeight||0));
     if (!renderer) initThree();
+    dbg('initThree done');
 
     // Se o renderer ainda tiver tamanho zero, forçar resize antes de buildScene
     const _W = _wrap.clientWidth, _H = _wrap.clientHeight;
@@ -1506,7 +1523,9 @@ async function renderData(data){
       updateOrthoSize();
     }
 
+    dbg('buildScene start, pecas: ' + (data.pecas?.length||0));
     buildScene(data);
+    dbg('buildScene done');
     buildFilters(data.pecas);
     buildModulosPanel(data.modulos||[]);
     buildDecoracoes(data.decoracoes||[]);
@@ -2270,16 +2289,19 @@ function _carregarDoPending(raw) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  dbg('DOMContentLoaded');
   const params = new URLSearchParams(window.location.search);
   const dropScreen = document.getElementById('drop-screen');
   const loadingScreen = document.getElementById('loading-screen');
 
   // PRIORIDADE 1: dados direto na URL (Android — método mais confiável)
+  dbg('params: src=' + (params.get('src')?'YES':'NO') + ' t=' + params.get('t'));
   const srcUrl = params.get('src');
   const srcToken = params.get('token');
   const srcNome = params.get('nome') || 'projeto';
 
   if (srcUrl) {
+    dbg('srcUrl encontrado, iniciando fetch');
     if (dropScreen) dropScreen.style.display = 'none';
     if (loadingScreen) loadingScreen.style.display = 'flex';
 
@@ -2292,14 +2314,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     fetch(srcUrl, { headers: { 'Authorization': 'Bearer ' + srcToken } })
       .then(function(r) {
+        dbg('fetch resp: ' + r.status);
         if (!r.ok) throw new Error('Erro ' + r.status + ' ao baixar projeto');
         return r.arrayBuffer();
       })
       .then(function(buf) {
+        dbg('buf size: ' + buf.byteLength);
         const fakeFile = new File([buf], srcNome + '.promob', { type: 'application/octet-stream' });
+        dbg('parsePromob start');
         parsePromob(fakeFile);
       })
       .catch(function(e) {
+        dbg('FETCH ERROR: ' + e.message);
         if (loadingScreen) loadingScreen.style.display = 'none';
         if (dropScreen) dropScreen.style.display = 'flex';
         const err = document.getElementById('drop-error');
