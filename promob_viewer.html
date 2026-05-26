@@ -2216,38 +2216,70 @@ document.addEventListener('drop', e => {
   if(f) processFile(f);
 });
 
-// Receber .promob via sessionStorage (vindo do CRM)
-const _pendingCRM = sessionStorage.getItem('promob_pending');
-if (_pendingCRM) {
-  sessionStorage.removeItem('promob_pending');
+// Receber .promob via localStorage ou sessionStorage (vindo do CRM)
+// localStorage é preferido pois persiste mesmo quando o Android destroi a aba ao navegar
+(function() {
+  let _rawPending = null;
+  // Tenta localStorage primeiro (mais confiável no Android)
   try {
-    const pending = JSON.parse(_pendingCRM);
-    // Botão voltar
-    const backBtn = document.createElement('button');
-    backBtn.textContent = '← Voltar ao CRM';
-    backBtn.style.cssText = 'position:fixed;top:12px;left:12px;z-index:9999;background:rgba(201,169,110,0.15);border:1px solid rgba(201,169,110,0.4);color:#c9a96e;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit';
-    backBtn.onclick = () => history.back();
-    document.body.appendChild(backBtn);
-
-    if (pending.url) {
-      // Modo URL — busca direto do Supabase (sem limite de tamanho)
-      const loadingScreen = document.getElementById('loading-screen');
-      if(loadingScreen){ loadingScreen.style.display='flex'; }
-      fetch(pending.url, { headers: { 'Authorization': `Bearer ${pending.token}` } })
-        .then(r => { if(!r.ok) throw new Error('Erro ao baixar .promob'); return r.arrayBuffer(); })
-        .then(buf => {
-          const fakeFile = new File([buf], (pending.nome||'projeto')+'.promob', {type:'application/octet-stream'});
-          parsePromob(fakeFile);
-        })
-        .catch(e => { console.error(e); alert('Erro ao carregar projeto: ' + e.message); });
-    } else if (pending.data) {
-      // Modo legado — bytes no sessionStorage
-      const buf = new Uint8Array(pending.data).buffer;
-      const fakeFile = new File([buf], (pending.nome||'projeto')+'.promob', {type:'application/octet-stream'});
-      parsePromob(fakeFile);
+    const ls = localStorage.getItem('promob_pending');
+    if (ls) {
+      const parsed = JSON.parse(ls);
+      // Aceita se foi gerado nos últimos 5 minutos (evita entrada stale)
+      if (!parsed.ts || (Date.now() - parsed.ts) < 300000) {
+        _rawPending = ls;
+        localStorage.removeItem('promob_pending');
+      } else {
+        localStorage.removeItem('promob_pending');
+      }
     }
-  } catch(e) { console.error(e); }
-}
+  } catch(e) {}
+  // Fallback: sessionStorage
+  if (!_rawPending) {
+    try {
+      _rawPending = sessionStorage.getItem('promob_pending');
+      if (_rawPending) sessionStorage.removeItem('promob_pending');
+    } catch(e) {}
+  }
+
+  if (_rawPending) {
+    try {
+      const pending = JSON.parse(_rawPending);
+      // Botão voltar
+      const backBtn = document.createElement('button');
+      backBtn.textContent = '← Voltar ao CRM';
+      backBtn.style.cssText = 'position:fixed;top:12px;left:12px;z-index:9999;background:rgba(201,169,110,0.15);border:1px solid rgba(201,169,110,0.4);color:#c9a96e;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;touch-action:manipulation';
+      backBtn.onclick = () => {
+        // No Android, history.back() pode não funcionar se não houver histórico.
+        // Tenta voltar; se falhar, navega direto para index.html
+        if (history.length > 1) {
+          history.back();
+        } else {
+          window.location.href = 'index.html';
+        }
+      };
+      document.body.appendChild(backBtn);
+
+      if (pending.url) {
+        // Modo URL — busca direto do Supabase (sem limite de tamanho)
+        const loadingScreen = document.getElementById('loading-screen');
+        if(loadingScreen){ loadingScreen.style.display='flex'; }
+        fetch(pending.url, { headers: { 'Authorization': `Bearer ${pending.token}` } })
+          .then(r => { if(!r.ok) throw new Error('Erro ao baixar .promob'); return r.arrayBuffer(); })
+          .then(buf => {
+            const fakeFile = new File([buf], (pending.nome||'projeto')+'.promob', {type:'application/octet-stream'});
+            parsePromob(fakeFile);
+          })
+          .catch(e => { console.error(e); alert('Erro ao carregar projeto: ' + e.message); });
+      } else if (pending.data) {
+        // Modo legado — bytes no storage
+        const buf = new Uint8Array(pending.data).buffer;
+        const fakeFile = new File([buf], (pending.nome||'projeto')+'.promob', {type:'application/octet-stream'});
+        parsePromob(fakeFile);
+      }
+    } catch(e) { console.error(e); }
+  }
+})();
 // Aceitar via postMessage (vindo do CRM via iframe)
 window.addEventListener('message', async (e) => {
   if (e.data?.type === 'load_promob_url') {
