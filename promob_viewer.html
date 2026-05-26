@@ -66,6 +66,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe 
 
 #canvas-wrap{flex:1;position:relative;overflow:hidden;background:#ffffff}
 canvas{display:block;width:100%;height:100%}
+/* Mobile: sidebar escondida, canvas ocupa tudo */
+@media (max-width:768px){
+  #sidebar{display:none!important}
+  #canvas-wrap{width:100%!important;flex:1!important}
+  #app{flex-direction:column}
+  #mob-topbar{display:flex!important}
+  #vc{top:56px}
+}
+#mob-topbar{display:none;position:fixed;top:0;left:0;right:0;height:48px;background:rgba(13,13,13,0.92);backdrop-filter:blur(8px);z-index:50;align-items:center;padding:0 12px;gap:10px;border-bottom:1px solid rgba(255,255,255,0.1)}
+#mob-topbar-title{font-size:14px;font-weight:600;color:#e8c98a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #vc{position:absolute;top:10px;right:10px;display:flex;gap:4px;z-index:10;flex-wrap:wrap;justify-content:flex-end;max-width:300px}
 .vb{padding:4px 10px;background:rgba(255,255,255,0.9);border:0.5px solid rgba(0,0,0,0.18);border-radius:5px;color:rgba(0,0,0,0.55);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
 .vb:hover{color:#000;background:rgba(255,255,255,1);border-color:rgba(0,0,0,0.3)}.vb.active{background:rgba(201,169,110,0.15);border-color:var(--gold);color:var(--gold2)}
@@ -121,6 +131,11 @@ canvas{display:block;width:100%;height:100%}
 
 <!-- APP -->
 <div id="app" style="visibility:hidden">
+  <!-- Topbar mobile (só aparece em telas pequenas) -->
+  <div id="mob-topbar">
+    <button onclick="history.length>1?history.back():(window.location.href='index.html')" style="background:rgba(201,169,110,0.15);border:1px solid rgba(201,169,110,0.4);color:#c9a96e;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;touch-action:manipulation">← Voltar</button>
+    <div id="mob-topbar-title">Visualizador 3D</div>
+  </div>
   <div id="sidebar">
     <div id="sh">
       <div class="back-btn" onclick="voltarOuFechar()">← Novo arquivo</div>
@@ -785,7 +800,9 @@ function updateOrthoSize(){
 
 function initThree(){
   const wrap=document.getElementById('canvas-wrap');
-  const W=wrap.clientWidth,H=wrap.clientHeight;
+  // No mobile o canvas-wrap pode ainda ter clientWidth=0 — usar window como fallback
+  const W=wrap.clientWidth||window.innerWidth;
+  const H=wrap.clientHeight||window.innerHeight;
   scene=new THREE.Scene();
   scene.background=new THREE.Color(0xffffff);
 
