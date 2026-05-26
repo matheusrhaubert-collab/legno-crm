@@ -1298,7 +1298,7 @@ async function carregarPromob(event) {
 
 
 async function verPromob3D(projetoId, nomeAmb) {
-  event.stopPropagation();
+  if (event) event.stopPropagation();
   _prepararAmbContext(projetoId, nomeAmb);
   const path = _ambObj?.promobStoragePath;
   if (!path) { toast('Nenhum .promob carregado para este ambiente'); return; }
@@ -1307,14 +1307,25 @@ async function verPromob3D(projetoId, nomeAmb) {
   const token = SB_KEY_SERVICE;
   const nome = nomeAmb || 'projeto';
 
-  // Usa localStorage para garantir persistência no Android (sessionStorage pode
-  // ser limpo quando a página é destruída ao navegar). Chave com timestamp para
-  // evitar conflito com entradas antigas.
-  const ts = Date.now();
-  localStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts }));
-  // Também grava no sessionStorage como fallback para browsers que o suportam bem
-  try { sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts })); } catch(e) {}
-  window.location.href = 'promob_viewer.html?t=' + ts;
+  const _isMob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+  if (_isMob) {
+    // Android/mobile: navega para o viewer em pagina inteira
+    const ts = Date.now();
+    localStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts }));
+    try { sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts })); } catch(e) {}
+    window.location.href = 'promob_viewer.html?t=' + ts;
+  } else {
+    // Desktop: abre no modal com iframe
+    const modal = document.getElementById('modal-3d');
+    const iframe = document.getElementById('iframe-3d');
+    const titulo = document.getElementById('modal-3d-titulo');
+    if (!modal || !iframe) { toast('Erro: modal 3D nao encontrado'); return; }
+    if (titulo) titulo.textContent = nome;
+    closeModal('ambiente');
+    modal.style.display = 'flex';
+    _abrirViewerNoIframe(iframe, url, token, nome);
+  }
 }
 
 function _abrirViewerNoIframe(iframe, url, token, nome) {
@@ -1417,8 +1428,64 @@ function abrirAmbiente(projetoId, nomeAmb) {
   renderImagensAmbiente();
   // Cores
   renderCoresSelecionadas();
+  // Promob / 3D
+  _atualizarStatusPromobModal();
 
   openModal('ambiente');
+}
+
+// Atualiza status do .promob no modal-ambiente
+function _atualizarStatusPromobModal() {
+  const statusEl = document.getElementById('amb-promob-status');
+  const btn3d = document.getElementById('amb-btn-ver3d');
+  if (!statusEl || !btn3d) return;
+  if (_ambObj.promobNome && _ambObj.promobStoragePath) {
+    statusEl.innerHTML = `<span style="color:var(--green)">✓ ${_ambObj.promobNome}</span>`;
+    btn3d.style.display = 'inline-flex';
+  } else {
+    statusEl.textContent = 'Nenhum arquivo .promob carregado';
+    btn3d.style.display = 'none';
+  }
+}
+
+// Carregar .promob de dentro do modal-ambiente
+async function carregarPromobModal(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  toast('Enviando .promob...');
+  try {
+    const buf = await file.arrayBuffer();
+    const _pSave = DB.projetos.find(x=>x.id===_ambProjetoId);
+    const _lSave = DB.leads.find(l=>l.id===_pSave?.leadId);
+    const clean = s => (s||'').replace(/[^a-zA-Z0-9._-]/g,'_');
+    const promobPath = `${clean(_lSave?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
+    const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${promobPath}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${SB_KEY_SERVICE}`, 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' },
+      body: buf
+    });
+    if (!resp.ok) throw new Error('Erro no upload: ' + resp.status);
+    _ambObj.promobStoragePath = promobPath;
+    _ambObj.promobNome = file.name;
+    // Salvar no lead
+    const _lSave2 = DB.leads.find(l=>l.id===_pSave?.leadId);
+    if (_lSave2) {
+      if (!_lSave2.ambientesBriefing) _lSave2.ambientesBriefing = [];
+      const idx2 = _lSave2.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
+      if (idx2>=0) _lSave2.ambientesBriefing[idx2] = {..._lSave2.ambientesBriefing[idx2], ..._ambObj};
+      else _lSave2.ambientesBriefing.push({..._ambObj, nome: _ambNome});
+    }
+    await salvarLeadNoSupabase(_lSave2 || _lSave);
+    saveDB();
+    _atualizarStatusPromobModal();
+    renderProjetos();
+    toast('✓ .promob carregado com sucesso');
+  } catch(e) { toast('Erro ao enviar .promob: ' + e.message); }
+}
+
+// Botão Ver 3D dentro do modal-ambiente
+function verPromob3DFromModal() {
+  if (_ambProjetoId && _ambNome) verPromob3D(_ambProjetoId, _ambNome);
 }
 
 function renderImagensAmbiente() {
@@ -12986,6 +13053,17 @@ checkSession();
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Cores utilizadas</div>
       <div id="amb-cores-selecionadas" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
       <button class="btn btn-sm" onclick="abrirSeletorCores()" style="margin-bottom:20px">🎨 Selecionar cores</button>
+
+      <!-- VISUALIZADOR 3D -->
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Visualizador 3D</div>
+      <div id="amb-promob-status" style="font-size:13px;color:var(--text3);margin-bottom:10px">Nenhum arquivo .promob carregado</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <label class="btn btn-sm" style="cursor:pointer;border-color:rgba(96,144,208,0.4);color:var(--blue)">
+          📦 Carregar .promob
+          <input type="file" accept=".promob" style="display:none" onchange="carregarPromobModal(event)">
+        </label>
+        <button class="btn btn-sm" id="amb-btn-ver3d" onclick="verPromob3DFromModal()" style="display:none;border-color:rgba(201,169,110,0.4);color:var(--gold)">🧊 Ver 3D</button>
+      </div>
 
     </div>
     <div class="modal-footer">
