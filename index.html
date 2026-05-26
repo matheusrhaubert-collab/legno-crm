@@ -342,18 +342,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .mob-fab{position:fixed;bottom:calc(20px + var(--safe-bottom));right:16px;width:52px;height:52px;border-radius:50%;background:var(--gold);color:#0d0d0d;font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(201,169,110,0.35);border:none;z-index:600;font-weight:700}
 .mob-user-bar{padding:10px 16px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-shrink:0;padding-bottom:calc(10px + var(--safe-bottom))}
 
-
-
-/* ── MOBILE 3D MODAL FIX ── */
-#modal-3d{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
-#iframe-3d{display:block;min-height:0;}
-@media(max-width:768px){
-  #modal-3d{inset:0!important;width:100vw!important;height:100dvh!important;background:#fff!important;}
-  #modal-3d > div:first-child{height:44px!important;padding:6px 10px!important;flex-shrink:0!important;}
-  #modal-3d-titulo{font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70vw;}
-  #iframe-3d{width:100vw!important;height:calc(100dvh - 44px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;flex:1!important;}
-}
-
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -2541,37 +2529,6 @@ async function imprimirBriefing(leadId) {
   </div>
 </div>
 
-
-<script>
-// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
-(function(){
-  window.verPromob3D = function(projetoId, nomeAmb){
-    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
-    try{
-      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
-      const amb = window._ambObj || {};
-      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
-      if(!path){
-        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
-        if(typeof toast==='function') toast(msg); else alert(msg);
-        return false;
-      }
-      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
-      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
-      const url = `${base}/storage/v1/object/promob/${path}`;
-      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
-      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
-      window.location.href = 'promob_viewer.html?v=' + Date.now();
-      return false;
-    }catch(err){
-      console.error(err);
-      alert('Erro abrindo 3D: ' + (err.message || err));
-      return false;
-    }
-  };
-})();
-</script>
-
 </body>\n</html>`;
 
   // Render in hidden iframe then convert to PDF
@@ -4529,37 +4486,6 @@ ${'</scr'+'ipt>'}
   </div>
   <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
-
-
-<script>
-// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
-(function(){
-  window.verPromob3D = function(projetoId, nomeAmb){
-    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
-    try{
-      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
-      const amb = window._ambObj || {};
-      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
-      if(!path){
-        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
-        if(typeof toast==='function') toast(msg); else alert(msg);
-        return false;
-      }
-      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
-      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
-      const url = `${base}/storage/v1/object/promob/${path}`;
-      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
-      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
-      window.location.href = 'promob_viewer.html?v=' + Date.now();
-      return false;
-    }catch(err){
-      console.error(err);
-      alert('Erro abrindo 3D: ' + (err.message || err));
-      return false;
-    }
-  };
-})();
-</script>
 
 </body>
 </html>`;
@@ -6675,37 +6601,6 @@ ${(()=>{
   </div>
   <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
-
-
-<script>
-// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
-(function(){
-  window.verPromob3D = function(projetoId, nomeAmb){
-    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
-    try{
-      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
-      const amb = window._ambObj || {};
-      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
-      if(!path){
-        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
-        if(typeof toast==='function') toast(msg); else alert(msg);
-        return false;
-      }
-      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
-      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
-      const url = `${base}/storage/v1/object/promob/${path}`;
-      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
-      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
-      window.location.href = 'promob_viewer.html?v=' + Date.now();
-      return false;
-    }catch(err){
-      console.error(err);
-      alert('Erro abrindo 3D: ' + (err.message || err));
-      return false;
-    }
-  };
-})();
-</script>
 
 </body>
 </html>`;
@@ -12509,15 +12404,6 @@ function mobRenderProjetos(el) {
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-sm" onclick="abrirBriefing('${p.leadId}')">📋 Briefing</button>
           <button class="btn btn-sm" onclick="mobGoPage('imagens')">📷 Fotos</button>
-          ${(() => {
-            const amb3d = ambs.find(a => a.promobStoragePath || a.promobNome) || ambs[0];
-            const ambNome = amb3d ? (amb3d.nome || amb3d.tipo || 'Ambiente') : '';
-            return ambNome ? `<button class="btn btn-sm btn-primary" onclick="verPromob3D('${p.id}', ${JSON.stringify(ambNome)})">📦 3D</button>` : '';
-          })()}
-          ${ambs.length > 1 ? ambs.filter(a => a.promobStoragePath || a.promobNome).slice(0,4).map(a => {
-            const n = a.nome || a.tipo || 'Ambiente';
-            return `<button class="btn btn-sm" onclick="verPromob3D('${p.id}', ${JSON.stringify(n)})">📦 ${n}</button>`;
-          }).join('') : ''}
         </div>
       </div>`;
     }).join('')}
@@ -13577,100 +13463,5 @@ function _lbKey(e){if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNa
   <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
-
-<script>
-// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
-(function(){
-  window.verPromob3D = function(projetoId, nomeAmb){
-    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
-    try{
-      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
-      const amb = window._ambObj || {};
-      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
-      if(!path){
-        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
-        if(typeof toast==='function') toast(msg); else alert(msg);
-        return false;
-      }
-      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
-      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
-      const url = `${base}/storage/v1/object/promob/${path}`;
-      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
-      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
-      window.location.href = 'promob_viewer.html?v=' + Date.now();
-      return false;
-    }catch(err){
-      console.error(err);
-      alert('Erro abrindo 3D: ' + (err.message || err));
-      return false;
-    }
-  };
-})();
-</script>
-
 </body>
 </html>
-
-
-<script>
-// ===== FIX 3D MOBILE v3 =====
-(function(){
-  function ensure3DModal(){
-    let modal=document.getElementById('modal-3d-fixed');
-    if(modal) return modal;
-    modal=document.createElement('div');
-    modal.id='modal-3d-fixed';
-    modal.style.cssText='display:none;position:fixed;inset:0;z-index:2147483000;background:#0c0c0a;flex-direction:column;width:100vw;height:100dvh;';
-    modal.innerHTML=`
-      <div style="height:48px;display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,0.1);background:#111108;flex-shrink:0">
-        <div style="display:flex;align-items:center;gap:8px;min-width:0">
-          <span style="font-size:17px">📦</span>
-          <span id="modal-3d-fixed-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2,#e8c98a);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72vw">Visualizador 3D</span>
-        </div>
-        <button type="button" onclick="fechar3D()" style="background:none;border:none;color:#f2ede8;font-size:24px;cursor:pointer;padding:4px 10px">×</button>
-      </div>
-      <iframe id="iframe-3d-fixed" src="about:blank" style="flex:1;border:none;width:100%;height:calc(100dvh - 48px);background:#fff"></iframe>`;
-    document.body.appendChild(modal);
-    return modal;
-  }
-
-  window.verPromob3D = async function(projetoId, nomeAmb) {
-    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
-    if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
-    const amb = window._ambObj || {};
-    const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
-    if(!path){
-      const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
-      if(typeof toast==='function') toast(msg); else alert(msg);
-      return;
-    }
-    const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
-    const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
-    const url = `${base}/storage/v1/object/promob/${path}`;
-    const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
-
-    const modal = ensure3DModal();
-    const titulo = document.getElementById('modal-3d-fixed-titulo');
-    const iframe = document.getElementById('iframe-3d-fixed');
-    if(titulo) titulo.textContent = '📦 ' + nome;
-    modal.style.display='flex';
-
-    if(iframe._viewerLoadHandler) iframe.removeEventListener('load', iframe._viewerLoadHandler);
-    iframe._viewerLoadHandler = function(){
-      setTimeout(()=>{
-        try{ iframe.contentWindow.postMessage({type:'load_promob_url', url:url, token:key, nome:nome}, '*'); }
-        catch(err){ console.error(err); if(typeof toast==='function') toast('Erro abrindo 3D'); }
-      }, 700);
-    };
-    iframe.addEventListener('load', iframe._viewerLoadHandler);
-    iframe.src='promob_viewer.html?v=' + Date.now();
-  };
-
-  window.fechar3D = function(){
-    const modal=document.getElementById('modal-3d-fixed') || document.getElementById('modal-3d');
-    if(modal) modal.style.display='none';
-    const iframe=document.getElementById('iframe-3d-fixed') || document.getElementById('iframe-3d');
-    if(iframe) iframe.src='about:blank';
-  };
-})();
-</script>
