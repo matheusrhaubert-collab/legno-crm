@@ -1484,13 +1484,12 @@ function setupEvents(){
     if(e.touches.length===1&&isDrag){
       const dx=(e.touches[0].clientX-lastX), dy=(e.touches[0].clientY-lastY);
       if(_panMode){
-        // Pan: move o alvo da câmera no plano perpendicular à linha de visão
-        const scale = camDist * 0.0018;
+        // Pan: 1px de dedo = movimento proporcional no mundo 3D
+        // scale calibrado para que 1cm no dedo = ~1cm no modelo
+        const scale = camDist * 0.012;
         const sinT=Math.sin(camTheta), cosT=Math.cos(camTheta);
-        // Direita da câmera (eixo X do viewport)
         camTX += (-dx * cosT) * scale;
         camTZ += (-dx * sinT) * scale;
-        // Cima da câmera (eixo Y do viewport)
         camTY += dy * scale;
         updateCamera();
       } else {
