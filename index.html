@@ -12416,6 +12416,15 @@ function mobRenderProjetos(el) {
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-sm" onclick="abrirBriefing('${p.leadId}')">📋 Briefing</button>
           <button class="btn btn-sm" onclick="mobGoPage('imagens')">📷 Fotos</button>
+          ${(() => {
+            const amb3d = ambs.find(a => a.promobStoragePath || a.promobNome) || ambs[0];
+            const ambNome = amb3d ? (amb3d.nome || amb3d.tipo || 'Ambiente') : '';
+            return ambNome ? `<button class="btn btn-sm btn-primary" onclick="verPromob3D('${p.id}', ${JSON.stringify(ambNome)})">📦 3D</button>` : '';
+          })()}
+          ${ambs.length > 1 ? ambs.filter(a => a.promobStoragePath || a.promobNome).slice(0,4).map(a => {
+            const n = a.nome || a.tipo || 'Ambiente';
+            return `<button class="btn btn-sm" onclick="verPromob3D('${p.id}', ${JSON.stringify(n)})">📦 ${n}</button>`;
+          }).join('') : ''}
         </div>
       </div>`;
     }).join('')}
