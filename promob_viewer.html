@@ -2235,16 +2235,17 @@ if (_pendingCRM) {
       if(loadingScreen){ loadingScreen.style.display='flex'; }
       fetch(pending.url, { headers: { 'Authorization': `Bearer ${pending.token}` } })
         .then(r => { if(!r.ok) throw new Error('Erro ao baixar .promob'); return r.arrayBuffer(); })
-        .then(buf => {
+        .then(async buf => {
           const fakeFile = new File([buf], (pending.nome||'projeto')+'.promob', {type:'application/octet-stream'});
-          parsePromob(fakeFile);
+          const data = await parsePromob(fakeFile);
+          if(data) await renderData(data);
         })
         .catch(e => { console.error(e); alert('Erro ao carregar projeto: ' + e.message); });
     } else if (pending.data) {
       // Modo legado — bytes no sessionStorage
       const buf = new Uint8Array(pending.data).buffer;
       const fakeFile = new File([buf], (pending.nome||'projeto')+'.promob', {type:'application/octet-stream'});
-      parsePromob(fakeFile);
+      parsePromob(fakeFile).then(data => { if(data) renderData(data); });
     }
   } catch(e) { console.error(e); }
 }
