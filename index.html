@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v20260524_140206 -->
+<!DOCTYPE html><!-- v20260525_android3d -->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -1307,10 +1307,14 @@ async function verPromob3D(projetoId, nomeAmb) {
   const token = SB_KEY_SERVICE;
   const nome = nomeAmb || 'projeto';
 
-  // Android seguro: abre o viewer em página inteira usando sessionStorage.
-  // Não mexe no login/credencial do CRM.
-  sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome }));
-  window.location.href = 'promob_viewer.html?t=' + Date.now();
+  // Usa localStorage para garantir persistência no Android (sessionStorage pode
+  // ser limpo quando a página é destruída ao navegar). Chave com timestamp para
+  // evitar conflito com entradas antigas.
+  const ts = Date.now();
+  localStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts }));
+  // Também grava no sessionStorage como fallback para browsers que o suportam bem
+  try { sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts })); } catch(e) {}
+  window.location.href = 'promob_viewer.html?t=' + ts;
 }
 
 function _abrirViewerNoIframe(iframe, url, token, nome) {
@@ -9312,8 +9316,10 @@ function verPromob3DInstalacao(promobPath, nomeAmb) {
   const token = SB_KEY_SERVICE;
   const nome = nomeAmb || 'ambiente';
 
-  sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome }));
-  window.location.href = 'promob_viewer.html?t=' + Date.now();
+  const ts = Date.now();
+  localStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts }));
+  try { sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts })); } catch(e) {}
+  window.location.href = 'promob_viewer.html?t=' + ts;
 }
 
 // ── Abrir etapa de um ambiente específico ──────────────────────────────────
