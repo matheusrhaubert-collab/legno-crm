@@ -1032,94 +1032,63 @@ function buildScene(data){
     line.userData.isRoom=true; sceneGroup.add(line);
   });
 
-  // Peças
+  // Peças — processadas em chunks para não travar a thread no Android
   const EXPLODE_Y = {cabinet:0,bottom:-0.15,shelf:0.15,door:0.45,panel:-0.3,stretcher:-0.2,filler:0.2,unknown:0,side:0};
-  let count=0;
-  pecas.forEach(p=>{
+
+  function _addPeca(p) {
     if(!typeVisible[p.type]) return;
     const _mvk2=p.modelType||''; if(_mvk2 && matVisible[_mvk2]===false) return;
     const cor=CORES[p.type]||CORES.unknown;
     const pos=p2t(p.px,p.py,p.pz,room);
     const expY=exploded?(EXPLODE_Y[p.type]||0):0;
-    let dw, dh, dd, offX, offY, offZ;
-    dw = pu(p.w); dh = pu(p.h); dd = pu(p.d);
+    let dw=pu(p.w), dh=pu(p.h), dd=pu(p.d), offX, offY, offZ;
     const diag = getDoorDiag(p, uidToParent, doorStats);
-
-    // Correção por NORMAL real para travessas C3X/STRETCHER.
-    // Quando NORMAL vem em A/B, a peça não está no plano padrão C=1;
-    // nesses casos a medida visual correta é W × D × H, ou seja, troca H ↔ D.
-    if(p.type === 'stretcher' && (Math.abs(p.nx||0) > 0.5 || Math.abs(p.ny||0) > 0.5)){
-      const tmp = dh; dh = dd; dd = tmp;
-    }
-
-    offY = dh / 2;
-
-    // REGRA CONFIRMADA (normal sempre 0,0,1 no Promob):
-    // PONTOBASE = canto da peça encostado na parede (face traseira + lado esquerdo + base)
-    // Profundidade (D) vai sempre PARA DENTRO do cômodo (direção do normal da parede)
-    // Largura (W) vai sempre ao longo da parede a partir do PONTOBASE
-    //
-    // PONTOBASE varia conforme o tipo:
-    // Peças normais:  canto traseiro-esquerdo-inferior  → offset +R·(W/2, H/2, D/2)
-    // Portas: canto frontal-direito-superior → offset −Y; frentes de gaveta: canto inferior → offset +Y
-    //   INVERTED inverte o eixo X (espelha esquerda/direita)
-    // θ = (rot - 90) × PI/180
+    if(p.type==='stretcher' && (Math.abs(p.nx||0)>0.5||Math.abs(p.ny||0)>0.5)){const tmp=dh;dh=dd;dd=tmp;}
+    offY=dh/2;
     {
-      const theta = (p.rot - 90) * Math.PI / 180;
-      const cosT = Math.cos(theta), sinT = Math.sin(theta);
-      if(p.type === 'liftdoor'){
-        // Basculante/lift door: ponto-base embaixo-esquerdo-traseiro, igual peça normal.
-        // Não usa ponto-base superior/frontal de porta comum.
-        const ws = p.inverted ? -1 : 1;
-        offX = ws * cosT * dw/2 + sinT * dd/2;
-        offY = dh / 2;
-        offZ = -ws * sinT * dw/2 + cosT * dd/2;
-      } else if(p.type === 'door' || p.type === 'drawer'){
-        // Regra única para portas/frentes:
-        // - se OPENSERVICE.X tem $w$, PB está na lateral da porta → desloca ±W/2
-        // - se OPENSERVICE.X não tem $w$, PB já está no centro no eixo W → não desloca W/2
-        // - portas rotacionadas 90/270: inverte somente a profundidade para entrar no módulo
-        const wOff = getDoorWOff(p, dw, diag);
-        const dSign = getDoorDSign(p);
-        offX = wOff * cosT + sinT * dd/2 * dSign;
-        offY = (p.type === 'drawer') ? dh / 2 : -dh / 2;
-        offZ = -wOff * sinT + cosT * dd/2 * dSign;
-      } else if(p.type === 'stretcher' && (Math.abs(p.nx||0) > 0.5 || Math.abs(p.ny||0) > 0.5)) {
-        // Travessa C3X/STRETCHER com NORMAL diferente de 0,0,1:
-        // só estas usam ponto-base na FRENTE da peça.
-        // Travessas normais 0,0,1 continuam na regra padrão abaixo.
-        const ws = p.inverted ? -1 : 1;
-        offX = ws * cosT * dw/2 - sinT * dd/2;
-        offY = dh / 2;
-        offZ = -ws * sinT * dw/2 - cosT * dd/2;
+      const theta=(p.rot-90)*Math.PI/180;
+      const cosT=Math.cos(theta),sinT=Math.sin(theta);
+      if(p.type==='liftdoor'){
+        const ws=p.inverted?-1:1;offX=ws*cosT*dw/2+sinT*dd/2;offY=dh/2;offZ=-ws*sinT*dw/2+cosT*dd/2;
+      } else if(p.type==='door'||p.type==='drawer'){
+        const wOff=getDoorWOff(p,dw,diag);const dSign=getDoorDSign(p);
+        offX=wOff*cosT+sinT*dd/2*dSign;offY=(p.type==='drawer')?dh/2:-dh/2;offZ=-wOff*sinT+cosT*dd/2*dSign;
+      } else if(p.type==='stretcher'&&(Math.abs(p.nx||0)>0.5||Math.abs(p.ny||0)>0.5)){
+        const ws=p.inverted?-1:1;offX=ws*cosT*dw/2-sinT*dd/2;offY=dh/2;offZ=-ws*sinT*dw/2-cosT*dd/2;
       } else {
-        // Padrão: PONTOBASE = canto traseiro-esquerdo-inferior
-        const ws = p.inverted ? -1 : 1;
-        offX = ws * cosT * dw/2 + sinT * dd/2;
-        offY = dh / 2;
-        offZ = -ws * sinT * dw/2 + cosT * dd/2;
+        const ws=p.inverted?-1:1;offX=ws*cosT*dw/2+sinT*dd/2;offY=dh/2;offZ=-ws*sinT*dw/2+cosT*dd/2;
       }
     }
-    const dim = {x:dw, y:dh, z:dd};
-    const geo=new THREE.BoxGeometry(dim.x,dim.y,dim.z);
-    const mat=getMaterial(p.modelType||'', hexInt(cor.hex));
+    const geo=new THREE.BoxGeometry(dw,dh,dd);
+    const mat=getMaterial(p.modelType||'',hexInt(cor.hex));
     const mesh=new THREE.Mesh(geo,mat);
-    mesh.position.set(pos.x+offX, pos.y+offY+expY, pos.z+offZ);
-    // Rotação do mesh: rot Promob (CW) mapeado diretamente para Three.js Y
-    mesh.rotation.y = (p.rot - 90) * Math.PI / 180;
-    if(mat.map){ const sc=4; mat.map.repeat.set(dw*sc, dh*sc); }
-    // Sem sombras
-    mesh.castShadow=false; mesh.receiveShadow=false;
+    mesh.position.set(pos.x+offX,pos.y+offY+expY,pos.z+offZ);
+    mesh.rotation.y=(p.rot-90)*Math.PI/180;
+    if(mat.map){const sc=4;mat.map.repeat.set(dw*sc,dh*sc);}
+    mesh.castShadow=false;mesh.receiveShadow=false;
     mesh.userData={type:p.type,name:p.desc,dims:`${p.w}×${p.h}×${p.d}mm`,ref:p.ag,uid:p.uid||"",agPai:p.agPai||"",parentUid:uidToParent[p.uid]||"",rot:p.rot,
-      inverted:!!p.inverted, doorInvert:p.doorInvert?1:0, doorCentered:!!p.doorCentered,
-      normal:`${p.nx||0},${p.ny||0},${p.nz||0}`, doorCount:diag.doorCount, doorIndex:diag.doorIndex, doorKey:diag.doorKey};
-    if(mesh.material.color) mesh.userData._origColor = mesh.material.color.getHex();
+      inverted:!!p.inverted,doorInvert:p.doorInvert?1:0,doorCentered:!!p.doorCentered,
+      normal:`${p.nx||0},${p.ny||0},${p.nz||0}`,doorCount:diag.doorCount,doorIndex:diag.doorIndex,doorKey:diag.doorKey};
+    if(mesh.material.color) mesh.userData._origColor=mesh.material.color.getHex();
     const eg=new THREE.EdgesGeometry(geo);
     mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x000000,opacity:0.85,transparent:true})));
-    sceneGroup.add(mesh); allMeshes.push(mesh); count++;
-  });
-  document.getElementById('sv-pecas').textContent=count;
-  updateCamera();
+    sceneGroup.add(mesh);allMeshes.push(mesh);
+  }
+
+  // Processar em chunks de 30 peças com yield para o browser respirar
+  const CHUNK = 30;
+  let idx = 0;
+  function _processChunk() {
+    const end = Math.min(idx + CHUNK, pecas.length);
+    for (; idx < end; idx++) _addPeca(pecas[idx]);
+    document.getElementById('sv-pecas').textContent = allMeshes.length;
+    if (idx < pecas.length) {
+      setTimeout(_processChunk, 0); // yield para o browser não travar
+    } else {
+      updateCamera(); // só chama updateCamera quando todas as peças estão prontas
+    }
+  }
+  _processChunk();
 }
 
 function rebuildPecas(){
