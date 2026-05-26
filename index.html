@@ -1298,23 +1298,34 @@ async function carregarPromob(event) {
 
 
 async function verPromob3D(projetoId, nomeAmb) {
-  if (event) event.stopPropagation();
-  _prepararAmbContext(projetoId, nomeAmb);
-  const path = _ambObj?.promobStoragePath;
+  try { if (window.event) window.event.stopPropagation(); } catch(e) {}
+
+  // Buscar o objeto do ambiente diretamente — não depende de contexto global
+  const _p3d = DB.projetos.find(x => x.id === projetoId);
+  const _lead3d = DB.leads.find(l => l.id === _p3d?.leadId);
+  const _amb3d = (_lead3d?.ambientesBriefing || []).find(a =>
+    (a.nome || a.tipo) === nomeAmb ||
+    (a.nome || a.tipo || '').trim().toLowerCase() === (nomeAmb || '').trim().toLowerCase()
+  ) || {};
+
+  const path = _amb3d.promobStoragePath;
   if (!path) { toast('Nenhum .promob carregado para este ambiente'); return; }
 
-  const url = `${SB_URL}/storage/v1/object/promob/${path}`;
+  const url = SB_URL + '/storage/v1/object/promob/' + path;
   const token = SB_KEY_SERVICE;
   const nome = nomeAmb || 'projeto';
 
-  const _isMob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+  const isMob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
 
-  if (_isMob) {
-    // Android/mobile: navega para o viewer em pagina inteira
+  if (isMob) {
+    // Android: grava no localStorage e navega para o viewer
     const ts = Date.now();
-    localStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts }));
-    try { sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts })); } catch(e) {}
-    window.location.href = 'promob_viewer.html?t=' + ts;
+    const payload = JSON.stringify({ url, token, nome, ts });
+    try { localStorage.setItem('promob_pending', payload); } catch(e) {}
+    try { sessionStorage.setItem('promob_pending', payload); } catch(e) {}
+    setTimeout(function() {
+      window.location.href = 'promob_viewer.html?t=' + ts;
+    }, 80); // pequeno delay para garantir que o localStorage foi gravado
   } else {
     // Desktop: abre no modal com iframe
     const modal = document.getElementById('modal-3d');
