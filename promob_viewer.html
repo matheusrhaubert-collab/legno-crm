@@ -1488,12 +1488,12 @@ function setupEvents(){
         // scale calibrado para que 1cm no dedo = ~1cm no modelo
         const scale = camDist * 0.012;
         const sinT=Math.sin(camTheta), cosT=Math.cos(camTheta);
-        camTX += (-dx * cosT) * scale;
-        camTZ += (-dx * sinT) * scale;
-        camTY += dy * scale;
+        camTX -= (dx * cosT) * scale;
+        camTZ -= (dx * sinT) * scale;
+        camTY -= dy * scale;
         updateCamera();
       } else {
-        camTheta-=dx*0.006; camPhi=Math.max(0.04,Math.min(Math.PI*0.88,camPhi+dy*0.005));
+        camTheta+=dx*0.006; camPhi=Math.max(0.04,Math.min(Math.PI*0.88,camPhi+dy*0.005));
       }
       lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;updateCamera();
     }else if(e.touches.length===2){
