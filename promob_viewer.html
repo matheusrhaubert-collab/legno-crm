@@ -2331,7 +2331,10 @@ document.addEventListener('DOMContentLoaded', function() {
         dbg('buf size: ' + buf.byteLength);
         const fakeFile = new File([buf], srcNome + '.promob', { type: 'application/octet-stream' });
         dbg('parsePromob start');
-        parsePromob(fakeFile);
+        parsePromob(fakeFile).then(function(data) {
+          dbg('renderData start');
+          if (data) renderData(data).then(function(){ dbg('renderData done'); }).catch(function(e){ dbg('renderData ERRO: '+e.message); });
+        }).catch(function(e){ dbg('parsePromob ERRO: '+e.message); });
       })
       .catch(function(e) {
         dbg('FETCH ERROR: ' + e.message);
