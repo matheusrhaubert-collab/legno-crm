@@ -52,7 +52,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe 
 #loading-text{font-size:12px;color:var(--text2)}
 
 /* ── APP ── */
-#app{height:100vh}
+#app{height:100vh;display:flex;flex-direction:row}
+#canvas-wrap{flex:1;position:relative;min-width:0;min-height:0}
 #sidebar{width:270px;flex-shrink:0;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column}
 #sh{padding:12px 14px 10px;border-bottom:0.5px solid var(--border);flex-shrink:0}
 .back-btn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer;margin-bottom:8px;transition:color 0.15s}
@@ -119,7 +120,7 @@ canvas{display:block;width:100%;height:100%}
 </div>
 
 <!-- APP -->
-<div id="app" style="display:none;flex-direction:row">
+<div id="app" style="visibility:hidden">
   <div id="sidebar">
     <div id="sh">
       <div class="back-btn" onclick="voltarOuFechar()">← Novo arquivo</div>
@@ -1490,30 +1491,41 @@ async function renderData(data){
     document.getElementById('sv-alt').textContent=rZ;
 
     setLoading(95,'Renderizando...');
-    console.log('[viewer] data parsed, pecas:', data.pecas?.length, 'modulos:', data.modulos?.length);
     currentData=data;
 
-    // Mostrar app ANTES de initThree para que o canvas tenha dimensões reais
+    // Mostrar app — esconde loading e mostra canvas
     document.getElementById('loading-screen').style.display='none';
-    document.getElementById('app').style.cssText='display:flex;flex-direction:row;height:100vh';
+    document.getElementById('app').style.visibility='visible';
 
-    // Aguardar um frame para o browser calcular o layout
-    await new Promise(r => setTimeout(r, 50));
+    // Aguardar o browser calcular layout (crítico no Android — canvas precisa ter dimensões)
+    await new Promise(r => setTimeout(r, 200));
 
-    console.log('[viewer] initThree...');
-    // Init Three.js se necessário
-    if(!renderer) initThree();
-    console.log('[viewer] buildScene...');
+    // Verificar se o canvas tem dimensões válidas — se não, esperar mais
+    let _wrap = document.getElementById('canvas-wrap');
+    let _attempts = 0;
+    while ((_wrap.clientWidth < 10 || _wrap.clientHeight < 10) && _attempts < 20) {
+      await new Promise(r => setTimeout(r, 100));
+      _attempts++;
+    }
+
+    // Init Three.js
+    if (!renderer) initThree();
+
+    // Se o renderer ainda tiver tamanho zero, forçar resize antes de buildScene
+    const _W = _wrap.clientWidth, _H = _wrap.clientHeight;
+    if (renderer && _W > 0 && _H > 0) {
+      camera.aspect = _W / _H;
+      camera.updateProjectionMatrix();
+      renderer.setSize(_W, _H);
+      updateOrthoSize();
+    }
+
     buildScene(data);
-    console.log('[viewer] buildFilters...');
     buildFilters(data.pecas);
-    console.log('[viewer] buildModulosPanel...');
     buildModulosPanel(data.modulos||[]);
-    console.log('[viewer] buildDecoracoes...');
     buildDecoracoes(data.decoracoes||[]);
-    console.log('[viewer] done!');
 
-    // Forçar resize do renderer
+    // Resize final após tudo montado
     setTimeout(()=>{
       const wrap=document.getElementById('canvas-wrap');
       const W=wrap.clientWidth, H=wrap.clientHeight;
@@ -1524,7 +1536,7 @@ async function renderData(data){
         updateOrthoSize();
       }
       setView('persp');
-    },100);
+    },150);
 
   } catch(err){
     console.error('[viewer] renderData ERROR:', err.message, err.stack);
