@@ -342,6 +342,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .mob-fab{position:fixed;bottom:calc(20px + var(--safe-bottom));right:16px;width:52px;height:52px;border-radius:50%;background:var(--gold);color:#0d0d0d;font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(201,169,110,0.35);border:none;z-index:600;font-weight:700}
 .mob-user-bar{padding:10px 16px;border-top:0.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-shrink:0;padding-bottom:calc(10px + var(--safe-bottom))}
 
+
+
+/* ── MOBILE 3D MODAL FIX ── */
+#modal-3d{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+#iframe-3d{display:block;min-height:0;}
+@media(max-width:768px){
+  #modal-3d{inset:0!important;width:100vw!important;height:100dvh!important;background:#fff!important;}
+  #modal-3d > div:first-child{height:44px!important;padding:6px 10px!important;flex-shrink:0!important;}
+  #modal-3d-titulo{font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70vw;}
+  #iframe-3d{width:100vw!important;height:calc(100dvh - 44px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))!important;flex:1!important;}
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
