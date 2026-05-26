@@ -12360,6 +12360,11 @@ function mobGoHome() {
           <span class="mob-btn-label">Banco de Dados</span>
           <span class="mob-btn-sub">XMLs, imagens, documentos</span>
         </button>
+        <button class="mob-btn" onclick="mobGoPage('viewer3d')" style="border-color:rgba(201,169,110,0.3)">
+          <span class="mob-btn-icon">🧊</span>
+          <span class="mob-btn-label">Visualizador 3D</span>
+          <span class="mob-btn-sub">Abrir projeto Promob</span>
+        </button>
       </div>
     </div>`;
 }
@@ -12369,7 +12374,7 @@ function mobGoPage(page) {
   document.getElementById('mob-back-btn').style.display = 'flex';
   document.getElementById('mob-user-bar').style.display = 'none';
 
-  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', instalacao:'Instalação', imagens:'Banco de Dados'};
+  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', instalacao:'Instalação', imagens:'Banco de Dados', viewer3d:'Visualizador 3D'};
   document.getElementById('mob-title').textContent = titles[page] || page;
 
   const content = document.getElementById('mob-content');
@@ -12382,6 +12387,7 @@ function mobGoPage(page) {
   if (page === 'entrega') mobRenderEntrega(content);
   if (page === 'instalacao') mobRenderInstalacao(content);
   if (page === 'imagens') mobRenderImagens(content);
+  if (page === 'viewer3d') mobRenderViewer3D(content);
 }
 
 // ── CLIENTES ──
@@ -12694,6 +12700,112 @@ async function mobHandleUpload(input) {
     }
   }
   input.value = '';
+}
+
+// ── VIEWER 3D MOBILE ──
+function mobRenderViewer3D(el) {
+  const projetos = DB.projetos.filter(p=>p.status!=='concluido');
+  el.innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Selecione projeto e ambiente:</div>
+      <select class="form-input" id="mob-3d-proj" onchange="mobUpdate3DAmbientes()" style="margin-bottom:10px">
+        <option value="">Projeto...</option>
+        ${projetos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('')}
+      </select>
+      <select class="form-input" id="mob-3d-amb" onchange="mobUpdate3DStatus()" style="margin-bottom:16px">
+        <option value="">Ambiente...</option>
+      </select>
+      <div id="mob-3d-status" style="font-size:13px;color:var(--text3);margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm)">Selecione um ambiente</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label class="btn btn-primary" style="width:100%;height:50px;font-size:15px;justify-content:center;cursor:pointer" id="mob-3d-upload-label">
+          📦 Carregar arquivo .promob
+          <input type="file" id="mob-3d-file-input" accept=".promob" style="display:none" onchange="mobHandlePromobUpload(this)">
+        </label>
+        <button class="btn" id="mob-3d-btn-ver" onclick="mobVer3D()" style="display:none;width:100%;height:50px;font-size:15px;justify-content:center;border-color:rgba(201,169,110,0.5);color:var(--gold)">
+          🧊 Abrir Visualizador 3D
+        </button>
+      </div>
+    </div>
+    <div id="mob-3d-upload-status"></div>`;
+}
+
+function mobUpdate3DAmbientes() {
+  const projId = document.getElementById('mob-3d-proj').value;
+  const proj = DB.projetos.find(p=>p.id===projId);
+  const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+  const ambs = lead?.ambientesBriefing || proj?.ambientes?.map(n=>({nome:n})) || [];
+  const sel = document.getElementById('mob-3d-amb');
+  sel.innerHTML = '<option value="">Ambiente...</option>' +
+    ambs.map(a=>`<option value="${a.nome||a.tipo}">${a.nome||a.tipo}</option>`).join('');
+  mobUpdate3DStatus();
+}
+
+function mobUpdate3DStatus() {
+  const projId = document.getElementById('mob-3d-proj')?.value;
+  const ambNome = document.getElementById('mob-3d-amb')?.value;
+  const statusEl = document.getElementById('mob-3d-status');
+  const btnVer = document.getElementById('mob-3d-btn-ver');
+  if (!projId || !ambNome || !statusEl) return;
+  const ambObj = getAmbObj(projId, ambNome) || {};
+  if (ambObj.promobNome && ambObj.promobStoragePath) {
+    statusEl.innerHTML = `<span style="color:var(--green)">✓ ${ambObj.promobNome}</span> <span style="color:var(--text3)">— pronto para visualizar</span>`;
+    if (btnVer) btnVer.style.display = 'flex';
+  } else {
+    statusEl.textContent = 'Nenhum .promob carregado para este ambiente';
+    if (btnVer) btnVer.style.display = 'none';
+  }
+}
+
+async function mobHandlePromobUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const projId = document.getElementById('mob-3d-proj')?.value;
+  const ambNome = document.getElementById('mob-3d-amb')?.value;
+  if (!projId) { toast('Selecione um projeto'); return; }
+  if (!ambNome) { toast('Selecione um ambiente'); return; }
+  const proj = DB.projetos.find(p=>p.id===projId);
+  const lead = proj ? DB.leads.find(l=>l.id===proj.leadId) : null;
+  if (!lead) { toast('Projeto não encontrado'); return; }
+  const statusEl = document.getElementById('mob-3d-upload-status');
+  if (statusEl) statusEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--gold)">⏳ Enviando .promob...</div>';
+  _ambProjetoId = projId;
+  _ambNome = ambNome;
+  _ambObj = getAmbObj(projId, ambNome) || {};
+  if (lead.ambientesBriefing) {
+    _ambIdx = lead.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===ambNome);
+  }
+  try {
+    const buf = await file.arrayBuffer();
+    const clean = s => (s||'').replace(/[^a-zA-Z0-9._-]/g,'_');
+    const promobPath = `${clean(lead.nome||'cliente')}/${clean(ambNome)}/${file.name}`;
+    const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${promobPath}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${SB_KEY_SERVICE}`, 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' },
+      body: buf
+    });
+    if (!resp.ok) throw new Error('Erro no upload: ' + resp.status);
+    _ambObj.promobStoragePath = promobPath;
+    _ambObj.promobNome = file.name;
+    if (!lead.ambientesBriefing) lead.ambientesBriefing = [];
+    if (_ambIdx >= 0) lead.ambientesBriefing[_ambIdx] = {...lead.ambientesBriefing[_ambIdx], ..._ambObj};
+    else { lead.ambientesBriefing.push({..._ambObj, nome: ambNome}); _ambIdx = lead.ambientesBriefing.length-1; }
+    await pushLead(lead);
+    saveDB();
+    if (statusEl) statusEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--green)">✓ .promob carregado com sucesso!</div>';
+    mobUpdate3DStatus();
+    toast('✓ .promob salvo!');
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `<div style="padding:16px;text-align:center;color:var(--red)">Erro: ${e.message}</div>`;
+    toast('Erro: ' + e.message);
+  }
+  input.value = '';
+}
+
+function mobVer3D() {
+  const projId = document.getElementById('mob-3d-proj')?.value;
+  const ambNome = document.getElementById('mob-3d-amb')?.value;
+  if (!projId || !ambNome) { toast('Selecione projeto e ambiente'); return; }
+  verPromob3D(projId, ambNome);
 }
 
 checkSession();
