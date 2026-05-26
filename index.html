@@ -2541,6 +2541,37 @@ async function imprimirBriefing(leadId) {
   </div>
 </div>
 
+
+<script>
+// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
+(function(){
+  window.verPromob3D = function(projetoId, nomeAmb){
+    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
+    try{
+      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
+      const amb = window._ambObj || {};
+      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
+      if(!path){
+        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
+        if(typeof toast==='function') toast(msg); else alert(msg);
+        return false;
+      }
+      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
+      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
+      const url = `${base}/storage/v1/object/promob/${path}`;
+      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
+      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
+      window.location.href = 'promob_viewer.html?v=' + Date.now();
+      return false;
+    }catch(err){
+      console.error(err);
+      alert('Erro abrindo 3D: ' + (err.message || err));
+      return false;
+    }
+  };
+})();
+</script>
+
 </body>\n</html>`;
 
   // Render in hidden iframe then convert to PDF
@@ -4498,6 +4529,37 @@ ${'</scr'+'ipt>'}
   </div>
   <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
+
+
+<script>
+// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
+(function(){
+  window.verPromob3D = function(projetoId, nomeAmb){
+    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
+    try{
+      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
+      const amb = window._ambObj || {};
+      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
+      if(!path){
+        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
+        if(typeof toast==='function') toast(msg); else alert(msg);
+        return false;
+      }
+      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
+      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
+      const url = `${base}/storage/v1/object/promob/${path}`;
+      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
+      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
+      window.location.href = 'promob_viewer.html?v=' + Date.now();
+      return false;
+    }catch(err){
+      console.error(err);
+      alert('Erro abrindo 3D: ' + (err.message || err));
+      return false;
+    }
+  };
+})();
+</script>
 
 </body>
 </html>`;
@@ -6613,6 +6675,37 @@ ${(()=>{
   </div>
   <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
+
+
+<script>
+// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
+(function(){
+  window.verPromob3D = function(projetoId, nomeAmb){
+    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
+    try{
+      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
+      const amb = window._ambObj || {};
+      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
+      if(!path){
+        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
+        if(typeof toast==='function') toast(msg); else alert(msg);
+        return false;
+      }
+      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
+      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
+      const url = `${base}/storage/v1/object/promob/${path}`;
+      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
+      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
+      window.location.href = 'promob_viewer.html?v=' + Date.now();
+      return false;
+    }catch(err){
+      console.error(err);
+      alert('Erro abrindo 3D: ' + (err.message || err));
+      return false;
+    }
+  };
+})();
+</script>
 
 </body>
 </html>`;
@@ -13483,6 +13576,37 @@ function _lbKey(e){if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNa
   </div>
   <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
+
+
+<script>
+// ===== FIX 3D MOBILE v4 — abre em página inteira via sessionStorage =====
+(function(){
+  window.verPromob3D = function(projetoId, nomeAmb){
+    try{ if(window.event && window.event.stopPropagation) window.event.stopPropagation(); }catch(e){}
+    try{
+      if(typeof _prepararAmbContext === 'function') _prepararAmbContext(projetoId, nomeAmb);
+      const amb = window._ambObj || {};
+      const path = amb.promobStoragePath || amb.promob_path || amb.promobPath || '';
+      if(!path){
+        const msg='Esse ambiente ainda não tem arquivo .promob salvo para abrir no 3D.';
+        if(typeof toast==='function') toast(msg); else alert(msg);
+        return false;
+      }
+      const base = (typeof SB_URL !== 'undefined') ? SB_URL : 'https://bibtcgcabjngisqwywrs.supabase.co';
+      const key  = (typeof SB_KEY_SERVICE !== 'undefined') ? SB_KEY_SERVICE : (typeof SB_KEY !== 'undefined' ? SB_KEY : '');
+      const url = `${base}/storage/v1/object/promob/${path}`;
+      const nome = nomeAmb || amb.nome || amb.tipo || 'projeto';
+      sessionStorage.setItem('promob_pending', JSON.stringify({url:url, token:key, nome:nome}));
+      window.location.href = 'promob_viewer.html?v=' + Date.now();
+      return false;
+    }catch(err){
+      console.error(err);
+      alert('Erro abrindo 3D: ' + (err.message || err));
+      return false;
+    }
+  };
+})();
+</script>
 
 </body>
 </html>
