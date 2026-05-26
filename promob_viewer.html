@@ -143,16 +143,34 @@ canvas{display:block;width:100%;height:100%}
   <!-- Topbar mobile (só aparece em telas pequenas) -->
   <!-- Topbar mobile -->
   <div id="mob-topbar">
-    <button class="mob-tb-btn" onclick="history.length>1?history.back():(window.location.href='index.html')">← Voltar</button>
-    <div id="mob-topbar-title"></div>
-    <button class="mob-tb-btn" id="mob-btn-tipo" onclick="mobToggleDrawer('tipo')">🗂 Tipo</button>
-    <button class="mob-tb-btn" id="mob-btn-cor" onclick="mobToggleDrawer('cor')">🎨 Cor</button>
+    <button class="mob-tb-btn" onclick="history.length>1?history.back():(window.location.href='index.html')">←</button>
+    <div style="flex:1;position:relative;display:flex;align-items:center">
+      <input id="mob-search-peca" type="text" placeholder="ID da peça..." inputmode="numeric"
+        style="width:100%;padding:5px 24px 5px 8px;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.15);border-radius:7px;color:#fff;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box"
+        oninput="buscarPeca(this.value);document.getElementById('mob-search-clear').style.display=this.value?'block':'none'"
+        onkeydown="if(event.key==='Escape'){limparBuscaPeca();this.value='';document.getElementById('mob-search-clear').style.display='none'}">
+      <button id="mob-search-clear" onclick="limparBuscaPeca();document.getElementById('mob-search-peca').value='';this.style.display='none'"
+        style="display:none;position:absolute;right:4px;background:none;border:none;color:rgba(255,255,255,0.4);font-size:14px;cursor:pointer;padding:0;line-height:1;touch-action:manipulation">×</button>
+    </div>
+    <button class="mob-tb-btn" id="mob-btn-tipo" onclick="mobToggleDrawer('tipo')">🗂</button>
+    <button class="mob-tb-btn" id="mob-btn-cor" onclick="mobToggleDrawer('cor')">🎨</button>
+    <button class="mob-tb-btn" id="mob-btn-vista" onclick="mobToggleDrawer('vista')">⋯</button>
   </div>
   <!-- Drawer: filtro por tipo -->
   <div class="mob-drawer" id="mob-drawer-tipo" onclick="if(event.target===this)mobToggleDrawer('tipo')">
     <div class="mob-drawer-inner">
       <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Filtro por tipo</div>
       <div id="mob-filter-list"></div>
+    </div>
+  </div>
+  <!-- Drawer: vistas -->
+  <div class="mob-drawer" id="mob-drawer-vista" onclick="if(event.target===this)mobToggleDrawer('vista')">
+    <div class="mob-drawer-inner" style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Opções de vista</div>
+      <button class="mob-vista-btn" id="mob-btn-room-d" onclick="toggleRoom();mobSyncVistaBtn('room')" style="background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.15);border-radius:9px;color:rgba(255,255,255,0.8);padding:12px 16px;font-size:14px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">🏠 Cômodo</button>
+      <button class="mob-vista-btn" id="mob-btn-deco-d" onclick="toggleDecoracoes();mobSyncVistaBtn('deco')" style="background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.15);border-radius:9px;color:rgba(255,255,255,0.8);padding:12px 16px;font-size:14px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">🚪 Decorações</button>
+      <button class="mob-vista-btn" id="mob-btn-hidden-d" onclick="toggleHiddenLine();mobSyncVistaBtn('hidden')" style="background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.15);border-radius:9px;color:rgba(255,255,255,0.8);padding:12px 16px;font-size:14px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">⬡ Hidden Line</button>
+      <button onclick="toggleElevation();mobToggleDrawer('vista')" style="background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.15);border-radius:9px;color:rgba(255,255,255,0.8);padding:12px 16px;font-size:14px;text-align:left;cursor:pointer;font-family:inherit;touch-action:manipulation">📐 Elevação</button>
     </div>
   </div>
   <!-- Drawer: filtro por cor -->
@@ -1484,15 +1502,10 @@ function setupEvents(){
     if(e.touches.length===1&&isDrag){
       const dx=(e.touches[0].clientX-lastX), dy=(e.touches[0].clientY-lastY);
       if(_panMode){
-        // Pan: 1px de dedo = movimento proporcional no mundo 3D
-        // scale calibrado para que 1cm no dedo = ~1cm no modelo
-        const scale = camDist * 0.012;
+        const scale = camDist * 0.006;
         const sinT=Math.sin(camTheta), cosT=Math.cos(camTheta);
-        // Move o alvo no plano horizontal (chão) — X e Z, sem mudar altura Y
-        // dx: dedo para direita → mundo vai para esquerda (câmera orbia para direita)
-        // dy: dedo para cima/baixo → move profundidade no plano
-        camTX += (dx * cosT + dy * sinT) * scale;
-        camTZ += (dx * sinT - dy * cosT) * scale;
+        camTX -= (dx * cosT - dy * sinT) * scale;
+        camTZ -= (dx * sinT + dy * cosT) * scale;
         updateCamera();
       } else {
         camTheta+=dx*0.006; camPhi=Math.max(0.04,Math.min(Math.PI*0.88,camPhi+dy*0.005));
@@ -2479,8 +2492,24 @@ window.addEventListener('message', async (e) => {
   }
 });
 
+function mobSyncVistaBtn(which){
+  const map = {
+    room:  {drawer:'mob-btn-room-d',  main:'btn-room'},
+    deco:  {drawer:'mob-btn-deco-d',  main:'btn-deco'},
+    hidden:{drawer:'mob-btn-hidden-d', main:'btn-hidden'}
+  };
+  const m = map[which]; if(!m) return;
+  const mainBtn = document.getElementById(m.main);
+  const drawBtn = document.getElementById(m.drawer);
+  if(!mainBtn||!drawBtn) return;
+  const isActive = mainBtn.classList.contains('active');
+  drawBtn.style.background = isActive ? 'rgba(201,169,110,0.2)' : 'rgba(255,255,255,0.08)';
+  drawBtn.style.borderColor = isActive ? 'rgba(201,169,110,0.5)' : 'rgba(255,255,255,0.15)';
+  drawBtn.style.color = isActive ? '#c9a96e' : 'rgba(255,255,255,0.8)';
+}
+
 function mobToggleDrawer(which){
-  const drawers = ['tipo','cor'];
+  const drawers = ['tipo','cor','vista'];
   drawers.forEach(d => {
     const el = document.getElementById('mob-drawer-' + d);
     const btn = document.getElementById('mob-btn-' + d);
