@@ -12750,15 +12750,16 @@ function mobRenderViewer3D(el) {
 }
 
 function mobAbrirViewer3D(projId, ambNome, path, nome) {
-  const url = SB_URL + '/storage/v1/object/promob/' + path;
-  const token = SB_KEY_SERVICE;
-  const ts = Date.now();
-  const payload = JSON.stringify({ url, token, nome: nome || ambNome, ts });
-  try { localStorage.setItem('promob_pending', payload); } catch(e) {}
-  try { sessionStorage.setItem('promob_pending', payload); } catch(e) {}
-  setTimeout(function() {
-    window.location.href = 'promob_viewer.html?t=' + ts;
-  }, 100);
+  // Passa os dados direto na URL — sem depender de localStorage/sessionStorage
+  // que o Android Chrome pode limpar ao navegar entre páginas
+  const fileUrl = SB_URL + '/storage/v1/object/promob/' + path;
+  const params = new URLSearchParams({
+    src: fileUrl,
+    token: SB_KEY_SERVICE,
+    nome: nome || ambNome,
+    t: Date.now()
+  });
+  window.location.href = 'promob_viewer.html?' + params.toString();
 }
 
 checkSession();
