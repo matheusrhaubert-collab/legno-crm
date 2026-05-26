@@ -815,29 +815,35 @@ function dbg(msg) {
 
 function initThree(){
   const wrap=document.getElementById('canvas-wrap');
-  // No mobile o canvas-wrap pode ainda ter clientWidth=0 — usar window como fallback
   const W=wrap.clientWidth||window.innerWidth;
   const H=wrap.clientHeight||window.innerHeight;
+  dbg('initThree W='+W+' H='+H);
   scene=new THREE.Scene();
   scene.background=new THREE.Color(0xffffff);
-
-  // Perspectiva
+  dbg('scene ok');
   camera=new THREE.PerspectiveCamera(40,W/H,0.001,5000);
-
-  // Ortográfica
   orthoCamera=new THREE.OrthographicCamera(-1,1,1,-1,0.001,5000);
-
-  renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c3d'),antialias:true});
+  dbg('cameras ok');
+  try {
+    renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c3d'),antialias:false,powerPreference:'low-power'});
+    dbg('renderer ok');
+  } catch(e) {
+    dbg('WebGLRenderer ERRO: '+e.message);
+    // Tentar sem antialias e canvas separado
+    try {
+      renderer=new THREE.WebGLRenderer({antialias:false});
+      document.getElementById('canvas-wrap').appendChild(renderer.domElement);
+      dbg('renderer fallback ok');
+    } catch(e2) { dbg('renderer FALHOU: '+e2.message); return; }
+  }
   renderer.setSize(W,H);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  // Sem sombras
+  renderer.setPixelRatio(1); // forçar pixel ratio 1 no mobile para performance
   renderer.shadowMap.enabled=false;
-
-  // Iluminação flat uniforme — sem direção, sem sombra
+  dbg('renderer sized');
   scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-
   sceneGroup=new THREE.Group(); scene.add(sceneGroup);
   setupEvents();
+  dbg('animate start');
   animate();
   window.addEventListener('resize',()=>{
     const W=wrap.clientWidth,H=wrap.clientHeight;
@@ -1067,6 +1073,7 @@ function buildScene(data){
   // Peças — processadas em chunks para não travar a thread no Android
   const EXPLODE_Y = {cabinet:0,bottom:-0.15,shelf:0.15,door:0.45,panel:-0.3,stretcher:-0.2,filler:0.2,unknown:0,side:0};
 
+  dbg('buildScene: room='+JSON.stringify(room)+' pecas='+pecas.length);
   function _addPeca(p) {
     if(!typeVisible[p.type]) return;
     const _mvk2=p.modelType||''; if(_mvk2 && matVisible[_mvk2]===false) return;
@@ -1110,6 +1117,7 @@ function buildScene(data){
   // Processar em chunks de 30 peças com yield para o browser respirar
   const CHUNK = 30;
   let idx = 0;
+  dbg('_processChunk iniciando chunks');
   function _processChunk() {
     const end = Math.min(idx + CHUNK, pecas.length);
     for (; idx < end; idx++) _addPeca(pecas[idx]);
@@ -1117,7 +1125,8 @@ function buildScene(data){
     if (idx < pecas.length) {
       setTimeout(_processChunk, 0); // yield para o browser não travar
     } else {
-      updateCamera(); // só chama updateCamera quando todas as peças estão prontas
+      dbg('chunks done, updateCamera');
+      updateCamera();
     }
   }
   _processChunk();
