@@ -9726,8 +9726,10 @@ function abrirCondicoes(projetoId) {
       let etapasSave = etapasPadrao;
       if (tipoFinal==='parcelado') {
         etapasSave = etapasAtuais.map((e,i)=>{
-          const lbl = div.querySelector('[data-etapa-label="'+i+'"]')?.value||e.label;
-          const pct = parseFloat(div.querySelector('[data-etapa-pct="'+i+'"]')?.value||e.pct)||e.pct;
+          const lblEl = div.querySelector('[data-etapa-label="'+i+'"]');
+          const pctEl = div.querySelector('[data-etapa-pct="'+i+'"]');
+          const lbl = lblEl ? lblEl.value : e.label;
+          const pct = pctEl ? (parseFloat(pctEl.value)||0) : e.pct;
           return {label:lbl,pct};
         });
       }
