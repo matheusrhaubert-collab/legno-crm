@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v20260525_android3d -->
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="STUDIO LEGNO CRM">
 <meta name="theme-color" content="#0d0d0d">
 <link rel="manifest" href="manifest.json">
-<!-- CRM v2.2 - 2026-05-18 — Checklist instalação com 5 etapas padrão -->
+<!-- CRM v2.1 - 2026-05-11 -->
 <title>STUDIO LEGNO CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -48,17 +48,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 }
 .nav-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active{color:var(--gold2);background:var(--gold-dim);border-left-color:var(--gold)}
-
-/* -- LIGHTBOX -- */
-#lightbox-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.95);display:none;align-items:center;justify-content:center;}
-#lightbox-overlay.open{display:flex;animation:fadeIn 0.18s ease}
-#lightbox-img{max-width:92vw;max-height:88vh;object-fit:contain;border-radius:10px;user-select:none;transition:opacity 0.15s ease;}
-#lightbox-img.fading{opacity:0}
-.lb-btn{position:fixed;top:50%;transform:translateY(-50%);width:48px;height:48px;background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.2);border-radius:50%;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;z-index:10000;}
-.lb-btn:hover{background:rgba(255,255,255,0.2)}
-#lb-prev{left:12px}#lb-next{right:12px}
-#lb-close{position:fixed;top:16px;right:16px;width:38px;height:38px;background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.2);border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10000;}
-#lb-counter{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);font-size:12px;color:rgba(255,255,255,0.5);font-family:'DM Mono',monospace;background:rgba(0,0,0,0.5);padding:4px 12px;border-radius:99px;z-index:10000;}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
 .nav-badge{margin-left:auto;background:var(--gold);color:#0d0d0d;font-size:10px;font-weight:600;padding:2px 6px;border-radius:99px;min-width:18px;text-align:center}
@@ -614,14 +603,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <span class="search-icon">⌕</span>
           <input type="search" placeholder="Buscar cliente ou endereço..." oninput="filterPage('instalacao',this.value)" id="search-instalacao">
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="filtros-instalacao">
-          <button class="btn btn-sm filtro-rapido active" data-filtro-inst="tudo"    onclick="setFiltroInstalacao('tudo')">Tudo</button>
-          <button class="btn btn-sm filtro-rapido"        data-filtro-inst="pendente" onclick="setFiltroInstalacao('pendente')">⏳ Pendentes</button>
-          <button class="btn btn-sm filtro-rapido"        data-filtro-inst="producao" onclick="setFiltroInstalacao('producao')" style="color:var(--blue)">🏭 Em produção</button>
-          <button class="btn btn-sm filtro-rapido"        data-filtro-inst="concluida" onclick="setFiltroInstalacao('concluida')" style="color:var(--green)">✓ Concluídas</button>
-        </div>
         <div class="sec-header">
-          <span class="sec-title" id="inst-sec-title">Instalações agendadas</span>
+          <span class="sec-title">Instalações agendadas</span>
           <button class="btn btn-primary btn-sm" onclick="openModal('novaInstalacao')">＋ Nova instalação</button>
         </div>
         <div id="list-instalacao"></div>
@@ -963,7 +946,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 <div class="toast" id="toast"></div>
 <input type="file" accept=".xml" id="xml-direto-input" style="display:none" onchange="carregarXML(event)">
-<input type="file" accept=".promob" id="promob-direto-input" style="display:none" onchange="carregarPromob(event)">
 <input type="file" accept="image/*,application/pdf" multiple id="fotos-direto-input" style="display:none" onchange="adicionarImagensAmbiente(event)">
 
 
@@ -1005,7 +987,6 @@ let currentContratoId = null;
 let currentApresId = null;
 let uploadFiles = [];
 let filterTexts = {leads:'',projetos:'',agenda:'',producao:'',perdidos:'',concluidos:'',entrega:'',instalacao:''};
-let _filtroInstalacaoStatus = 'tudo';
 
 
 
@@ -1200,29 +1181,10 @@ function _prepararAmbContext(projetoId, nomeAmb) {
   _coresSelecionadas = _ambObj.cores ? [..._ambObj.cores] : [];
 }
 
-// ── Dispatcher seguro para ações de ambiente (evita quebra de aspas no onclick) ──
-function _ambAction(key, acao, extra) {
-  if (!window._ambNomeMap || !window._ambNomeMap[key]) {
-    toast('Erro: ambiente não encontrado'); return;
-  }
-  const {pid, nome} = window._ambNomeMap[key];
-  if (acao === 'abrir')      abrirAmbiente(pid, nome);
-  else if (acao === 'xml')   abrirXMLDireto(pid, nome);
-  else if (acao === 'foto')  abrirFotosDireto(pid, nome);
-  else if (acao === 'editar') editarValorVendaAmb(pid, nome);
-  else if (acao === 'mini')  abrirMiniFinanceiro(pid, nome);
-  else if (acao === 'promob') abrirPromobDireto(pid, nome);
-  else if (acao === 'ver3d')  verPromob3D(pid, nome);
-  else if (acao === 'removerFoto') removerFotoAmbienteCard(pid, nome, extra);
-}
-
 function abrirXMLDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   const _pLock = DB.projetos.find(x=>x.id===projetoId);
-  if (_pLock?.propostaTravada && !isAdmin()) {
-    _pedirDesbloqueioRapido(projetoId, function() { abrirXMLDireto(projetoId, nomeAmb); });
-    return;
-  }
+  if (_pLock?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   _prepararAmbContext(projetoId, nomeAmb);
   // Recria o input para garantir que onchange dispara mesmo com o mesmo arquivo
   const old = document.getElementById('xml-direto-input');
@@ -1233,155 +1195,10 @@ function abrirXMLDireto(projetoId, nomeAmb) {
   novo.click();
 }
 
-function abrirPromobDireto(projetoId, nomeAmb) {
-  event.stopPropagation();
-  _prepararAmbContext(projetoId, nomeAmb);
-  const old = document.getElementById('promob-direto-input');
-  const novo = old.cloneNode(true);
-  novo.value = '';
-  novo.onchange = (e) => carregarPromob(e);
-  old.parentNode.replaceChild(novo, old);
-  novo.click();
-}
-
-async function carregarPromob(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  toast('Enviando .promob para o Supabase...');
-  try {
-    const buf = await file.arrayBuffer();
-    const _pSaveP = DB.projetos.find(x=>x.id===_ambProjetoId);
-    const _lSaveP = DB.leads.find(l=>l.id===_pSaveP?.leadId);
-    const clean = s => s.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const promobPath = `${clean(_lSaveP?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
-    const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${promobPath}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${SB_KEY_SERVICE}`, 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' },
-      body: buf
-    });
-    if (resp.ok) {
-      _ambObj.promobStoragePath = promobPath;
-      _ambObj.promobNome = file.name;
-
-      // Salvar no lead
-      const _pSave2 = DB.projetos.find(x=>x.id===_ambProjetoId);
-      const _lSave2 = DB.leads.find(l=>l.id===_pSave2?.leadId);
-      if (_lSave2) {
-        if (!_lSave2.ambientesBriefing) _lSave2.ambientesBriefing = [];
-        let idx2 = _lSave2.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
-        if (idx2 < 0 && _ambIdx >= 0) idx2 = _ambIdx;
-        if (idx2 >= 0) {
-          _lSave2.ambientesBriefing[idx2] = {..._lSave2.ambientesBriefing[idx2], ..._ambObj};
-        } else {
-          _lSave2.ambientesBriefing.push({..._ambObj, nome: _ambNome});
-          idx2 = _lSave2.ambientesBriefing.length - 1;
-        }
-        try {
-          await pushLead(_lSave2);
-          renderProjetos();
-          toast('✓ .promob salvo e cache 3D gerado!');
-        } catch(e) {
-          toast('✓ .promob no storage, erro ao salvar no banco: ' + e.message);
-        }
-      } else {
-        toast('✓ .promob enviado (sem lead vinculado para salvar)');
-      }
-    } else {
-      const errText = await resp.text();
-      toast('Erro no upload: ' + errText);
-    }
-  } catch(e) {
-    toast('Erro: ' + e.message);
-  }
-}
-
-
-
-async function verPromob3D(projetoId, nomeAmb) {
-  try { if (window.event) window.event.stopPropagation(); } catch(e) {}
-
-  // Buscar o objeto do ambiente diretamente — não depende de contexto global
-  const _p3d = DB.projetos.find(x => x.id === projetoId);
-  const _lead3d = DB.leads.find(l => l.id === _p3d?.leadId);
-  const _amb3d = (_lead3d?.ambientesBriefing || []).find(a =>
-    (a.nome || a.tipo) === nomeAmb ||
-    (a.nome || a.tipo || '').trim().toLowerCase() === (nomeAmb || '').trim().toLowerCase()
-  ) || {};
-
-  const path = _amb3d.promobStoragePath;
-  if (!path) { toast('Nenhum .promob carregado para este ambiente'); return; }
-
-  const url = SB_URL + '/storage/v1/object/promob/' + path;
-  const token = SB_KEY_SERVICE;
-  const nome = nomeAmb || 'projeto';
-
-  const isMob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-
-  if (isMob) {
-    // Android: grava no localStorage e navega para o viewer
-    const ts = Date.now();
-    const payload = JSON.stringify({ url, token, nome, ts });
-    try { localStorage.setItem('promob_pending', payload); } catch(e) {}
-    try { sessionStorage.setItem('promob_pending', payload); } catch(e) {}
-    setTimeout(function() {
-      window.location.href = 'promob_viewer.html?t=' + ts;
-    }, 80); // pequeno delay para garantir que o localStorage foi gravado
-  } else {
-    // Desktop: abre no modal com iframe
-    const modal = document.getElementById('modal-3d');
-    const iframe = document.getElementById('iframe-3d');
-    const titulo = document.getElementById('modal-3d-titulo');
-    if (!modal || !iframe) { toast('Erro: modal 3D nao encontrado'); return; }
-    if (titulo) titulo.textContent = nome;
-    closeModal('ambiente');
-    modal.style.display = 'flex';
-    _abrirViewerNoIframe(iframe, url, token, nome);
-  }
-}
-
-function _abrirViewerNoIframe(iframe, url, token, nome) {
-  // Remover listener anterior se houver
-  if(iframe._viewerLoadHandler) {
-    iframe.removeEventListener('load', iframe._viewerLoadHandler);
-  }
-
-  iframe._viewerLoadHandler = function() {
-    // Só enviar se carregou o viewer de verdade (não about:blank)
-    try {
-      const src = iframe.contentWindow?.location?.href || '';
-      if(src.includes('about:blank') || src === '') return;
-    } catch(e) {}
-
-    setTimeout(() => {
-      try {
-        iframe.contentWindow.postMessage({ type: 'load_promob_url', url, token, nome }, '*');
-      } catch(e) { console.error('postMessage failed:', e); }
-    }, 400);
-  };
-
-  iframe.addEventListener('load', iframe._viewerLoadHandler);
-  iframe.src = 'promob_viewer.html?' + Date.now(); // cache bust
-}
-
-// Receber mensagem do viewer para fechar modal
-window.addEventListener('message', (e) => {
-  if(e.data?.type === 'close_viewer') fechar3D();
-});
-
-function fechar3D() {
-  const modal = document.getElementById('modal-3d');
-  if(modal) modal.style.display = 'none';
-  const iframe = document.getElementById('iframe-3d');
-  if(iframe) iframe.src = 'about:blank';
-}
-
 function abrirFotosDireto(projetoId, nomeAmb) {
   event.stopPropagation();
   const _pLock = DB.projetos.find(x=>x.id===projetoId);
-  if (_pLock?.propostaTravada && !isAdmin()) {
-    _pedirDesbloqueioRapido(projetoId, function() { abrirFotosDireto(projetoId, nomeAmb); });
-    return;
-  }
+  if (_pLock?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado — proposta já aprovada'); return; }
   _prepararAmbContext(projetoId, nomeAmb);
   const old = document.getElementById('fotos-direto-input');
   const novo = old.cloneNode(true);
@@ -1394,7 +1211,7 @@ function abrirFotosDireto(projetoId, nomeAmb) {
 function abrirAmbiente(projetoId, nomeAmb) {
   const _pAmb = DB.projetos.find(x=>x.id===projetoId);
   if (_pAmb?.propostaTravada && !isAdmin()) {
-    _pedirDesbloqueioRapido(projetoId, function() { abrirAmbiente(projetoId, nomeAmb); });
+    toast('🔒 Ambientes travados após aprovação da proposta');
     return;
   }
   _ambProjetoId = projetoId;
@@ -1439,64 +1256,8 @@ function abrirAmbiente(projetoId, nomeAmb) {
   renderImagensAmbiente();
   // Cores
   renderCoresSelecionadas();
-  // Promob / 3D
-  _atualizarStatusPromobModal();
 
   openModal('ambiente');
-}
-
-// Atualiza status do .promob no modal-ambiente
-function _atualizarStatusPromobModal() {
-  const statusEl = document.getElementById('amb-promob-status');
-  const btn3d = document.getElementById('amb-btn-ver3d');
-  if (!statusEl || !btn3d) return;
-  if (_ambObj.promobNome && _ambObj.promobStoragePath) {
-    statusEl.innerHTML = `<span style="color:var(--green)">✓ ${_ambObj.promobNome}</span>`;
-    btn3d.style.display = 'inline-flex';
-  } else {
-    statusEl.textContent = 'Nenhum arquivo .promob carregado';
-    btn3d.style.display = 'none';
-  }
-}
-
-// Carregar .promob de dentro do modal-ambiente
-async function carregarPromobModal(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  toast('Enviando .promob...');
-  try {
-    const buf = await file.arrayBuffer();
-    const _pSave = DB.projetos.find(x=>x.id===_ambProjetoId);
-    const _lSave = DB.leads.find(l=>l.id===_pSave?.leadId);
-    const clean = s => (s||'').replace(/[^a-zA-Z0-9._-]/g,'_');
-    const promobPath = `${clean(_lSave?.nome||'cliente')}/${clean(_ambNome||'ambiente')}/${file.name}`;
-    const resp = await fetch(`${SB_URL}/storage/v1/object/promob/${promobPath}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${SB_KEY_SERVICE}`, 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' },
-      body: buf
-    });
-    if (!resp.ok) throw new Error('Erro no upload: ' + resp.status);
-    _ambObj.promobStoragePath = promobPath;
-    _ambObj.promobNome = file.name;
-    // Salvar no lead
-    const _lSave2 = DB.leads.find(l=>l.id===_pSave?.leadId);
-    if (_lSave2) {
-      if (!_lSave2.ambientesBriefing) _lSave2.ambientesBriefing = [];
-      const idx2 = _lSave2.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===_ambNome);
-      if (idx2>=0) _lSave2.ambientesBriefing[idx2] = {..._lSave2.ambientesBriefing[idx2], ..._ambObj};
-      else _lSave2.ambientesBriefing.push({..._ambObj, nome: _ambNome});
-    }
-    await salvarLeadNoSupabase(_lSave2 || _lSave);
-    saveDB();
-    _atualizarStatusPromobModal();
-    renderProjetos();
-    toast('✓ .promob carregado com sucesso');
-  } catch(e) { toast('Erro ao enviar .promob: ' + e.message); }
-}
-
-// Botão Ver 3D dentro do modal-ambiente
-function verPromob3DFromModal() {
-  if (_ambProjetoId && _ambNome) verPromob3D(_ambProjetoId, _ambNome);
 }
 
 function renderImagensAmbiente() {
@@ -1589,38 +1350,6 @@ async function adicionarImagensAmbiente(event) {
   // Re-enable save button
   const _saveBtn2 = document.querySelector('#modal-ambiente .btn-primary');
   if (_saveBtn2) { _saveBtn2.disabled = false; _saveBtn2.innerHTML = '<span style="font-size:14px">💾</span> Salvar'; }
-}
-
-async function removerFotoAmbienteCard(projetoId, nomeAmb, idx) {
-  const p = DB.projetos.find(x=>x.id===projetoId);
-  if (!p) return;
-  if (p.propostaTravada && !isAdmin()) {
-    _pedirDesbloqueioRapido(projetoId, function(){ removerFotoAmbienteCard(projetoId, nomeAmb, idx); });
-    return;
-  }
-  const lead = DB.leads.find(l=>l.id===p.leadId);
-  if (!lead?.ambientesBriefing) return;
-  const ambIdx = lead.ambientesBriefing.findIndex(a=>(a.nome||a.tipo)===nomeAmb);
-  if (ambIdx<0) return;
-  const amb = lead.ambientesBriefing[ambIdx];
-  const imagens = amb.imagens||[];
-  if (idx>=imagens.length) return;
-  // Delete from Supabase Storage if has path
-  const img = imagens[idx];
-  if (img?.path) {
-    try {
-      await fetch(SB_URL+'/storage/v1/object/imagens/'+img.path, {
-        method:'DELETE', headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE}
-      });
-    } catch(e) {}
-  }
-  imagens.splice(idx, 1);
-  amb.imagens = imagens;
-  try {
-    await pushLead(lead);
-    renderProjetos();
-    toast('🗑 Foto removida.');
-  } catch(e) { toast('Erro: '+e.message); }
 }
 
 async function removerImagemAmbiente(i) {
@@ -2334,8 +2063,7 @@ async function gerarDescricaoIA() {
 async function salvarAmbienteDetalhe() {
   const _projLockA = DB.projetos.find(p=>p.id===_ambProjetoId);
   if (_projLockA?.propostaTravada && !isAdmin()) {
-    _pedirDesbloqueioRapido(_ambProjetoId, salvarAmbienteDetalhe);
-    return;
+    toast('🔒 Projeto travado — proposta já aprovada'); return;
   }
   // Visual feedback on button
   const _btnSalvar = document.querySelector('#modal-ambiente .btn-primary');
@@ -2353,9 +2081,8 @@ async function salvarAmbienteDetalhe() {
     if (idx>=0) {
       lead.ambientesBriefing[idx] = {...lead.ambientesBriefing[idx], ..._ambObj};
     } else {
-      // Ambiente novo — adicionar ao array
-      lead.ambientesBriefing.push({...(_ambObj||{}), nome: _ambNome, tipo: _ambObj?.tipo||_ambNome});
       if (_btnSalvar) { _btnSalvar.disabled = false; _btnSalvar.innerHTML = '💾 Salvar'; }
+      toast('Erro: ambiente não encontrado — feche e abra novamente'); return;
     }
   }
   // Push lead with updated ambiente to Supabase
@@ -3710,13 +3437,8 @@ function abrirContrato(projetoId) {
     +'<div style="font-size:12px;color:var(--text3);margin-bottom:20px">'+p.nome+'</div>'
 
     +'<div style="background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.15);border-radius:10px;padding:14px;margin-bottom:16px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Valor do contrato</span><span style="font-size:10px;color:var(--text3);font-style:italic">editável</span></div>'
-    +'<div style="display:flex;align-items:center;gap:8px">'
-    +'<span style="font-size:16px;color:var(--gold2);font-weight:700">$</span>'
-    +'<input id="ct-valor" type="number" step="0.01" min="0" value="'+precoFinal.toFixed(2)+'" style="flex:1;background:#1a1a1a;border:1px solid rgba(201,169,110,0.4);border-radius:8px;color:var(--gold2);font-size:18px;font-weight:700;padding:8px 12px;outline:none;font-family:DM Mono,monospace">'
-    +'</div>'
-    +'<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:12px;color:var(--text3)">Condição</span><span style="font-size:12px;color:var(--text2)">'+(p.condicaoTipo==='avista'?'À vista':p.condicaoTipo==='financiado'?'Financiado':'Parcelado')+'</span></div>'
-    +(precoFinal !== (precoFinalAmb||0) && precoFinalAmb > 0 ? '' : precoFinal <= 0 ? '<div style="font-size:11px;color:var(--red);margin-top:6px">⚠ Valor zero — insira o valor negociado com o cliente</div>' : '')
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--text3)">Valor do contrato</span><span style="font-size:14px;font-weight:700;color:var(--gold2)">'+fmtV(precoFinal)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--text3)">Condição</span><span style="font-size:12px;color:var(--text2)">'+(p.condicaoTipo==='avista'?'À vista':p.condicaoTipo==='financiado'?'Financiado':'Parcelado')+'</span></div>'
     +'</div>'
 
     +'<div style="margin-bottom:16px"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px">Idioma do contrato</label>'
@@ -3750,14 +3472,8 @@ function abrirContrato(projetoId) {
   div.querySelector('#ct-cancel').onclick = () => document.body.removeChild(ov);
   div.querySelector('#ct-gerar').onclick = () => {
     const dataContrato = div.querySelector('#ct-data-contrato').value;
-    const valorOverride = parseFloat(div.querySelector('#ct-valor')?.value||'0')||0;
-    if (valorOverride <= 0) { 
-      const el = div.querySelector('#ct-valor');
-      if (el) { el.style.borderColor='var(--red)'; el.focus(); }
-      return;
-    }
     document.body.removeChild(ov);
-    gerarContratoHTML(projetoId, langSel, dataContrato, valorOverride);
+    gerarContratoHTML(projetoId, langSel, dataContrato);
   };
 
   ov.appendChild(div);
@@ -3765,16 +3481,16 @@ function abrirContrato(projetoId) {
   document.body.appendChild(ov);
 }
 
-async function gerarContratoHTML(projetoId, lang, dataContrato, valorOverride) {
+async function gerarContratoHTML(projetoId, lang, dataContrato) {
   const p = DB.projetos.find(x=>x.id===projetoId);
   if (!p) return;
   const lead = DB.leads.find(l=>l.id===p.leadId);
   if (!lead) return;
   const ambientes = lead.ambientesBriefing||[];
   const prazos = p.prazos||{};
-  // Valor do contrato: override do modal > soma ambientes > fallback projeto
+  // Valor do contrato = soma dos valores de venda por ambiente (editados manualmente)
   const precoFinalAmb = ambientes.reduce((s,a) => s + (a.finValorManual||a.finPrecoFinal||0), 0);
-  const precoFinal = valorOverride > 0 ? valorOverride : (precoFinalAmb || p.condicaoPrecoFinal || p.finPrecoFinal || 0);
+  const precoFinal = precoFinalAmb || p.finPrecoFinal || p.condicaoPrecoFinal || 0;
   const tipo = p.condicaoTipo||'parcelado';
   const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[
     {label:'Deposit',pct:20},{label:'Measurement & Approval',pct:30},{label:'Delivery',pct:30},{label:'Final / Installation',pct:20}
@@ -4126,60 +3842,11 @@ async function gerarContratoHTML(projetoId, lang, dataContrato, valorOverride) {
     const norm = _stripPfx(coreName).split(/\s+/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join('-').replace(/[^a-zA-Z0-9\-]/g,'');
     return `${_sbUrl}/storage/v1/object/public/cores/${norm}.jpg`;
   };
-  // Helper: gera descrição do XML nas 3 línguas a partir dos dados do ambiente
-  const _xmlDescricao = (a, lngCode) => {
-    const xmlD = a.xmlDados || {};
-    const c = xmlD.contagem || {};
-    const partes = [];
-    // Contagem de peças
-    const contagens = [];
-    if (c.cabinets) contagens.push(lngCode==='en'?`${c.cabinets} cabinet${c.cabinets>1?'s':''}`:lngCode==='es'?`${c.cabinets} gabinete${c.cabinets>1?'s':''}`:lngCode==='pt'?`${c.cabinets} gabinete${c.cabinets>1?'s':''}`:'' );
-    if (c.gavetas) contagens.push(lngCode==='en'?`${c.gavetas} drawer${c.gavetas>1?'s':''}`:lngCode==='es'?`${c.gavetas} cajón${c.gavetas>1?'es':''}`:lngCode==='pt'?`${c.gavetas} gaveta${c.gavetas>1?'s':''}`:'' );
-    if (c.portas) contagens.push(lngCode==='en'?`${c.portas} door${c.portas>1?'s':''}`:lngCode==='es'?`${c.portas} puerta${c.portas>1?'s':''}`:lngCode==='pt'?`${c.portas} porta${c.portas>1?'s':''}`:'' );
-    if (c.paineis) contagens.push(lngCode==='en'?`${c.paineis} panel${c.paineis>1?'s':''}`:lngCode==='es'?`${c.paineis} panel${c.paineis>1?'es':''}`:lngCode==='pt'?`${c.paineis} painel${c.paineis>1?'s':''}`:'' );
-    if (c.ripado) contagens.push(lngCode==='en'?`${c.ripado} slat${c.ripado>1?'s':''}`:lngCode==='es'?`${c.ripado} listón${c.ripado>1?'es':''}`:lngCode==='pt'?`${c.ripado} ripado${c.ripado>1?'s':''}`:'' );
-    if (c.vidro) contagens.push(lngCode==='en'?`${c.vidro} glass door${c.vidro>1?'s':''}`:lngCode==='es'?`${c.vidro} puerta${c.vidro>1?'s':''} de vidrio`:lngCode==='pt'?`${c.vidro} porta${c.vidro>1?'s':''} de vidro`:'' );
-    if (c.metrosLED) contagens.push(`${c.metrosLED}m LED`);
-    if (contagens.length) partes.push(contagens.join(', '));
-    // Cores por categoria
-    const labelCaixa = lngCode==='en'?'Boxes':lngCode==='es'?'Cajas':'Caixas';
-    const labelFrontal = lngCode==='en'?'Frontals':lngCode==='es'?'Frontales':'Frontais';
-    const labelPainel = lngCode==='en'?'Panels':lngCode==='es'?'Paneles':'Painéis';
-    const coresPaineis = xmlD.coresPaineis||a.coresPaineis||[];
-    const coresBox = xmlD.coresBox||a.coresBox||[];
-    const coresFrontais = xmlD.coresFrontais||a.coresFrontais||[];
-    if (coresPaineis.length) partes.push(`${labelPainel}: ${coresPaineis.map(_stripPfx).join(', ')}`);
-    if (coresBox.length) partes.push(`${labelCaixa}: ${coresBox.map(_stripPfx).join(', ')}`);
-    if (coresFrontais.length) partes.push(`${labelFrontal}: ${coresFrontais.map(_stripPfx).join(', ')}`);
-    // Descrição manual do briefing como fallback
-    if (!partes.length && a.descricao) return a.descricao;
-    return partes.join(' · ') || a.descricao || '';
-  };
-
-  const _labelFinishes = lang==='en'?'Finishes & Colors':lang==='pt'?'Acabamentos & Cores':'Acabados & Colores';
-  const _labelObs = lang==='en'?'Notes':lang==='pt'?'Observações':'Observaciones';
-  const _labelSpec = lang==='en'?'Specifications':lang==='pt'?'Especificações':'Especificaciones';
-
-  const materiaisHTML = ambientes.map((a, idx) => {
+  const materiaisHTML = ambientes.map(a => {
     const xmlD = a.xmlDados || {};
     const cores = [...new Set([...(xmlD.coresPaineis||a.coresPaineis||[]),...(xmlD.coresFrontais||a.coresFrontais||[]),...(xmlD.coresBox||a.coresBox||[])])].filter(Boolean);
-    // ── VALOR DE VENDA (manual > finPrecoFinal, não mais xmlDados.valorTotal) ──
-    const valorVenda = a.finValorManual || a.finPrecoFinal || 0;
-    const valorVendaFmt = valorVenda > 0 ? fmtV(valorVenda) : '—';
+    const xmlVal = xmlD.valorTotal ? fmtV(xmlD.valorTotalNum||0) : '';
     const imagens = (a.imagens||[]);
-    // ── OBSERVAÇÃO DO BRIEFING ──
-    const obsHtml = (a.obs||'').trim() ? `
-      <tr><td colspan="3" style="padding:4px 12px 10px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8a7450;margin-bottom:4px">${_labelObs}</div>
-        <div style="font-size:12px;color:#555;line-height:1.6;white-space:pre-line">${(a.obs||'').trim()}</div>
-      </td></tr>` : '';
-    // ── DESCRIÇÃO DO XML (trilíngue) ──
-    const xmlDescText = _xmlDescricao(a, lang);
-    const xmlDescHtml = xmlDescText ? `
-      <tr><td colspan="3" style="padding:4px 12px 10px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8a7450;margin-bottom:4px">${_labelSpec}</div>
-        <div style="font-size:12px;color:#333;line-height:1.7;white-space:pre-line">${xmlDescText}</div>
-      </td></tr>` : '';
     const fotosHtml = imagens.length ? `
       <tr><td colspan="3" style="padding:0 12px 16px">
         ${imagens.map((img,i)=>`
@@ -4189,7 +3856,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato, valorOverride) {
       </td></tr>` : '';
     const coresHtml = cores.length ? `
       <tr><td colspan="3" style="padding:0 12px 14px">
-        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;margin-bottom:8px">${_labelFinishes}</div>
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;margin-bottom:8px">Finishes & Colors</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           ${cores.map(c=>`
             <div style="text-align:center;width:80px">
@@ -4200,34 +3867,12 @@ async function gerarContratoHTML(projetoId, lang, dataContrato, valorOverride) {
             </div>`).join('')}
         </div>
       </td></tr>` : '';
-    return `<tr style="background:${idx%2===0?'#fff':'#faf8f5'}">
-      <td style="padding:12px 12px 6px;font-weight:700;color:#1a1a1a;vertical-align:top;font-size:14px">${a.nome||a.tipo}</td>
-      <td style="padding:12px 12px 6px;color:#555;vertical-align:top;font-size:12px">${cores.length?cores.map(_stripPfx).join(', '):'—'}</td>
-      <td style="padding:12px 12px 6px;text-align:right;font-weight:700;color:#1a1a1a;vertical-align:top;white-space:nowrap;font-size:14px">${valorVendaFmt}</td>
-    </tr>${obsHtml}${xmlDescHtml}${fotosHtml}${coresHtml}<tr><td colspan="3" style="border-bottom:1.5px solid #e0d5c0;padding:0"></td></tr>`;
+    return `<tr>
+      <td style="padding:10px 12px 6px;font-weight:600;color:#1a1a1a;vertical-align:top">${a.nome||a.tipo}</td>
+      <td style="padding:10px 12px 6px;color:#333;vertical-align:top">${cores.length?cores.join(', '):'—'}</td>
+      <td style="padding:10px 12px 6px;text-align:right;font-weight:600;color:#1a1a1a;vertical-align:top;white-space:nowrap">${xmlVal}</td>
+    </tr>${fotosHtml}${coresHtml}<tr><td colspan="3" style="border-bottom:1px solid #eee;padding:0"></td></tr>`;
   }).join('');
-
-  // ── Índice de ambientes com valor de venda para a Seção 2 ──
-  const indiceAmbientesHTML = ambientes.length ? `
-    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:12px">
-      <thead><tr>
-        <th style="background:#f8f6f0;color:#8a7450;padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #e0d5c0">${lang==='en'?'Room/Space':lang==='pt'?'Ambiente':'Ambiente'}</th>
-        <th style="background:#f8f6f0;color:#8a7450;padding:6px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #e0d5c0">${lang==='en'?'Sale Price':lang==='pt'?'Valor de Venda':'Precio de Venta'}</th>
-      </tr></thead>
-      <tbody>
-        ${ambientes.map((a,i) => {
-          const vv = a.finValorManual || a.finPrecoFinal || 0;
-          return `<tr>
-            <td style="padding:7px 10px;color:#333;border-bottom:1px solid #f0ede6">${a.nome||a.tipo}</td>
-            <td style="padding:7px 10px;text-align:right;font-weight:600;color:#1a1a1a;border-bottom:1px solid #f0ede6">${vv>0?fmtV(vv):'—'}</td>
-          </tr>`;
-        }).join('')}
-        <tr style="background:#1a1a1a">
-          <td style="padding:8px 10px;color:#c9a96e;font-weight:700">${lang==='en'?'Total':lang==='pt'?'Total':'Total'}</td>
-          <td style="padding:8px 10px;text-align:right;color:#c9a96e;font-weight:700">${fmtV(precoFinal)}</td>
-        </tr>
-      </tbody>
-    </table>` : '';
 
   // Build payment schedule
   let payRows = '';
@@ -4379,11 +4024,6 @@ async function gerarContratoHTML(projetoId, lang, dataContrato, valorOverride) {
     </table>
     <div class="notice" style="background:#fff9f0;border:1px solid #f0d090;border-radius:4px;padding:12px;font-size:12px;color:#7a5c00;margin-top:8px">${t.s2down||''}</div>
     <p style="margin-top:8px">${t.s2note}</p>
-    ${indiceAmbientesHTML ? `
-    <div style="margin-top:18px">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#8a7450;margin-bottom:8px;font-weight:700">${lang==='en'?'Price breakdown by room':lang==='pt'?'Detalhamento de valores por ambiente':'Desglose de valores por ambiente'}</div>
-      ${indiceAmbientesHTML}
-    </div>` : ''}
   </div>
 
   ${timelineHTML}
@@ -4496,7 +4136,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato, valorOverride) {
     <div class="exhibit-sub">${t.project}: ${p.nome}</div>
     ${ambientes.length ? `
       <table class="scope">
-        <thead><tr><th>${lang==='en'?'Room/Space':lang==='pt'?'Ambiente':'Ambiente'}</th><th>${lang==='en'?'Finish/Color':lang==='pt'?'Acabamento':'Acabado'}</th><th style="text-align:right">${lang==='en'?'Sale Price':lang==='pt'?'Valor de Venda':'Precio de Venta'}</th></tr></thead>
+        <thead><tr><th>${lang==='en'?'Room/Space':lang==='pt'?'Ambiente':'Ambiente'}</th><th>${lang==='en'?'Finish/Color':lang==='pt'?'Acabamento':'Acabado'}</th><th style="text-align:right">${lang==='en'?'Value':lang==='pt'?'Valor':'Valor'}</th></tr></thead>
         <tbody>${materiaisHTML}</tbody>
         <tr><td class="pay-total" colspan="2">${t.total}</td><td class="pay-total" style="text-align:right">${fmtV(precoFinal)}</td></tr>
       </table>` : ''}
@@ -4553,19 +4193,6 @@ function salvarAssinatura(projId){
   }).then(()=>{alert('${lang==='en'?'Contract signed and saved!':lang==='pt'?'Contrato assinado e salvo!':'Contrato firmado y guardado!'}');}).catch(()=>{});
 }
 ${'</scr'+'ipt>'}
-
-<!-- Modal Viewer 3D -->
-<div id="modal-3d" style="display:none;position:fixed;inset:0;z-index:9999;background:#0c0c0a;flex-direction:column">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);background:#111108">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">🧊</span>
-      <span id="modal-3d-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2);font-size:16px">Visualizador 3D</span>
-    </div>
-    <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
-  </div>
-  <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
-</div>
-
 </body>
 </html>`;
 
@@ -4852,11 +4479,6 @@ async function pushProjeto(p) {
     contrato_assinado_em: p.contratoAssinadoEm||null,
     desconto_projeto: p.descontoProjeto||0,
     data_envio_producao: p.dataEnvioProducao||'',
-    condicao_etapas: JSON.stringify(p.condicaoEtapas||[]),
-    condicao_desconto: p.condicaoDesconto||0,
-    condicao_juros: p.condicaoJuros||0,
-    condicao_parcelas: p.condicaoParcelas||1,
-    condicao_down_pct: p.condicaoDownPct||20,
   };
   try {
     await sbFetch('projetos?on_conflict=id', 'POST', [{..._base,..._extras}], 'resolution=merge-duplicates');
@@ -4954,7 +4576,6 @@ async function loadFromSupabase() {
       projetoId: i.projeto_id||'', producaoId: i.producao_id||'',
       ambientesDetalhados: i.ambientes_detalhados||[],
       tel: i.tel||'', email: i.email||'',
-      checklistAmbientes: (i.checklist_ambientes && typeof i.checklist_ambientes === 'object' && !Array.isArray(i.checklist_ambientes)) ? i.checklist_ambientes : {},
     }));
 
     renderAll();
@@ -5005,11 +4626,6 @@ function mapProjeto(p) {
     finPagamentos: (()=>{ try { return typeof p.fin_pagamentos==='string' ? JSON.parse(p.fin_pagamentos) : (p.fin_pagamentos||[]); } catch(e){ return []; } })(),
     checklistEntrega: (()=>{ try { return typeof p.checklist_entrega==='string' ? JSON.parse(p.checklist_entrega) : (p.checklist_entrega||[]); } catch(e){ return []; } })(),
     condicaoTipo: p.condicao_tipo||'parcelado',
-    condicaoEtapas: (()=>{try{return JSON.parse(p.condicao_etapas||'[]')}catch{return []}})(),
-    condicaoDesconto: p.condicao_desconto||0,
-    condicaoJuros: p.condicao_juros||0,
-    condicaoParcelas: p.condicao_parcelas||1,
-    condicaoDownPct: p.condicao_down_pct||20,
     condicaoPrecoFinal: p.condicao_preco_final||0,
     pdfProposta: (p.proposta_html||p.proposta_data) ? 'local:'+p.id : '',
     pdfPropostaData: p.proposta_data||'',
@@ -5803,16 +5419,6 @@ function renderProjetos(filter='') {
       const aMargPct = aVenda>0?(aMargem/aVenda*100):0;
       const aFinCor = aMargPct>=40?'#b090e0':aMargPct>=30?'var(--green)':aMargPct>=15?'var(--amber)':'var(--red)';
       const travado = !!(p.propostaTravada && !isAdmin());
-      // Registra no map global com chave numérica — seguro para qualquer nome
-      if (!window._ambNomeMap) window._ambNomeMap = {};
-      const _ambKey = '_' + (window._ambNomeMapIdx = (window._ambNomeMapIdx||0) + 1);
-      window._ambNomeMap[_ambKey] = {pid: p.id, nome: a.nome||a.tipo};
-      const travadoXmlOnclick = travado
-        ? '_pedirDesbloqueioRapido(\'' + p.id + '\',function(){_ambAction(\'' + _ambKey + '\',\'xml\')})'
-        : '_ambAction(\'' + _ambKey + '\',\'xml\')';
-      const travadoFotoOnclick = travado
-        ? '_pedirDesbloqueioRapido(\'' + p.id + '\',function(){_ambAction(\'' + _ambKey + '\',\'foto\')})'
-        : '_ambAction(\'' + _ambKey + '\',\'foto\')';
       const isComplemento = p.isComplemento || p.status==='complemento';
       return `
       <div style="background:var(--bg2);border:0.5px solid ${isComplemento?'var(--amber)':'var(--border)'};border-radius:var(--radius);margin-bottom:14px;overflow:hidden;${isComplemento?'animation:complementoPulse 1.6s ease-in-out infinite':''}">
@@ -5826,7 +5432,7 @@ function renderProjetos(filter='') {
           </div>
           <div style="display:flex;gap:6px">
 
-            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();_ambAction('${_ambKey}','abrir')">Abrir →</button>
+            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();abrirAmbiente('${p.id}','${a.nome||a.tipo}')">Abrir →</button>
           </div>
         </div>
 
@@ -5866,7 +5472,7 @@ function renderProjetos(filter='') {
           </div>
 
           <!-- XML -->
-          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travadoXmlOnclick}">
+          <div style="background:#0f1f17;border:1px solid rgba(92,184,130,0.25);border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirXMLDireto('${p.id}','${a.nome||a.tipo}')`}">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="font-size:15px">📐</span>
               <span style="font-size:12px;font-weight:600;color:var(--text)">XML Promob</span>
@@ -5904,15 +5510,13 @@ function renderProjetos(filter='') {
               </div>
             `}
             <div style="display:flex;gap:4px;margin-top:auto;padding-top:8px">
-              <button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(92,184,130,0.3);color:${travado?'var(--text3)':'var(--green)'}" ${travado?'disabled':''} onclick="event.stopPropagation();_ambAction('${_ambKey}','xml')">${travado?'🔒':'📐'} ${temXml?'Atualizar':'Importar'}</button>
+              <button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(92,184,130,0.3);color:${travado?'var(--text3)':'var(--green)'}" ${travado?'disabled':''} onclick="event.stopPropagation();abrirXMLDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'📐'} ${temXml?'Atualizar':'Importar'}</button>
               ${temXml?`<button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(92,184,130,0.3);color:var(--green)" onclick="event.stopPropagation();_prepararAmbContext('${p.id}','${a.nome||a.tipo}');verXML()">🔍 Ver dados</button>`:''}
-              <button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="event.stopPropagation();_ambAction('${_ambKey}','promob')">📦 ${a.promobNome?'Atualizar':'+ .promob'}</button>
-              ${a.promobNome?`<button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(201,169,110,0.4);color:var(--gold)" onclick="event.stopPropagation();_ambAction('${_ambKey}','ver3d')">🧊 Ver 3D</button>`:``}
             </div>
           </div>
 
           <!-- FOTOS -->
-          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" >
+          <div style="background:#0a1320;border:1px solid rgba(96,144,208,${temFotos?'0.4':'0.2'});border-radius:10px;padding:12px;display:flex;flex-direction:column;cursor:${travado?'not-allowed':'pointer'};${travado?'opacity:0.7':''}" onclick="event.stopPropagation();${travado?`toast('🔒 Projeto travado — proposta já aprovada')`:`abrirFotosDireto('${p.id}','${a.nome||a.tipo}')`}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:15px">🖼</span>
@@ -5922,12 +5526,7 @@ function renderProjetos(filter='') {
             </div>
             ${temFotos?`
               <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:3px;border-radius:6px;overflow:hidden;margin-bottom:6px">
-                ${fotos.slice(0,4).map((f,fi)=>`
-                  <div style="position:relative">
-                    <img src="${f.url||f}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" onerror="this.style.display='none'">
-                    <button onclick="event.stopPropagation();_ambAction('${_ambKey}','removerFoto',${fi})"
-                      style="position:absolute;top:3px;right:3px;width:22px;height:22px;background:rgba(0,0,0,0.75);border:none;border-radius:50%;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">🗑</button>
-                  </div>`).join('')}
+                ${fotos.slice(0,4).map(f=>`<img src="${f.url||f}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block" onerror="this.style.display='none'">`).join('')}
               </div>
               ${fotos.length>4?`<div style="font-size:10px;color:var(--text3);margin-bottom:4px">+${fotos.length-4} mais</div>`:''}
             `:`
@@ -5937,10 +5536,7 @@ function renderProjetos(filter='') {
                 <div style="font-size:10px;color:var(--text3);margin-top:3px">Adicione renders ou fotos do projeto</div>
               </div>
             `}
-            <div style="display:flex;gap:5px;margin-top:auto;padding-top:6px">
-              ${temFotos?`<button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(96,144,208,0.3);color:var(--blue)" data-lb-urls="${encodeURIComponent(JSON.stringify(fotos.map(f=>f.url||f)))}" onclick="event.stopPropagation();abrirLightbox(JSON.parse(decodeURIComponent(this.dataset.lbUrls)),0)">👁️ Visualizar</button>`:''}
-              <button class="btn btn-sm" style="flex:1;justify-content:center;font-size:10px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="event.stopPropagation();${travadoFotoOnclick}">${travado?'🔒':'🖼'} ${temFotos?'Adicionar':'Enviar fotos'}</button>
-            </div>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:6px;border-color:rgba(96,144,208,0.3);color:${travado?'var(--text3)':'var(--blue)'}" ${travado?'disabled':''} onclick="abrirFotosDireto('${p.id}','${a.nome||a.tipo}')">${travado?'🔒':'🖼'} ${temFotos?'Adicionar fotos':'Enviar fotos'}</button>
           </div>
 
           <!-- FINANCEIRO -->
@@ -5957,7 +5553,7 @@ function renderProjetos(filter='') {
                     <div style="font-size:10px;color:var(--text3)">Valor de venda${a.finValorManual>0?' <span style="color:var(--amber);font-size:9px">✎ manual</span>':''}</div>
                     <div style="font-size:16px;font-weight:700;color:var(--text);font-family:DM Mono,monospace">$ ${fmtA(aVenda)}</div>
                   </div>
-                  <button onclick="event.stopPropagation();_ambAction('${_ambKey}','editar')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>
+                  ${!travado?`<button onclick="event.stopPropagation();editarValorVendaAmb('${p.id}','${a.nome||a.tipo}')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">✎ Editar</button>`:''}
                 </div>
                 ${valorPromobAmb>0?`
                 <div style="margin-bottom:6px">
@@ -5971,14 +5567,9 @@ function renderProjetos(filter='') {
                     <span style="font-size:9px;padding:1px 5px;border-radius:99px;background:${aMargPct>=30?'rgba(92,184,130,0.12)':aMargPct>=15?'var(--amber-dim)':'var(--red-dim)'};color:${aFinCor};font-weight:700">${aMargPct.toFixed(1)}%</span>
                   </div>
                 </div>
-              `:`
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
-                  <div style="font-size:11px;color:var(--text3)">Sem dados — insira o valor manualmente</div>
-                  <button onclick="event.stopPropagation();_ambAction('${_ambKey}','editar')" style="background:rgba(176,144,224,0.1);border:1px solid rgba(176,144,224,0.25);border-radius:6px;color:#b090e0;font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-left:8px">✎ Editar</button>
-                </div>
-              `}
+              `:'<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Sem dados</div>'}
               <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:auto;padding-top:8px;border-color:rgba(176,144,224,0.3);color:#b090e0" onclick="event.stopPropagation();abrirFinanceiro('${p.id}')">📊 Ver financeiro completo</button>
-              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();_ambAction('${_ambKey}','mini')">📈 Resumo do ambiente</button>
+              <button class="btn btn-sm" style="width:100%;justify-content:center;font-size:10px;margin-top:4px;border-color:rgba(201,169,110,0.3);color:var(--gold)" onclick="event.stopPropagation();abrirMiniFinanceiro('${p.id}','${a.nome||a.tipo}')">📈 Resumo do ambiente</button>
             `:`
               <div style="text-align:center;padding:16px 0">
                 <div style="font-size:28px;margin-bottom:8px">🔒</div>
@@ -6374,7 +5965,7 @@ async function gerarProposalComIdioma(projetoId, lang, ambientesSelecionados) {
       ...(xmlD.coresFrontais||[])
     ].filter((v,i,a)=>v&&a.indexOf(v)===i);
 
-    const imgs4 = imagens.slice(0,10);
+    const imgs4 = imagens.slice(0,4);
     // Ambiente images are already stored as base64 data URLs (uploaded by user)
     const gridCols = imgs4.length >= 3 ? 3 : imgs4.length === 2 ? 2 : 1;
     const imgHtml = imgs4.length
@@ -6667,19 +6258,6 @@ ${(()=>{
 
 <!-- MODAL CONFIRMAR PRODUÇÃO -->
 
-
-
-<!-- Modal Viewer 3D -->
-<div id="modal-3d" style="display:none;position:fixed;inset:0;z-index:9999;background:#0c0c0a;flex-direction:column">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);background:#111108">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">🧊</span>
-      <span id="modal-3d-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2);font-size:16px">Visualizador 3D</span>
-    </div>
-    <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
-  </div>
-  <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
-</div>
 
 </body>
 </html>`;
@@ -7386,32 +6964,12 @@ async function enviarReposicaoPeca(inst, proj, lead, div, ov) {
   }
 }
 
-function setFiltroInstalacao(f) {
-  _filtroInstalacaoStatus = f;
-  document.querySelectorAll('[data-filtro-inst]').forEach(b => {
-    b.classList.toggle('active', b.dataset.filtroInst === f);
-  });
-  const labels = {tudo:'Instalações agendadas', pendente:'Instalações pendentes', producao:'Em produção', concluida:'Concluídas'};
-  const el = document.getElementById('inst-sec-title');
-  if(el) el.textContent = labels[f]||'Instalações agendadas';
-  renderInstalacao();
-}
-
 function renderInstalacao(filter='') {
   _filterInstalacao = filter || filterTexts.instalacao || '';
   const f = _filterInstalacao.toLowerCase();
   const hoje = new Date().toISOString().slice(0,10);
   const items = (DB.instalacoes||[]).filter(i => {
-    if (f && !(i.cliente||'').toLowerCase().includes(f) && !(i.endereco||'').toLowerCase().includes(f)) return false;
-    const st = _filtroInstalacaoStatus || 'tudo';
-    if (st === 'concluida') return i.concluida;
-    if (st === 'pendente')  return !i.concluida;
-    if (st === 'producao') {
-      if (i.concluida) return false;
-      const proj = DB.projetos.find(x=>x.id===i.projetoId);
-      return proj && proj.status === 'producao';
-    }
-    return true;
+    return !f || (i.cliente||'').toLowerCase().includes(f) || (i.endereco||'').toLowerCase().includes(f);
   }).sort((a,b) => {
     if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
     return (a.data||'').localeCompare(b.data||'');
@@ -7452,12 +7010,15 @@ function renderInstalacao(filter='') {
       ${i.ambientes?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px">🏠 ${i.ambientes}</div>`:''}
       ${(i.tel||i.email)?`<div style="font-size:11px;color:var(--text3);margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap">${i.tel?`<span>📞 ${i.tel}</span>`:''} ${i.email?`<span>✉ ${i.email}</span>`:''}</div>`:''}
 ${_renderFotosInstalacao(i)}
-      <!-- Quadros de etapas -->
-      ${_renderQuadrosInstalacao(i)}
+      <!-- Checklist progress -->
+      ${clTotal>0?`<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px"><span>Checklist</span><span>${clFeitos}/${clTotal}</span></div>
+        <div style="height:4px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(clFeitos/clTotal*100)}%;background:${clFeitos===clTotal?'var(--green)':'var(--gold)'};border-radius:99px"></div></div>
+      </div>`:''}
       <!-- Actions row 1 -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
         ${mapsUrl?`<a href="${mapsUrl}" target="_blank" class="btn btn-sm" style="color:var(--blue);border-color:rgba(96,144,208,0.3);text-decoration:none">🗺 Rota</a>`:''}
-        <button class="btn btn-sm" style="color:var(--text3);border-color:rgba(255,255,255,0.1)" onclick="event.stopPropagation();abrirChecklist('${i.id}')">📋 Relatório Final</button>
+        <button class="btn btn-sm" style="color:var(--amber);border-color:rgba(212,148,74,0.3)" onclick="event.stopPropagation();abrirChecklist('${i.id}')">☑ Checklist${clTotal?` (${clFeitos}/${clTotal})`:''}</button>
         ${!i.concluida?`<button class="btn btn-sm" style="color:var(--green)" onclick="event.stopPropagation();concluirInstalacao('${i.id}')">✓ Concluir</button>`:''}
       </div>
       <!-- Actions row 2 -->
@@ -8418,7 +7979,15 @@ function updateAmbientesSelect() {
 }
 
 function handleFiles(files) {
-  // Locked projects: allow upload (admin or via quick unlock handled at button level)
+  // Check if this upload is for a locked project
+  const _clienteSel = document.getElementById('imgCliente')?.value;
+  if (_clienteSel) {
+    const _pImg = DB.projetos.find(x=>x.leadId===_clienteSel||x.id===_clienteSel);
+    if (_pImg?.propostaTravada && !isAdmin()) {
+      toast('🔒 Projeto travado — não é possível enviar imagens'); return;
+    }
+  }
+
   Array.from(files).forEach(f => {
     if (f.type === 'application/pdf') {
       handlePDF(f);
@@ -8629,10 +8198,7 @@ function toast(msg, dur=3500) {
 let _finProjetoId = null;
 function editarValorVendaAmb(projetoId, nomeAmb) {
   const p = DB.projetos.find(x=>x.id===projetoId);
-  if (p?.propostaTravada && !isAdmin()) {
-    _pedirDesbloqueioRapido(projetoId, function(){ editarValorVendaAmb(projetoId, nomeAmb); });
-    return;
-  }
+  if (p?.propostaTravada && !isAdmin()) { toast('🔒 Projeto travado'); return; }
   _prepararAmbContext(projetoId, nomeAmb);
   const atual = _ambObj.finValorManual || _ambObj.finPrecoFinal || '';
   const ov = document.createElement('div');
@@ -9235,686 +8801,11 @@ async function confirmarEnvioProducao() {
 let _checklistInstId = null;
 let _checklistItems = []; // local working copy
 
-// Etapas padrão da instalação — pré-carregadas quando o checklist está vazio
-const CHECKLIST_INSTALACAO_PADRAO = [
-  {titulo:'Organizar', descricao:'Organizar espaço e ferramentas — colar desenhos na parede e posicionar peças próximas ao ambiente', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
-   subitens:[{label:'Espaço limpo e desobstruído',ok:false},{label:'Desenhos colados na parede',ok:false},{label:'Ferramentas organizadas',ok:false},{label:'Peças posicionadas por ambiente',ok:false}]},
-  {titulo:'Separar IDs', descricao:'Separar os módulos por IDs e conferir peças contra o projeto', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
-   subitens:[{label:'Todos os módulos identificados',ok:false},{label:'IDs conferidos com o projeto',ok:false},{label:'Peças faltantes registradas',ok:false}]},
-  {titulo:'Montar caixas', descricao:'Montar caixas dos módulos — pés, suportes de prateleiras e corrediças', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
-   subitens:[{label:'Caixas montadas corretamente',ok:false},{label:'Pés e suportes instalados',ok:false},{label:'Corrediças posicionadas',ok:false},{label:'Prateleiras encaixadas',ok:false}]},
-  {titulo:'Nivelar e fixar', descricao:'Nivelar e fixar os móveis na parede com esquadro e nível', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
-   subitens:[{label:'Módulos nivelados horizontalmente',ok:false},{label:'Fixação realizada com parafusos adequados',ok:false},{label:'Estrutura firme e segura',ok:false},{label:'Alinhamento conferido com esquadro',ok:false}]},
-  {titulo:'Acabamento', descricao:'Acabamento final — frontais, puxadores, ajustes, limpeza e entrega ao cliente', responsavel:'', fotoAntes:null, fotoDepois:null, foto:null, concluido:false, dataConclusao:null,
-   subitens:[{label:'Frontais e portas instalados',ok:false},{label:'Puxadores fixados',ok:false},{label:'Ajustes finos realizados',ok:false},{label:'Ambiente limpo e entregue',ok:false}]}
-];
-
-// ── Quadros de etapas inline no card de instalação — por ambiente ─────────────
-function _getChecklistAmbientes(inst) {
-  // Retorna objeto {nomeAmb: [5 etapas]}
-  if (inst.checklistAmbientes && typeof inst.checklistAmbientes === 'object' && !Array.isArray(inst.checklistAmbientes)) {
-    return inst.checklistAmbientes;
-  }
-  return {};
-}
-
-function _getAmbientesInstalacao(inst) {
-  // Lista de nomes de ambientes da instalação
-  if (inst.ambientesDetalhados && inst.ambientesDetalhados.length) {
-    return inst.ambientesDetalhados.map(a => a.nome || a.tipo || a).filter(Boolean);
-  }
-  if (inst.ambientes && inst.ambientes.trim()) {
-    return inst.ambientes.split(/[,;]/).map(s=>s.trim()).filter(Boolean);
-  }
-  return [];
-}
-
-function _novoChecklistAmb() {
-  return JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
-}
-
-function _renderQuadrosInstalacao(inst) {
-  const ambientes = _getAmbientesInstalacao(inst);
-
-  // Fallback: sem ambientes definidos, mostra checklist global (comportamento antigo)
-  if (!ambientes.length) {
-    const cl = Array.isArray(inst.checklist) ? inst.checklist
-      : (typeof inst.checklist === 'string' ? JSON.parse(inst.checklist||'[]') : []);
-    const itens = cl.length ? cl : CHECKLIST_INSTALACAO_PADRAO;
-    const feitos = itens.filter(c=>c.concluido).length;
-    const total = itens.length;
-    const pct = total > 0 ? Math.round(feitos/total*100) : 0;
-    const corProg = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--gold)';
-    const quadros = itens.map((item, idx) => {
-      const done = item.concluido;
-      const titulo = item.titulo || `Etapa ${idx+1}`;
-      const bordaCor = done ? 'var(--green)' : 'var(--border2)';
-      const bgCor = done ? 'rgba(92,184,130,0.08)' : 'var(--bg3)';
-      const fotoHtml = item.foto
-        ? `<div style="width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:5px"><img src="${item.foto}" style="width:100%;height:100%;object-fit:cover"></div>`
-        : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;margin-bottom:5px;font-size:20px">${done?'✅':'📷'}</div>`;
-      return `<div onclick="event.stopPropagation();abrirEtapaQuadro('${inst.id}',${idx})"
-        style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:10px;padding:8px 6px;cursor:pointer;transition:all 0.15s;text-align:center">
-        ${fotoHtml}
-        <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${titulo}</div>
-        ${item.dataConclusao?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${item.dataConclusao}</div>`:''}
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:11px;color:var(--text3);font-weight:500">Etapas de instalação</span>
-        <span style="font-size:11px;font-weight:600;color:${corProg}">${feitos}/${total}</span>
-      </div>
-      <div style="display:flex;gap:6px">${quadros}</div>
-      <div style="height:3px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-top:6px">
-        <div style="height:100%;width:${pct}%;background:${corProg};border-radius:99px;transition:width 0.4s"></div>
-      </div>
-    </div>`;
-  }
-
-  // ── Por ambiente ──────────────────────────────────────────────────────────
-  const ca = _getChecklistAmbientes(inst);
-
-  // Total geral para barra de resumo
-  let totalGeral = 0, feitosGeral = 0;
-  ambientes.forEach(nome => {
-    const etapas = ca[nome] || CHECKLIST_INSTALACAO_PADRAO;
-    totalGeral += etapas.length;
-    feitosGeral += etapas.filter(c=>c.concluido).length;
-  });
-  const pctGeral = totalGeral > 0 ? Math.round(feitosGeral/totalGeral*100) : 0;
-  const corGeral = pctGeral===100?'var(--green)':pctGeral>50?'var(--amber)':'var(--gold)';
-
-  const blocos = ambientes.map(nomeAmb => {
-    const etapas = ca[nomeAmb] || CHECKLIST_INSTALACAO_PADRAO;
-    const feitos = etapas.filter(c=>c.concluido).length;
-    const total = etapas.length;
-    const pct = total > 0 ? Math.round(feitos/total*100) : 0;
-    const corProg = pct===100?'var(--green)':pct>50?'var(--amber)':'var(--gold)';
-    const ambConcluido = pct === 100;
-
-    // Verificar se tem .promob salvo para este ambiente
-    const proj = DB.projetos.find(x=>x.id===inst.projetoId);
-    const ambProjeto = proj?.ambientes?.find(a=>(a.nome||a.tipo||a)===nomeAmb || (typeof a==='string'&&a===nomeAmb));
-    const promobPath = ambProjeto?.promobStoragePath || null;
-    const btn3D = promobPath
-      ? `<button onclick="event.stopPropagation();verPromob3DInstalacao('${promobPath.replace(/'/g,"\\'")}','${nomeAmb.replace(/'/g,"\\'")}')"
-           style="margin-left:auto;flex-shrink:0;padding:2px 8px;background:rgba(96,144,208,0.12);border:0.5px solid rgba(96,144,208,0.35);border-radius:6px;color:var(--blue);font-size:10px;cursor:pointer;font-family:inherit">🧊 Ver 3D</button>`
-      : '';
-
-    const quadros = etapas.map((item, idx) => {
-      const done = item.concluido;
-      const titulo = item.titulo || `Etapa ${idx+1}`;
-      const bordaCor = done ? 'var(--green)' : 'var(--border2)';
-      const bgCor = done ? 'rgba(92,184,130,0.1)' : 'var(--bg3)';
-      // Ícone central: número ou check
-      const iconeHtml = done
-        ? `<div style="width:36px;height:36px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:18px;color:#0d0d0d;font-weight:700">✓</div>`
-        : `<div style="width:36px;height:36px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:14px;font-weight:700;color:var(--text3)">${idx+1}</div>`;
-      const infoHtml = done && item.confirmedBy
-        ? `<div style="font-size:8px;color:var(--green);margin-top:2px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.confirmedBy}</div>
-           <div style="font-size:8px;color:var(--text3)">${item.dataConclusao||''} ${item.horaConclusao||''}</div>`
-        : done
-        ? `<div style="font-size:8px;color:var(--text3);margin-top:2px">${item.dataConclusao||''}</div>`
-        : '';
-      return `<div onclick="event.stopPropagation();abrirEtapaAmbiente('${inst.id}','${nomeAmb.replace(/'/g,"\\'")}',${idx})"
-        style="flex:1;min-width:0;background:${bgCor};border:1px solid ${bordaCor};border-radius:8px;padding:10px 5px 8px;cursor:pointer;transition:all 0.15s;text-align:center">
-        ${iconeHtml}
-        <div style="font-size:9px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px">${titulo}</div>
-        ${infoHtml}
-      </div>`;
-    }).join('');
-
-    return `<div style="margin-bottom:10px;background:var(--bg3);border:0.5px solid ${ambConcluido?'var(--green)':'var(--border)'};border-radius:10px;padding:10px 10px 8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-        <span style="font-size:11px;font-weight:600;color:${ambConcluido?'var(--green)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">🏠 ${nomeAmb}</span>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${btn3D}
-          <span style="font-size:11px;font-weight:600;color:${corProg}">${feitos}/${total} · ${pct}%</span>
-        </div>
-      </div>
-      <div style="display:flex;gap:5px">${quadros}</div>
-      <div style="height:3px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:7px">
-        <div style="height:100%;width:${pct}%;background:${corProg};border-radius:99px;transition:width 0.4s"></div>
-      </div>
-    </div>`;
-  }).join('');
-
-  return `<div style="margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:0.4px">Etapas por ambiente</span>
-      <span style="font-size:11px;font-weight:600;color:${corGeral}">${feitosGeral}/${totalGeral} · ${pctGeral}%</span>
-    </div>
-    ${blocos}
-  </div>`;
-}
-
-function verPromob3DInstalacao(promobPath, nomeAmb) {
-  const url = `${SB_URL}/storage/v1/object/promob/${promobPath}`;
-  const token = SB_KEY_SERVICE;
-  const nome = nomeAmb || 'ambiente';
-
-  const ts = Date.now();
-  localStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts }));
-  try { sessionStorage.setItem('promob_pending', JSON.stringify({ url, token, nome, ts })); } catch(e) {}
-  window.location.href = 'promob_viewer.html?t=' + ts;
-}
-
-// ── Abrir etapa de um ambiente específico ──────────────────────────────────
-let _etapaInstId = null;
-let _etapaIdx = null;
-let _etapaAmbNome = null; // null = modo global (checklist antigo)
-
-function abrirEtapaAmbiente(instId, nomeAmb, idx) {
-  _etapaInstId = instId;
-  _etapaIdx = idx;
-  _etapaAmbNome = nomeAmb;
-
-  const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
-  if (!inst) return;
-
-  if (!inst.checklistAmbientes || typeof inst.checklistAmbientes !== 'object' || Array.isArray(inst.checklistAmbientes)) {
-    inst.checklistAmbientes = {};
-  }
-  if (!inst.checklistAmbientes[nomeAmb]) {
-    inst.checklistAmbientes[nomeAmb] = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
-  }
-  // Garante que subitens existam nas etapas já criadas
-  inst.checklistAmbientes[nomeAmb].forEach((it, i) => {
-    if (!it.subitens && CHECKLIST_INSTALACAO_PADRAO[i]?.subitens) {
-      it.subitens = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO[i].subitens));
-    }
-    if (!it.subitens) it.subitens = [];
-  });
-
-  const etapas = inst.checklistAmbientes[nomeAmb];
-  const item = etapas[idx];
-  if (!item) return;
-  const total = etapas.length;
-  const usuarioNome = usuarioAtual?.nome || usuarioAtual?.email || 'Usuário';
-
-  // Barra de progresso geral
-  const feitosGeral = etapas.filter(e=>e.concluido).length;
-  const pctGeral = Math.round(feitosGeral/total*100);
-
-  // Subitens
-  const subitens = item.subitens || [];
-
-  const ov = document.createElement('div');
-  ov.id = 'etapa-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;background:#0d0d0d;z-index:9999;display:flex;flex-direction:column;overflow:hidden;font-family:"DM Sans",sans-serif';
-
-  // Gera HTML das bolinhas de navegação
-  const dotsHtml = etapas.map(function(e,i) {
-    const ativa = i===idx;
-    const feita = e.concluido;
-    const bg = feita?'var(--green)':ativa?'var(--gold)':'rgba(255,255,255,0.06)';
-    const cor = feita||ativa?'#0d0d0d':'#666';
-    const linha = i < etapas.length-1 ? '<div style="flex:1;height:2px;background:'+(feita?'var(--green)':'rgba(255,255,255,0.08)')+';min-width:8px"></div>' : '';
-    return '<div style="display:flex;align-items:center;flex-shrink:0">'
-      +'<button onclick="abrirEtapaAmbiente(\''+inst.id+'\',\''+nomeAmb.replace(/'/g,"\\'")+'\','+i+')"'
-      +' style="width:30px;height:30px;border-radius:50%;background:'+bg+';border:none;color:'+cor+';font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">'
-      +(feita?'&#10003;':(i+1))
-      +'</button></div>'+linha;
-  }).join('');
-  const dotsHtmlFinal = dotsHtml
-    .replace(/\\'/g,"'")
-    .replace(/abrirEtapaAmbiente\(\\'([^']+)\\',\\'([^']+)\\',(\d+)\)/g, function(m,a,b,c){ return "abrirEtapaAmbiente('"+a+"','"+b+"',"+c+")"; });
-
-  // Gera HTML dos subitens
-  const subitemsHtml = subitens.map(function(s,si) {
-    const bg = s.ok?'rgba(92,184,130,0.08)':'rgba(255,255,255,0.04)';
-    const brd = s.ok?'rgba(92,184,130,0.3)':'rgba(255,255,255,0.07)';
-    const boxBg = s.ok?'var(--green)':'transparent';
-    const boxBrd = s.ok?'var(--green)':'rgba(255,255,255,0.2)';
-    const check = s.ok?'<span style="color:#0d0d0d;font-size:13px;font-weight:700">&#10003;</span>':'';
-    const txtCor = s.ok?'#8a8480':'#f2ede8';
-    const txtDec = s.ok?'text-decoration:line-through':'';
-    const onclk = item.concluido?'':'_toggleSubitem('+si+')';
-    return '<div onclick="'+onclk+'" id="subitem-'+si+'"'
-      +' style="display:flex;align-items:center;gap:12px;background:'+bg+';border:1px solid '+brd+';border-radius:10px;padding:13px 14px;cursor:'+(item.concluido?'default':'pointer')+';transition:all 0.15s">'
-      +'<div style="width:22px;height:22px;border-radius:6px;background:'+boxBg+';border:2px solid '+boxBrd+';display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">'+check+'</div>'
-      +'<span style="font-size:13px;color:'+txtCor+';'+txtDec+';line-height:1.4">'+s.label+'</span>'
-      +'</div>';
-  }).join('');
-
-  const fotoAntesContent = item.fotoAntes
-    ? '<img src="'+item.fotoAntes+'" style="width:100%;height:100%;object-fit:cover">'
-    : '<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">&#128247;</div><div style="font-size:10px;color:#555">Toque para foto</div></div>';
-  const fotoAntesOnclick = item.concluido ? '' : 'document.getElementById(\'foto-antes-input\').click()';
-  const fotoAntesBrd = item.fotoAntes ? 'solid rgba(201,169,110,0.4)' : 'dashed rgba(255,255,255,0.12)';
-  const fotoDepoisContent = item.fotoDepois
-    ? '<img src="'+item.fotoDepois+'" style="width:100%;height:100%;object-fit:cover">'
-    : '<div style="text-align:center;pointer-events:none"><div style="font-size:26px;margin-bottom:4px;opacity:0.4">&#128247;</div><div style="font-size:10px;color:#555">Toque para foto</div></div>';
-  const fotoDepoisOnclick = item.concluido ? '' : 'document.getElementById(\'foto-depois-input\').click()';
-  const fotoDepoisBrd = item.fotoDepois ? 'solid rgba(92,184,130,0.4)' : 'dashed rgba(255,255,255,0.12)';
-  const infoConfirmHtml = (item.concluido && item.confirmedBy)
-    ? '<div style="margin:0 20px 20px;background:rgba(92,184,130,0.06);border:1px solid rgba(92,184,130,0.2);border-radius:12px;padding:14px 16px">'
-      +'<div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Confirmada por</div>'
-      +'<div style="font-size:15px;font-weight:600;color:#f2ede8">'+item.confirmedBy+'</div>'
-      +'<div style="font-size:12px;color:#8a8480;margin-top:3px">'+(item.dataConclusao||'')+' &agrave;s '+(item.horaConclusao||'')+'</div>'
-      +'</div>'
-    : '';
-  const footerHtml = item.concluido
-    ? '<div style="display:flex;gap:10px">'
-      +'<button onclick="desfazerEtapaAmbiente()" style="flex:1;height:50px;border:1px solid rgba(224,96,96,0.3);border-radius:14px;font-size:13px;font-weight:600;cursor:pointer;background:rgba(224,96,96,0.06);color:var(--red)">&#8617; Desfazer</button>'
-      +'<button onclick="fecharEtapaQuadro()" style="flex:2;height:50px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)">&#10003; Conclu&iacute;da</button>'
-      +'</div>'
-    : '<button id="etapa-confirmar-btn" onclick="confirmarEtapaAmbiente()" disabled'
-      +' style="width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:not-allowed;background:rgba(255,255,255,0.06);color:#555;letter-spacing:0.3px;transition:all 0.25s">'
-      +'&#9898; CONFIRMAR ETAPA'
-      +'</button>'
-      +'<button onclick="fecharEtapaQuadro()" style="width:100%;margin-top:8px;height:36px;border:none;background:transparent;color:#555;font-size:12px;cursor:pointer">Cancelar</button>';
-
-  ov.innerHTML =
-    '<div style="background:#111;border-bottom:0.5px solid rgba(255,255,255,0.07);padding:0 16px;height:calc(54px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);display:flex;align-items:center;gap:12px;flex-shrink:0">'
-    +'<button onclick="fecharEtapaQuadro()" style="width:36px;height:36px;background:rgba(255,255,255,0.06);border:none;border-radius:10px;color:#aaa;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">&#8249;</button>'
-    +'<div style="flex:1;min-width:0;text-align:center">'
-    +'<div style="font-size:14px;font-weight:600;color:#f2ede8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nomeAmb+'</div>'
-    +'<div style="font-size:11px;color:#5a5654;margin-top:1px">'+inst.cliente+'</div>'
-    +'</div>'
-    +(item.concluido?'<div style="background:rgba(92,184,130,0.12);border:1px solid rgba(92,184,130,0.4);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--green);flex-shrink:0">&#10003;</div>':'<div style="width:36px"></div>')
-    +'</div>'
-    +'<div id="etapa-overlay-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">'
-    +'<div style="padding:20px 20px 0">'
-    +'<div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600">Etapa '+(idx+1)+' de '+total+'</div>'
-    +'<div style="font-family:Playfair Display,serif;font-size:22px;font-weight:500;color:#f2ede8;line-height:1.3;margin-bottom:4px">'+item.titulo+'</div>'
-    +'<div style="font-size:13px;color:#8a8480;line-height:1.6;margin-bottom:16px">'+item.descricao+'</div>'
-    +'<div style="display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">'+dotsHtmlFinal+'</div>'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">'
-    +'<div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden">'
-    +'<div style="height:100%;width:'+pctGeral+'%;background:var(--gold);border-radius:99px;transition:width 0.4s"></div>'
-    +'</div>'
-    +'<div style="font-size:12px;font-weight:700;color:var(--gold);flex-shrink:0">'+pctGeral+'% Geral</div>'
-    +'</div></div>'
-    +'<div style="padding:0 20px 20px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    +'<span style="font-size:13px;font-weight:600;color:#f2ede8">Fotos da etapa</span>'
-    +'<span style="font-size:11px;color:'+(item.concluido?'var(--green)':'var(--red)')+';font-weight:600">'+(item.concluido?'&#10003; Registradas':'Obrigat&oacute;rio')+'</span>'
-    +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-    +'<div>'
-    +'<div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Antes</div>'
-    +'<div id="foto-antes-area" onclick="'+fotoAntesOnclick+'"'
-    +' style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px '+fotoAntesBrd+';display:flex;align-items:center;justify-content:center;cursor:'+(item.concluido?'default':'pointer')+';position:relative">'
-    +fotoAntesContent+'</div>'
-    +'<input type="file" id="foto-antes-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoAntes(this)">'
-    +'</div>'
-    +'<div>'
-    +'<div style="font-size:11px;color:#8a8480;margin-bottom:6px;font-weight:500">Depois</div>'
-    +'<div id="foto-depois-area" onclick="'+fotoDepoisOnclick+'"'
-    +' style="aspect-ratio:1;border-radius:12px;overflow:hidden;background:rgba(255,255,255,0.04);border:1.5px '+fotoDepoisBrd+';display:flex;align-items:center;justify-content:center;cursor:'+(item.concluido?'default':'pointer')+';position:relative">'
-    +fotoDepoisContent+'</div>'
-    +'<input type="file" id="foto-depois-input" accept="image/*" capture="environment" style="display:none" onchange="_previewFotoDepois(this)">'
-    +'</div>'
-    +'</div></div>'
-    +'<div style="padding:0 20px 20px">'
-    +'<div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:10px">Checklist da etapa</div>'
-    +'<div id="subitens-lista" style="display:flex;flex-direction:column;gap:6px">'+subitemsHtml+'</div>'
-    +'</div>'
-    +'<div style="padding:0 20px 20px">'
-    +'<div style="font-size:13px;font-weight:600;color:#f2ede8;margin-bottom:8px">Observa&ccedil;&otilde;es <span style="font-size:11px;color:#555;font-weight:400">(opcional)</span></div>'
-    +'<textarea id="etapa-obs" maxlength="200" placeholder="Adicione observa&ccedil;&otilde;es sobre a etapa..." '+(item.concluido?'readonly':'')+' oninput="document.getElementById(\'obs-count\').textContent=this.value.length+\'/200\'"'
-    +' style="width:100%;min-height:80px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#f2ede8;font-size:13px;font-family:DM Sans,sans-serif;padding:12px 14px;outline:none;resize:none;box-sizing:border-box">'+(item.obs||'')+'</textarea>'
-    +'<div style="text-align:right;font-size:11px;color:#555;margin-top:4px"><span id="obs-count">'+((item.obs||'').length)+'/200</span></div>'
-    +'</div>'
-    +infoConfirmHtml
-    +'<div style="height:16px"></div>'
-    +'</div>'
-    +'<div style="padding:12px 20px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:#111;border-top:0.5px solid rgba(255,255,255,0.07);flex-shrink:0">'
-    +footerHtml
-    +'</div>';
-
-  document.body.appendChild(ov);
-  // Event delegation para bolinhas de navegação
-  ov.addEventListener('click', function(ev) {
-    const btn = ev.target.closest('[data-etapa-nav]');
-    if (btn) {
-      const i = parseInt(btn.dataset.etapanav || btn.getAttribute('data-etapa-nav'));
-      const iid = btn.getAttribute('data-nav-inst');
-      const amb = btn.getAttribute('data-nav-amb');
-      if (!isNaN(i) && iid && amb) abrirEtapaAmbiente(iid, amb, i);
-    }
-  });
-  _verificarPodeConfirmar();
-
-  _verificarPodeConfirmar();
-}
-
-// ── Auxiliares do novo overlay de etapa ──────────────────────────────────────
-function _salvarResponsavelEtapaAmb(val) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
-  const etapas = inst.checklistAmbientes[_etapaAmbNome];
-  if (etapas && etapas[_etapaIdx]) etapas[_etapaIdx].responsavel = val;
-}
-
-function _toggleSubitem(si) {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !_etapaAmbNome) return;
-  const item = inst.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx];
-  if (!item || !item.subitens) return;
-  item.subitens[si].ok = !item.subitens[si].ok;
-  const el = document.getElementById('subitem-'+si);
-  const s = item.subitens[si];
-  if (el) {
-    el.style.background = s.ok ? 'rgba(92,184,130,0.08)' : 'rgba(255,255,255,0.04)';
-    el.style.borderColor = s.ok ? 'rgba(92,184,130,0.3)' : 'rgba(255,255,255,0.07)';
-    const box = el.querySelector('div');
-    if (box) {
-      box.style.background = s.ok ? 'var(--green)' : 'transparent';
-      box.style.borderColor = s.ok ? 'var(--green)' : 'rgba(255,255,255,0.2)';
-      box.innerHTML = s.ok ? '<span style="color:#0d0d0d;font-size:13px;font-weight:700">✓</span>' : '';
-    }
-    const spans = el.querySelectorAll('span');
-    const txt = spans[spans.length-1];
-    if (txt) { txt.style.color = s.ok?'#8a8480':'#f2ede8'; txt.style.textDecoration = s.ok?'line-through':'none'; }
-  }
-  _verificarPodeConfirmar();
-}
-
-function _verificarPodeConfirmar() {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !_etapaAmbNome) return;
-  const item = inst.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx];
-  if (!item) return;
-  const temFotoDepois = !!(item.fotoDepois || window._etapaFotoDepoisFile);
-  const btn = document.getElementById('etapa-confirmar-btn');
-  if (!btn) return;
-  if (temFotoDepois) {
-    btn.disabled = false;
-    btn.style.cssText = 'width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d;letter-spacing:0.3px;transition:all 0.25s';
-  } else {
-    btn.disabled = true;
-    btn.style.cssText = 'width:100%;height:54px;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:not-allowed;background:rgba(255,255,255,0.06);color:#555;letter-spacing:0.3px;transition:all 0.25s';
-  }
-}
-
-window._etapaFotoAntesFile = null;
-window._etapaFotoDepoisFile = null;
-
-function _previewFotoAntes(input) {
-  const file = input.files[0]; if (!file) return;
-  window._etapaFotoAntesFile = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const area = document.getElementById('foto-antes-area');
-    if (area) area.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
-    const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-    if (inst?.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx]) inst.checklistAmbientes[_etapaAmbNome][_etapaIdx]._fotoAntesPreview = e.target.result;
-    _verificarPodeConfirmar();
-  };
-  reader.readAsDataURL(file);
-}
-
-function _previewFotoDepois(input) {
-  const file = input.files[0]; if (!file) return;
-  window._etapaFotoDepoisFile = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const area = document.getElementById('foto-depois-area');
-    if (area) area.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
-    const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-    if (inst?.checklistAmbientes?.[_etapaAmbNome]?.[_etapaIdx]) inst.checklistAmbientes[_etapaAmbNome][_etapaIdx]._fotoDepoisPreview = e.target.result;
-    _verificarPodeConfirmar();
-  };
-  reader.readAsDataURL(file);
-}
-
-async function _uploadEtapaFoto(file, instCliente, nomeAmb, titulo, sufixo) {
-  if (!file) return null;
-  try {
-    const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
-    const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
-    const path = `instalacao/${clean(instCliente||'cliente')}/${clean(nomeAmb)}/${clean(titulo||'etapa')}_${sufixo}_${Date.now()}.${ext}`;
-    const ab = await file.arrayBuffer();
-    const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
-      method:'POST', headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':file.type||'image/jpeg','x-upsert':'true'}, body: ab
-    });
-    return resp.ok ? `${SB_URL}/storage/v1/object/public/imagens/${path}` : null;
-  } catch(e) { return null; }
-}
-
-async function confirmarEtapaAmbiente() {
-  if (!window._etapaFotoDepoisFile) { toast('📷 Foto "Depois" é obrigatória para confirmar'); return; }
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
-  const etapas = inst.checklistAmbientes[_etapaAmbNome];
-  if (!etapas || !etapas[_etapaIdx]) return;
-  const item = etapas[_etapaIdx];
-  const btn = document.getElementById('etapa-confirmar-btn');
-  if (btn) { btn.disabled=true; btn.textContent='⏳ Salvando...'; }
-  const now = new Date();
-  const usuarioNome = usuarioAtual?.nome || usuarioAtual?.email || 'Usuário';
-  const obs = document.getElementById('etapa-obs')?.value?.trim() || '';
-  const [urlAntes, urlDepois] = await Promise.all([
-    window._etapaFotoAntesFile ? _uploadEtapaFoto(window._etapaFotoAntesFile, inst.cliente, _etapaAmbNome, item.titulo, 'antes') : Promise.resolve(null),
-    _uploadEtapaFoto(window._etapaFotoDepoisFile, inst.cliente, _etapaAmbNome, item.titulo, 'depois')
-  ]);
-  item.fotoAntes = urlAntes || item._fotoAntesPreview || null;
-  item.fotoDepois = urlDepois || item._fotoDepoisPreview || null;
-  item.foto = item.fotoDepois;
-  item.obs = obs;
-  item.concluido = true;
-  item.dataConclusao = now.toISOString().slice(0,10);
-  item.horaConclusao = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  item.confirmedBy = usuarioNome;
-  item.confirmedAt = now.toISOString();
-  item.responsavel = usuarioNome;
-  delete item._fotoAntesPreview; delete item._fotoDepoisPreview;
-  window._etapaFotoAntesFile = null; window._etapaFotoDepoisFile = null;
-  await _salvarEtapa(inst);
-  fecharEtapaQuadro();
-  toast(`✓ "${item.titulo}" confirmada por ${usuarioNome}!`);
-}
-
-async function desfazerEtapaAmbiente() {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !_etapaAmbNome || !inst.checklistAmbientes) return;
-  const etapas = inst.checklistAmbientes[_etapaAmbNome];
-  if (!etapas || !etapas[_etapaIdx]) return;
-  const item = etapas[_etapaIdx];
-  item.concluido = false; item.foto = null; item.fotoAntes = null; item.fotoDepois = null;
-  item.dataConclusao = null; item.horaConclusao = null; item.confirmedBy = null; item.confirmedAt = null;
-  if (item.subitens) item.subitens.forEach(s=>s.ok=false);
-  await _salvarEtapa(inst);
-  fecharEtapaQuadro();
-  toast('↩ Etapa desfeita.');
-}
-
-// ── Overlay de etapa individual (modo global / checklist antigo) ─────────────
-function abrirEtapaQuadro(instId, idx) {
-  _etapaInstId = instId;
-  _etapaIdx = idx;
-  _etapaAmbNome = null; // modo global
-  const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
-  if (!inst) return;
-  if (!inst.checklist || !inst.checklist.length) {
-    inst.checklist = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
-  }
-
-  const item = inst.checklist[idx];
-  if (!item) return;
-
-  const ov = document.createElement('div');
-  ov.id = 'etapa-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;overflow:hidden';
-  ov.innerHTML = `
-    <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
-      <button onclick="fecharEtapaQuadro()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text)">${item.descricao}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:1px">${inst.cliente}</div>
-      </div>
-    </div>
-    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch" id="etapa-body">
-      <!-- Foto -->
-      <div id="etapa-foto-area" onclick="document.getElementById('etapa-foto-input').click()"
-        style="width:100%;max-width:480px;margin:0 auto;aspect-ratio:4/3;border-radius:14px;overflow:hidden;border:1.5px dashed var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg3);position:relative">
-        ${item.foto
-          ? `<img id="etapa-foto-img" src="${item.foto}" style="width:100%;height:100%;object-fit:cover">`
-          : `<div style="text-align:center;color:var(--text3);pointer-events:none"><div style="font-size:48px;margin-bottom:8px">📷</div><div style="font-size:13px">Toque para tirar foto</div></div>`}
-      </div>
-      <input type="file" id="etapa-foto-input" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoEtapa(this)">
-      ${item.foto ? `<button onclick="removerFotoEtapa()" style="width:100%;max-width:480px;margin:0 auto;height:40px;background:transparent;border:0.5px solid var(--border2);border-radius:10px;color:var(--text3);font-size:13px;cursor:pointer">🗑 Remover foto</button>` : ''}
-      <!-- Responsável -->
-      <div style="max-width:480px;margin:0 auto;width:100%">
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Responsável</label>
-        <input id="etapa-responsavel" value="${item.responsavel||''}" placeholder="Nome do responsável..." oninput="(DB.instalacoes.find(x=>x.id==='${instId}')?.checklist||[])[${idx}] && (DB.instalacoes.find(x=>x.id==='${instId}').checklist[${idx}].responsavel=this.value)"
-          style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;padding:12px 14px;outline:none;box-sizing:border-box">
-      </div>
-    </div>
-    <!-- Footer -->
-    <div style="padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0;display:flex;gap:10px">
-      <button id="etapa-toggle-btn" onclick="toggleEtapaQuadro()" style="flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;${item.concluido?'background:rgba(92,184,130,0.15);color:var(--green);border:1px solid rgba(92,184,130,0.4)':'background:var(--gold);color:#0d0d0d'}">
-        ${item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída'}
-      </button>
-    </div>`;
-
-  document.body.appendChild(ov);
-}
-
-function fecharEtapaQuadro() {
-  const ov = document.getElementById('etapa-overlay');
-  if (ov) document.body.removeChild(ov);
-  renderInstalacao();
-}
-
-async function toggleEtapaQuadro() {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst || !inst.checklist) return;
-  const item = inst.checklist[_etapaIdx];
-  if (!item) return;
-  item.concluido = !item.concluido;
-  item.dataConclusao = item.concluido ? new Date().toISOString().slice(0,10) : null;
-  item.horaConclusao = item.concluido ? new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null;
-  const btn = document.getElementById('etapa-toggle-btn');
-  if (btn) {
-    btn.style.cssText = item.concluido
-      ? 'flex:1;height:52px;border:1px solid rgba(92,184,130,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)'
-      : 'flex:1;height:52px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:var(--gold);color:#0d0d0d';
-    btn.textContent = item.concluido ? '✓ Concluída — desfazer' : '✓ Marcar como concluída';
-  }
-  await _salvarEtapa(inst);
-}
-
-async function uploadFotoEtapa(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst) return;
-
-  // Resolve o item correto (modo por ambiente ou modo global)
-  let item;
-  if (_etapaAmbNome) {
-    if (!inst.checklistAmbientes) inst.checklistAmbientes = {};
-    if (!inst.checklistAmbientes[_etapaAmbNome]) inst.checklistAmbientes[_etapaAmbNome] = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
-    item = inst.checklistAmbientes[_etapaAmbNome][_etapaIdx];
-  } else {
-    if (!inst.checklist) return;
-    item = inst.checklist[_etapaIdx];
-  }
-  if (!item) return;
-
-  toast('📷 Enviando foto...');
-  try {
-    const clean = s => s.replace(/[^a-zA-Z0-9_-]/g,'_');
-    const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
-    const nomePasso = item.titulo || ('etapa'+_etapaIdx);
-    const subPath = _etapaAmbNome ? clean(_etapaAmbNome)+'/'+clean(nomePasso) : clean(nomePasso);
-    const path = `instalacao/${clean(inst.cliente||'cliente')}/${subPath}/${_etapaIdx}_${Date.now()}.${ext}`;
-    const ab = await file.arrayBuffer();
-    const resp = await fetch(`${SB_URL}/storage/v1/object/imagens/${path}`, {
-      method:'POST',
-      headers:{'apikey':SB_KEY_SERVICE,'Authorization':'Bearer '+SB_KEY_SERVICE,'Content-Type':file.type||'image/jpeg','x-upsert':'true'},
-      body: ab
-    });
-    if (resp.ok) {
-      item.foto = `${SB_URL}/storage/v1/object/public/imagens/${path}`;
-    } else {
-      const reader = new FileReader();
-      reader.onload = e => { item.foto = e.target.result; _atualizarFotoEtapaUI(item.foto); };
-      reader.readAsDataURL(file);
-      toast('✓ Foto carregada!');
-      return;
-    }
-  } catch(e) {
-    const reader = new FileReader();
-    reader.onload = e => { item.foto = e.target.result; _atualizarFotoEtapaUI(item.foto); };
-    reader.readAsDataURL(file);
-    toast('✓ Foto carregada!');
-    return;
-  }
-  // Mark as concluded after photo
-  item.concluido = true;
-  const _now = new Date();
-  item.dataConclusao = _now.toISOString().slice(0,10);
-  item.horaConclusao = _now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  _atualizarFotoEtapaUI(item.foto);
-  input.value = '';
-  toast('✓ Foto salva!');
-  await _salvarEtapa(inst);
-  // Atualiza botão
-  const btn = document.getElementById('etapa-toggle-btn');
-  if (btn) {
-    btn.style.cssText = 'flex:1;height:52px;border:1px solid rgba(92,184,130,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:rgba(92,184,130,0.15);color:var(--green)';
-    btn.textContent = '✓ Concluída — desfazer';
-  }
-}
-
-function _atualizarFotoEtapaUI(fotoUrl) {
-  const area = document.getElementById('etapa-foto-area');
-  if (!area) return;
-  area.innerHTML = `<img id="etapa-foto-img" src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover">`;
-}
-
-async function removerFotoEtapa() {
-  const inst = (DB.instalacoes||[]).find(x=>x.id===_etapaInstId);
-  if (!inst) return;
-  let item;
-  if (_etapaAmbNome && inst.checklistAmbientes && inst.checklistAmbientes[_etapaAmbNome]) {
-    item = inst.checklistAmbientes[_etapaAmbNome][_etapaIdx];
-  } else if (inst.checklist) {
-    item = inst.checklist[_etapaIdx];
-  }
-  if (!item) return;
-  item.foto = null;
-  const area = document.getElementById('etapa-foto-area');
-  if (area) area.innerHTML = `<div style="text-align:center;color:var(--text3);pointer-events:none"><div style="font-size:48px;margin-bottom:8px">📷</div><div style="font-size:13px">Toque para tirar foto</div></div>`;
-  await _salvarEtapa(inst);
-  toast('Foto removida.');
-}
-
-async function _salvarEtapa(inst) {
-  try {
-    const patch = {};
-    // Salva checklist global (modo antigo)
-    if (inst.checklist && inst.checklist.length) {
-      patch.checklist = inst.checklist.map(c => ({
-        titulo: c.titulo||'', descricao: c.descricao, responsavel: c.responsavel||'',
-        concluido: c.concluido, dataConclusao: c.dataConclusao||null,
-        horaConclusao: c.horaConclusao||null, foto: c.foto||null
-      }));
-    }
-    // Salva checklistAmbientes (novo modo por ambiente)
-    if (inst.checklistAmbientes && typeof inst.checklistAmbientes === 'object') {
-      patch.checklist_ambientes = inst.checklistAmbientes;
-    }
-    await sbFetch('instalacoes?id=eq.'+inst.id, 'PATCH', patch);
-    renderInstalacao();
-  } catch(e) { toast('⚠ Erro ao salvar: '+e.message); }
-}
-
-// ── Checklist completo (relatório de pendências) ─────────────────────────────
 function abrirChecklist(instId) {
   _checklistInstId = instId;
   const inst = (DB.instalacoes||[]).find(x=>x.id===instId);
   if (!inst) return;
   if (!inst.checklist) inst.checklist = [];
-  // Pré-carrega etapas padrão se o checklist estiver vazio
-  if (!inst.checklist.length) {
-    inst.checklist = JSON.parse(JSON.stringify(CHECKLIST_INSTALACAO_PADRAO));
-  }
   // Work on a deep copy — never lose edits due to background sync
   _checklistItems = JSON.parse(JSON.stringify(inst.checklist));
 
@@ -9926,7 +8817,7 @@ function abrirChecklist(instId) {
     <div style="background:var(--bg2);border-bottom:0.5px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:calc(16px + env(safe-area-inset-top,0px))">
       <button onclick="fecharChecklist()" style="width:40px;height:40px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-size:18px;cursor:pointer;flex-shrink:0">←</button>
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📋 Relatório Final</div>
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">☑ Checklist</div>
         <div style="font-size:11px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.cliente}</div>
       </div>
       <button onclick="adicionarItemChecklist()" style="height:40px;padding:0 16px;background:var(--gold);color:#0d0d0d;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0">+ Item</button>
@@ -9934,7 +8825,7 @@ function abrirChecklist(instId) {
     <div id="checklist-lista" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
     <div style="padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bg2);border-top:0.5px solid var(--border);flex-shrink:0">
       <div id="checklist-progresso" style="margin-bottom:12px"></div>
-      <button onclick="salvarChecklist()" style="width:100%;height:52px;background:var(--gold);color:#0d0d0d;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.3px">💾 Salvar relatório</button>
+      <button onclick="salvarChecklist()" style="width:100%;height:52px;background:var(--gold);color:#0d0d0d;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.3px">💾 Salvar checklist</button>
     </div>
   `;
 
@@ -10707,9 +9598,8 @@ function abrirCondicoes(projetoId) {
   }
   const lead = DB.leads.find(l=>l.id===p.leadId);
   const ambientes = lead?.ambientesBriefing || [];
-  // Usa valor de venda (editado manualmente), não o valor do Promob/XML
-  const precoBaseVenda = ambientes.reduce((s,a) => s + (a.finValorManual || a.finPrecoFinal || 0), 0);
-  const precoBase = precoBaseVenda || p.condicaoPrecoFinal || p.finPrecoFinal || 0;
+  const precoBaseXML = ambientes.reduce((s,a) => s + (a.xmlDados?.valorTotalNum || parseFloat((a.xmlDados?.valorTotal||'').replace(/[^0-9.]/g,'')) || 0), 0);
+  const precoBase = precoBaseXML || p.finPrecoFinal || 0;
   const etapasPadrao = [{label:'Entrada',pct:20},{label:'Medição e conferência',pct:30},{label:'Entrega',pct:30},{label:'Finalização',pct:20}];
   const etapasAtuais = p.condicaoEtapas&&p.condicaoEtapas.length ? p.condicaoEtapas : etapasPadrao;
   const tipoAtual = p.condicaoTipo||'parcelado';
@@ -10727,16 +9617,6 @@ function abrirCondicoes(projetoId) {
     let precoFinal = precoBase;
     if (tipo==='avista') precoFinal = precoBase * (1 - desc/100);
     if (tipo==='financiado') precoFinal = precoBase * Math.pow(1+juros/100, parcelas);
-
-    // Capture current etapa edits before re-render so values persist
-    div.querySelectorAll('[data-etapa-label]').forEach(inp => {
-      const i = parseInt(inp.dataset.etapaLabel);
-      if (etapasAtuais[i]) etapasAtuais[i].label = inp.value;
-    });
-    div.querySelectorAll('[data-etapa-pct]').forEach(inp => {
-      const i = parseInt(inp.dataset.etapaPct);
-      if (etapasAtuais[i]) etapasAtuais[i].pct = parseFloat(inp.value)||0;
-    });
 
     // Build etapas for parcelado
     const etapas = etapasAtuais;
@@ -10871,24 +9751,15 @@ function abrirCondicoes(projetoId) {
       };
     });
 
-    // Live recalc for NON-etapa number inputs (desc, juros, parcelas, down) — safe to re-render
+    // Live recalc for inputs
     div.querySelectorAll('input[type=number]').forEach(inp => {
-      if (!inp.dataset.etapaPct) inp.oninput = render;
+      inp.oninput = render;
     });
 
-    // Etapa pct inputs: only update total + value display, never re-render (would reset cursor)
+    // Live recalc for etapa pct inputs
     div.querySelectorAll('[data-etapa-pct]').forEach(inp => {
       inp.oninput = () => {
-        const i = parseInt(inp.dataset.etapaPct);
-        const pct = parseFloat(inp.value) || 0;
-        // Update the value display span next to this input
-        const row = inp.closest('div[style*="display:flex"]');
-        if (row) {
-          const span = row.querySelector('span');
-          if (span) span.textContent = '$ ' + (precoBase * pct / 100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-        }
-        // Update total
-        const total = Array.from(div.querySelectorAll('[data-etapa-pct]')).reduce((s,el)=>s+(parseFloat(el.value)||0),0);
+        const total = Array.from(div.querySelectorAll('[data-etapa-pct]')).reduce((s,i)=>s+(parseFloat(i.value)||0),0);
         const lbl = div.querySelector('#pct-total');
         if(lbl){ lbl.textContent='Total: '+total+'%'; lbl.style.color=total===100?'var(--green)':'var(--red)'; }
       };
@@ -10975,45 +9846,6 @@ async function _confirmarAceitarProposta(projetoId) {
     renderProjetos();
     toast('🔒 Proposta aceita e processos travados!');
   } catch(e) { toast('Erro: ' + e.message); }
-}
-
-// ── Desbloqueio rápido: pede confirmação e executa callback ──────────────────
-function _pedirDesbloqueioRapido(projetoId, callback) {
-  const p = DB.projetos.find(x=>x.id===projetoId);
-  if (!p) return;
-  const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  ov.innerHTML = '<div style="background:#141414;border:1px solid rgba(212,148,74,0.4);border-radius:16px;padding:28px;max-width:380px;width:100%">'
-    +'<div style="font-size:18px;margin-bottom:6px">🔒 Projeto travado</div>'
-    +'<div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px">'
-    +'O projeto <strong>'+p.nome+'</strong> tem proposta aprovada.<br>'
-    +'Para editar, desbloquear permanentemente ou continuar apenas desta vez:'
-    +'</div>'
-    +'<div style="display:flex;flex-direction:column;gap:8px">'
-    +'<button id="qdbl-continuar" style="padding:12px;background:var(--amber);color:#0d0d0d;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">⚡ Continuar mesmo assim (sessão)</button>'
-    +'<button id="qdbl-permanente" style="padding:12px;background:transparent;border:1px solid var(--red);border-radius:10px;font-size:14px;color:var(--red);cursor:pointer;font-weight:600">🔓 Desbloquear permanentemente</button>'
-    +'<button id="qdbl-cancelar" style="padding:12px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:13px;color:#888;cursor:pointer">Cancelar</button>'
-    +'</div>'
-    +'</div>';
-  document.body.appendChild(ov);
-  ov.querySelector('#qdbl-continuar').onclick = function() {
-    document.body.removeChild(ov);
-    // Desbloqueia temporariamente só para esta operação
-    const original = p.propostaTravada;
-    p.propostaTravada = false;
-    try { callback(); } finally {
-      // Restaura após um tick para que a operação async complete
-      setTimeout(function() { p.propostaTravada = original; }, 3000);
-    }
-  };
-  ov.querySelector('#qdbl-permanente').onclick = function() {
-    document.body.removeChild(ov);
-    desbloquearProposta(projetoId);
-  };
-  ov.querySelector('#qdbl-cancelar').onclick = function() {
-    document.body.removeChild(ov);
-  };
-  ov.addEventListener('click', function(e) { if(e.target===ov) document.body.removeChild(ov); });
 }
 
 function desbloquearProposta(projetoId) {
@@ -12371,11 +11203,6 @@ function mobGoHome() {
           <span class="mob-btn-label">Banco de Dados</span>
           <span class="mob-btn-sub">XMLs, imagens, documentos</span>
         </button>
-        <button class="mob-btn" onclick="mobGoPage('viewer3d')" style="border-color:rgba(201,169,110,0.3)">
-          <span class="mob-btn-icon">🧊</span>
-          <span class="mob-btn-label">Visualizador 3D</span>
-          <span class="mob-btn-sub">Abrir projeto Promob</span>
-        </button>
       </div>
     </div>`;
 }
@@ -12385,7 +11212,7 @@ function mobGoPage(page) {
   document.getElementById('mob-back-btn').style.display = 'flex';
   document.getElementById('mob-user-bar').style.display = 'none';
 
-  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', instalacao:'Instalação', imagens:'Banco de Dados', viewer3d:'Visualizador 3D'};
+  const titles = {clientes:'Clientes', projetos:'Projetos', agenda:'Agenda', producao:'Produção', entrega:'Entregas', instalacao:'Instalação', imagens:'Banco de Dados'};
   document.getElementById('mob-title').textContent = titles[page] || page;
 
   const content = document.getElementById('mob-content');
@@ -12398,7 +11225,6 @@ function mobGoPage(page) {
   if (page === 'entrega') mobRenderEntrega(content);
   if (page === 'instalacao') mobRenderInstalacao(content);
   if (page === 'imagens') mobRenderImagens(content);
-  if (page === 'viewer3d') mobRenderViewer3D(content);
 }
 
 // ── CLIENTES ──
@@ -12611,9 +11437,17 @@ function mobRenderInstalacao(el) {
           ${i.data?`<span>📅 ${formatDate(i.data)}${i.hora?' '+i.hora:''}</span>`:''}
           ${i.responsavel?`<span>👤 ${i.responsavel}</span>`:''}
         </div>
-        ${_renderQuadrosInstalacao(i)}
+        ${total > 0 ? `
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px">
+            <span>Checklist</span><span>${feitos}/${total} (${pct}%)</span>
+          </div>
+          <div style="height:4px;background:var(--bg3);border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${pct===100?'var(--green)':'var(--gold)'};border-radius:99px"></div>
+          </div>
+        </div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <button onclick="abrirChecklist('${i.id}')" style="flex:1;height:44px;background:rgba(255,255,255,0.04);border:0.5px solid var(--border2);border-radius:10px;color:var(--text3);font-size:13px;font-weight:600;cursor:pointer">📋 Relatório Final</button>
+          <button onclick="abrirChecklist('${i.id}')" style="flex:1;height:44px;background:rgba(212,148,74,0.15);border:1px solid rgba(212,148,74,0.4);border-radius:10px;color:var(--amber);font-size:14px;font-weight:600;cursor:pointer">☑ Checklist${total?` (${feitos}/${total})`:''}</button>
           ${mapsUrl?`<a href="${mapsUrl}" target="_blank" style="height:44px;padding:0 14px;background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;color:var(--blue);font-size:14px;display:flex;align-items:center;text-decoration:none">🗺</a>`:''}
           ${!i.concluida?`<button onclick="concluirInstalacao('${i.id}');mobGoPage('instalacao')" style="height:44px;padding:0 14px;background:rgba(92,184,130,0.15);border:1px solid rgba(92,184,130,0.4);border-radius:10px;color:var(--green);font-size:14px;cursor:pointer">✓</button>`:''}
         </div>
@@ -12711,55 +11545,6 @@ async function mobHandleUpload(input) {
     }
   }
   input.value = '';
-}
-
-// ── VIEWER 3D MOBILE ──
-function mobRenderViewer3D(el) {
-  // Coleta todos os ambientes com .promob já no Supabase
-  const itens = [];
-  DB.projetos.forEach(p => {
-    const lead = DB.leads.find(l => l.id === p.leadId);
-    (lead?.ambientesBriefing || []).forEach(a => {
-      if (a.promobStoragePath) {
-        itens.push({ projId: p.id, projNome: p.nome, ambNome: a.nome || a.tipo, path: a.promobStoragePath });
-      }
-    });
-  });
-
-  if (!itens.length) {
-    el.innerHTML = `
-      <div style="text-align:center;padding:48px 24px;color:var(--text3)">
-        <div style="font-size:48px;margin-bottom:16px">🧊</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text2);margin-bottom:8px">Nenhum projeto 3D disponível</div>
-        <div style="font-size:13px;line-height:1.6">Os arquivos .promob precisam ser<br>carregados pelo desktop primeiro.</div>
-      </div>`;
-    return;
-  }
-
-  el.innerHTML = `
-    <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">Projetos disponíveis</div>
-    ${itens.map(item => `
-      <button onclick="mobAbrirViewer3D('${item.projId}','${item.ambNome.replace(/'/g,"\\'")}','${item.path.replace(/'/g,"\\'")}','${item.ambNome.replace(/'/g,"\\'")}' )"
-        style="width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;touch-action:manipulation">
-        <div>
-          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px">${item.ambNome}</div>
-          <div style="font-size:12px;color:var(--text3)">${item.projNome}</div>
-        </div>
-        <span style="font-size:22px">🧊</span>
-      </button>`).join('')}`;
-}
-
-function mobAbrirViewer3D(projId, ambNome, path, nome) {
-  // Passa os dados direto na URL — sem depender de localStorage/sessionStorage
-  // que o Android Chrome pode limpar ao navegar entre páginas
-  const fileUrl = SB_URL + '/storage/v1/object/promob/' + path;
-  const params = new URLSearchParams({
-    src: fileUrl,
-    token: SB_KEY_SERVICE,
-    nome: nome || ambNome,
-    t: Date.now()
-  });
-  window.location.href = 'promob_viewer.html?' + params.toString();
 }
 
 checkSession();
@@ -13119,17 +11904,6 @@ checkSession();
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Cores utilizadas</div>
       <div id="amb-cores-selecionadas" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
       <button class="btn btn-sm" onclick="abrirSeletorCores()" style="margin-bottom:20px">🎨 Selecionar cores</button>
-
-      <!-- VISUALIZADOR 3D -->
-      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Visualizador 3D</div>
-      <div id="amb-promob-status" style="font-size:13px;color:var(--text3);margin-bottom:10px">Nenhum arquivo .promob carregado</div>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <label class="btn btn-sm" style="cursor:pointer;border-color:rgba(96,144,208,0.4);color:var(--blue)">
-          📦 Carregar .promob
-          <input type="file" accept=".promob" style="display:none" onchange="carregarPromobModal(event)">
-        </label>
-        <button class="btn btn-sm" id="amb-btn-ver3d" onclick="verPromob3DFromModal()" style="display:none;border-color:rgba(201,169,110,0.4);color:var(--gold)">🧊 Ver 3D</button>
-      </div>
 
     </div>
     <div class="modal-footer">
@@ -13568,41 +12342,6 @@ checkSession();
       <button class="btn btn-primary" style="background:var(--blue);border-color:var(--blue)" onclick="confirmarEnvioProducao()">📧 Confirmar e enviar XMLs</button>
     </div>
   </div>
-</div>
-
-
-<!-- LIGHTBOX -->
-<div id="lightbox-overlay" onclick="fecharLightbox()">
-  <button id="lb-close" onclick="fecharLightbox()">✕</button>
-  <button class="lb-btn" id="lb-prev" onclick="event.stopPropagation();lbNav(-1)">‹</button>
-  <img id="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
-  <button class="lb-btn" id="lb-next" onclick="event.stopPropagation();lbNav(1)">›</button>
-  <div id="lb-counter"></div>
-</div>
-<script>
-let _lbFotos=[],_lbIdx=0;
-window._lbFotoMap={};
-function _lbSet(k,urls){window._lbFotoMap[k]=urls;}
-function _lbOpen(k){abrirLightbox(window._lbFotoMap[k]||[],0);}
-function abrirLightbox(fotos,idx){_lbFotos=fotos.filter(Boolean);if(!_lbFotos.length)return;_lbIdx=idx||0;document.getElementById('lightbox-overlay').classList.add('open');document.body.style.overflow='hidden';lbMostrar();document.addEventListener('keydown',_lbKey);}
-function fecharLightbox(){document.getElementById('lightbox-overlay').classList.remove('open');document.body.style.overflow='';document.removeEventListener('keydown',_lbKey);}
-function lbMostrar(){const img=document.getElementById('lightbox-img');img.classList.add('fading');setTimeout(()=>{img.src=_lbFotos[_lbIdx];img.onload=()=>img.classList.remove('fading');img.onerror=()=>img.classList.remove('fading');document.getElementById('lb-counter').textContent=(_lbIdx+1)+' / '+_lbFotos.length;const s=_lbFotos.length>1;document.getElementById('lb-prev').style.display=s?'flex':'none';document.getElementById('lb-next').style.display=s?'flex':'none';},120);}
-function lbNav(dir){_lbIdx=(_lbIdx+dir+_lbFotos.length)%_lbFotos.length;lbMostrar();}
-function _lbKey(e){if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);if(e.key==='Escape')fecharLightbox();}
-(function(){let sx=0;const el=document.getElementById('lightbox-overlay');el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX},{passive:true});el.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>50)lbNav(dx<0?1:-1);},{passive:true});})();
-</script>
-
-
-<!-- Modal Viewer 3D -->
-<div id="modal-3d" style="display:none;position:fixed;inset:0;z-index:9999;background:#0c0c0a;flex-direction:column">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);background:#111108">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">🧊</span>
-      <span id="modal-3d-titulo" style="font-family:'Playfair Display',serif;color:var(--gold2);font-size:16px">Visualizador 3D</span>
-    </div>
-    <button onclick="fechar3D()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
-  </div>
-  <iframe id="iframe-3d" src="promob_viewer.html"  style="flex:1;border:none;width:100%;height:100%"></iframe>
 </div>
 
 </body>
