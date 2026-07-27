@@ -3430,7 +3430,7 @@ function abrirContrato(projetoId) {
   // Valor do contrato = soma dos valores de venda por ambiente (editados manualmente)
   const _ambsContrato = lead.ambientesBriefing || [];
   const precoFinalAmb = _ambsContrato.reduce((s,a) => s + (a.finValorManual||a.finPrecoFinal||0), 0);
-  const precoFinal = precoFinalAmb || p.finPrecoFinal || p.condicaoPrecoFinal || 0;
+  const precoFinal = p.condicaoPrecoFinal || precoFinalAmb || p.finPrecoFinal || 0;
   const fmtV = v=>'$ '+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   div.innerHTML = '<div style="font-size:17px;font-weight:600;color:var(--text);margin-bottom:4px">📋 Gerar Contrato</div>'
@@ -3490,7 +3490,7 @@ async function gerarContratoHTML(projetoId, lang, dataContrato) {
   const prazos = p.prazos||{};
   // Valor do contrato = soma dos valores de venda por ambiente (editados manualmente)
   const precoFinalAmb = ambientes.reduce((s,a) => s + (a.finValorManual||a.finPrecoFinal||0), 0);
-  const precoFinal = precoFinalAmb || p.finPrecoFinal || p.condicaoPrecoFinal || 0;
+  const precoFinal = p.condicaoPrecoFinal || precoFinalAmb || p.finPrecoFinal || 0;
   const tipo = p.condicaoTipo||'parcelado';
   const etapas = p.condicaoEtapas&&p.condicaoEtapas.length?p.condicaoEtapas:[
     {label:'Deposit',pct:20},{label:'Measurement & Approval',pct:30},{label:'Delivery',pct:30},{label:'Final / Installation',pct:20}
