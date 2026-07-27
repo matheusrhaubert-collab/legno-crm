@@ -5247,9 +5247,9 @@ function renderProjetos(filter='') {
             <div style="flex:1">
               ${(()=>{
                 const tipo = p.condicaoTipo||'parcelado';
-                // Valor real = soma dos ambientes (editados manualmente)
+                // Valor real = valor negociado/fechado, senão soma dos ambientes (editados manualmente)
                 const somaAmbientes = ambientes.reduce((s,a)=>s+(a.finValorManual||a.finPrecoFinal||0),0);
-                const precoBase = somaAmbientes || p.finPrecoFinal || 0;
+                const precoBase = p.condicaoPrecoFinal || somaAmbientes || p.finPrecoFinal || 0;
                 const precoFinal = precoBase;
                 const tipoCor = tipo==='avista'?'var(--green)':tipo==='financiado'?'var(--blue)':'var(--amber)';
                 const tipoLabel = tipo==='avista'?'À vista':tipo==='financiado'?'Financiado':'Parcelado';
@@ -5702,7 +5702,8 @@ function gerarProposalCliente(projetoId) {
     return;
   }
 
-  const totalVenda = ambientes.reduce((s,a) => s + (a.finPrecoFinal||0), 0);
+  const totalVendaAmbientes = ambientes.reduce((s,a) => s + (a.finPrecoFinal||0), 0);
+  const totalVenda = p.condicaoPrecoFinal || totalVendaAmbientes;
 
   // Build validation UI
   const overlay = document.createElement('div');
@@ -5958,7 +5959,9 @@ async function gerarProposalComIdioma(projetoId, lang, ambientesSelecionados) {
     const v = a.finPrecoFinal || a.xmlDados?.valorTotalNum || parseFloat((a.valor||'0').replace(/[^0-9.]/g,'')) || 0;
     return sum + v;
   }, 0);
-  const valorFinal = valorTotalNum; // always use finPrecoFinal-based total
+  // Se todos os ambientes estão incluídos e há um valor negociado fechado, usa ele; senão soma os ambientes
+  const todosAmbientesIncluidos = ambientes.length === (lead.ambientesBriefing||[]).length;
+  const valorFinal = (todosAmbientesIncluidos && p.condicaoPrecoFinal) ? p.condicaoPrecoFinal : valorTotalNum;
 
   // ── AMBIENTES HTML ──
   let ambHtml = '';
