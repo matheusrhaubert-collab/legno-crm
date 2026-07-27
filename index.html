@@ -4479,6 +4479,11 @@ async function pushProjeto(p) {
     contrato_assinado_em: p.contratoAssinadoEm||null,
     desconto_projeto: p.descontoProjeto||0,
     data_envio_producao: p.dataEnvioProducao||'',
+    condicao_etapas: JSON.stringify(p.condicaoEtapas||[]),
+    condicao_desconto: p.condicaoDesconto||0,
+    condicao_juros: p.condicaoJuros||0,
+    condicao_parcelas: p.condicaoParcelas||1,
+    condicao_down_pct: p.condicaoDownPct||20,
   };
   try {
     await sbFetch('projetos?on_conflict=id', 'POST', [{..._base,..._extras}], 'resolution=merge-duplicates');
@@ -4627,6 +4632,11 @@ function mapProjeto(p) {
     checklistEntrega: (()=>{ try { return typeof p.checklist_entrega==='string' ? JSON.parse(p.checklist_entrega) : (p.checklist_entrega||[]); } catch(e){ return []; } })(),
     condicaoTipo: p.condicao_tipo||'parcelado',
     condicaoPrecoFinal: p.condicao_preco_final||0,
+    condicaoEtapas: (()=>{ try { return typeof p.condicao_etapas==='string' ? JSON.parse(p.condicao_etapas) : (p.condicao_etapas||[]); } catch(e){ return []; } })(),
+    condicaoDesconto: p.condicao_desconto||0,
+    condicaoJuros: p.condicao_juros||0,
+    condicaoParcelas: p.condicao_parcelas||1,
+    condicaoDownPct: p.condicao_down_pct||20,
     pdfProposta: (p.proposta_html||p.proposta_data) ? 'local:'+p.id : '',
     pdfPropostaData: p.proposta_data||'',
     temPropostaNobanco: !!(p.proposta_html||p.proposta_data),
