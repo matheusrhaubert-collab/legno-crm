@@ -5331,7 +5331,7 @@ function renderProjetos(filter='') {
                 <div style="border-top:0.5px solid rgba(255,255,255,0.06);margin-top:6px;padding-top:6px">
                   <div style="display:flex;justify-content:space-between;align-items:center">
                     <span style="font-size:10px;color:var(--text);font-weight:600">Total</span>
-                    <span style="font-size:13px;font-weight:700;color:var(--gold2);font-family:DM Mono,monospace">$ ${(ambientes.reduce((s,a)=>s+(a.finValorManual||a.finPrecoFinal||0),0)).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                    <span style="font-size:13px;font-weight:700;color:var(--gold2);font-family:DM Mono,monospace">$ ${(p.condicaoPrecoFinal || ambientes.reduce((s,a)=>s+(a.finValorManual||a.finPrecoFinal||0),0)).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                   </div>
                 </div>
               `:''}
