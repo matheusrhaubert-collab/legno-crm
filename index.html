@@ -9712,7 +9712,8 @@ function abrirCondicoes(projetoId) {
       const descFinal = parseFloat(div.querySelector('#cond-desc')?.value||'0')||0;
       const jurosFinal = parseFloat(div.querySelector('#cond-juros')?.value||'0')||0;
       const parcelasFinal = parseInt(div.querySelector('#cond-parcelas')?.value||'1')||1;
-      const downPctFinal = parseFloat(div.querySelector('#cond-down')?.value||'20')||20;
+      const downEl = div.querySelector('#cond-down');
+      const downPctFinal = downEl ? (parseFloat(downEl.value)||0) : 20;
       let precoFinalSave = precoBase;
       if (tipoFinal==='avista') precoFinalSave = precoBase*(1-descFinal/100);
       else if (tipoFinal==='financiado') precoFinalSave = precoBase*Math.pow(1+jurosFinal/100,parcelasFinal);
@@ -9725,8 +9726,10 @@ function abrirCondicoes(projetoId) {
       let etapasSave = etapasPadrao;
       if (tipoFinal==='parcelado') {
         etapasSave = etapasAtuais.map((e,i)=>{
-          const lbl = div.querySelector('[data-etapa-label="'+i+'"]')?.value||e.label;
-          const pct = parseFloat(div.querySelector('[data-etapa-pct="'+i+'"]')?.value||e.pct)||e.pct;
+          const lblEl = div.querySelector('[data-etapa-label="'+i+'"]');
+          const pctEl = div.querySelector('[data-etapa-pct="'+i+'"]');
+          const lbl = lblEl ? lblEl.value : e.label;
+          const pct = pctEl ? (parseFloat(pctEl.value)||0) : e.pct;
           return {label:lbl,pct};
         });
       }
